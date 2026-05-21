@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+wheels/
+
+# Virtual environments
+env/
+venv/
+.venv/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# bench runtime directories (created by bench init / bench run)
+apps/
+sites/
+logs/
+config/
+pids/
+tasks/
+
+# macOS
+.DS_Store
+
+# editors
+.vscode/
+.idea/
+*.swp
+*~

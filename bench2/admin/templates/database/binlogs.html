@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<p>Database / <strong>Binary logs</strong></p>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr><th>Log name</th><th>Size</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for log in binary_logs %}
+      <tr>
+        <td>{{ log.log_name }}</td>
+        <td>{{ (log.file_size / 1024 / 1024) | round(2) }} MB</td>
+        <td><a href="/database/binlogs/{{ log.log_name }}">[▶]</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3">No binary logs found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p><a href="/database/slow-queries">Slow queries →</a></p>
+
+{% endblock %}

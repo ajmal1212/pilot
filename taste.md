@@ -1,4 +1,4 @@
-Guidelines for good code for a Frappe developer
+Guidelines for writing good code for a developer
 
 1. Choose clean code over clever code.
 2. Write object oriented code as much as possible.

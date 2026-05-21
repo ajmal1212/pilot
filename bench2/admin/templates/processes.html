@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Processes</h2>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Status</th><th>PID</th><th>Uptime</th><th>Log</th></tr>
+    </thead>
+    <tbody>
+      {% for process in processes %}
+      <tr>
+        <td>{{ process.name }}</td>
+        <td class="status-{{ process.status }}">● {{ process.status }}</td>
+        <td>{{ process.pid or '—' }}</td>
+        <td>{{ process.uptime or '—' }}</td>
+        <td><a href="/logs/{{ process.name }}.log">[▶] {{ process.name }}.log</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No processes found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if process_manager == 'supervisor' %}
+<p><em>Note: manage via <code>supervisorctl -c config/supervisor.conf</code></em></p>
+{% endif %}
+
+{% endblock %}

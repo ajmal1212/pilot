@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Apps ({{ apps | length }})</h2>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Repo</th><th>Branch</th><th>Installed</th></tr>
+    </thead>
+    <tbody>
+      {% for app in apps %}
+      <tr>
+        <td>{{ app.name }}</td>
+        <td>{{ app.repo }}</td>
+        <td>{{ app.branch }}</td>
+        <td>{{ app.installed_version or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">No apps configured.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% for app in apps %}
+<div class="card">
+  <strong>{{ app.name }}</strong>
+  <table>
+    <tr>
+      <th>Commit</th>
+      <td>{% if app.is_cloned %}{{ app.current_commit }} &nbsp; "{{ app.commit_message }}"{% else %}not cloned{% endif %}</td>
+    </tr>
+    <tr>
+      <th>Dirty</th>
+      <td>{% if app.uncommitted_changes %}yes ⚠ (uncommitted changes present){% else %}no{% endif %}</td>
+    </tr>
+  </table>
+</div>
+{% endfor %}
+
+{% endblock %}

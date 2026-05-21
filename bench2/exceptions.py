@@ -1,0 +1,25 @@
+class Bench2Error(Exception):
+    pass
+
+
+class ConfigError(Bench2Error):
+    pass
+
+
+class BenchError(Bench2Error):
+    pass
+
+
+class CommandError(BenchError):
+    def __init__(self, message: str, returncode: int = 1):
+        super().__init__(message)
+        self.message = message
+        self.returncode = returncode
+
+
+class TaskNotFoundError(BenchError):
+    pass
+
+
+class TaskNotRunningError(BenchError):
+    pass

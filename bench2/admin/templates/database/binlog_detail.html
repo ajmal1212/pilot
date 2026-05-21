@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<p>Database / <a href="/database/binlogs">Binary logs</a> / <strong>{{ log_name }}</strong></p>
+
+<p>
+  Showing events {{ offset + 1 }}–{{ offset + events | length }}
+  &nbsp;
+  {% if offset > 0 %}
+  <a href="/database/binlogs/{{ log_name }}?offset={{ [offset - limit, 0] | max }}&limit={{ limit }}">← prev</a>
+  {% endif %}
+  &nbsp;
+  {% if events | length == limit %}
+  <a href="/database/binlogs/{{ log_name }}?offset={{ offset + limit }}&limit={{ limit }}">next →</a>
+  {% endif %}
+</p>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr><th>Pos</th><th>Event type</th><th>Server ID</th><th>End pos</th><th>Info</th></tr>
+    </thead>
+    <tbody>
+      {% for event in events %}
+      <tr>
+        <td>{{ event.pos }}</td>
+        <td>{{ event.event_type }}</td>
+        <td>{{ event.server_id }}</td>
+        <td>{{ event.end_log_pos }}</td>
+        <td>{{ event.info }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No events found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

@@ -1,0 +1,55 @@
+from pathlib import Path
+
+import click
+
+from bench2.exceptions import BenchError
+
+_BENCH_YML_TEMPLATE = """\
+bench:
+  name: my-bench
+  python: "3.11"
+  process_manager: honcho
+
+apps:
+  - name: frappe
+    repo: https://github.com/frappe/frappe
+    branch: version-15
+
+sites:
+  - name: site1.localhost
+    db_name: site1_db
+    db_password: "secret"
+    apps:
+      - frappe
+
+mariadb:
+  host: localhost
+  port: 3306
+  root_password: "root"
+
+redis:
+  cache_port: 13000
+  queue_port: 11000
+  socketio_port: 12000
+
+workers:
+  default: 2
+  short: 1
+  long: 1
+"""
+
+
+class NewCommand:
+    def __init__(self, target_directory: Path) -> None:
+        self.target_directory = target_directory
+
+    def run(self) -> None:
+        bench_yml = self.target_directory / "bench.yml"
+        if bench_yml.exists():
+            raise BenchError(
+                f"bench.yml already exists at {bench_yml}. "
+                "Remove it or run this command in a different directory."
+            )
+        bench_yml.write_text(_BENCH_YML_TEMPLATE)
+        click.echo(f"Created bench.yml at {bench_yml}")
+        click.echo("Edit it to configure your bench, then run: bench init")

@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="card">
+  <strong>Bench</strong>
+  <table>
+    <tr><th>Name</th><td>{{ summary.name }}</td><th>Python</th><td>{{ summary.python_version }}</td><th>Manager</th><td>{{ summary.process_manager }}</td></tr>
+    <tr><th>Apps</th><td>{{ summary.app_count }}</td><th>Sites</th><td>{{ summary.site_count }}</td><td></td><td></td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <strong>Apps</strong>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Branch</th><th>Commit</th><th>Dirty</th><th>Installed</th></tr>
+    </thead>
+    <tbody>
+      {% for app in apps %}
+      <tr>
+        <td>{{ app.name }}</td>
+        <td>{{ app.branch }}</td>
+        <td>{{ app.current_commit or '—' }}</td>
+        <td>{% if app.uncommitted_changes %}yes ⚠{% else %}no{% endif %}</td>
+        <td>{{ app.installed_version or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No apps configured.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <strong>Sites</strong>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Exists</th><th>DB</th><th>Apps</th></tr>
+    </thead>
+    <tbody>
+      {% for site in sites %}
+      <tr>
+        <td><a href="/sites/{{ site.name }}">{{ site.name }}</a></td>
+        <td>{% if site.exists %}✓{% else %}✗{% endif %}</td>
+        <td>{{ site.db_name or '—' }}</td>
+        <td>{{ site.installed_apps | join(', ') or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4">No sites configured.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <strong>Processes</strong>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Status</th><th>PID</th><th>Uptime</th><th>Log</th></tr>
+    </thead>
+    <tbody>
+      {% for process in processes %}
+      <tr>
+        <td>{{ process.name }}</td>
+        <td class="status-{{ process.status }}">● {{ process.status }}</td>
+        <td>{{ process.pid or '—' }}</td>
+        <td>{{ process.uptime or '—' }}</td>
+        <td><a href="/logs/{{ process.name }}.log">{{ process.name }}.log</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No processes found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

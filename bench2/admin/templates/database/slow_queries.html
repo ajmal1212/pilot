@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<p>Database / <strong>Slow queries</strong> (showing last {{ limit }})</p>
+
+<div class="card">
+  <table>
+    <thead>
+      <tr><th>Timestamp</th><th>Q-time</th><th>Lock</th><th>Rows examined</th><th>Rows sent</th><th>User</th><th>SQL</th></tr>
+    </thead>
+    <tbody>
+      {% for query in queries %}
+      <tr>
+        <td>{{ query.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        <td>{{ query.query_time }}s</td>
+        <td>{{ query.lock_time }}s</td>
+        <td>{{ query.rows_examined }}</td>
+        <td>{{ query.rows_sent }}</td>
+        <td>{{ query.user_host }}</td>
+        <td>
+          <details>
+            <summary>show SQL</summary>
+            <pre>{{ query.sql }}</pre>
+          </details>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7">No slow queries found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p><a href="/database/binlogs">Binary logs →</a></p>
+
+{% endblock %}

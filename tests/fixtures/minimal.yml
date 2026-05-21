@@ -1,0 +1,24 @@
+bench:
+  name: test-bench
+  python: "3.11"
+  process_manager: honcho
+
+apps:
+  - name: frappe
+    repo: https://github.com/frappe/frappe
+    branch: version-15
+
+sites:
+  - name: site1.localhost
+    db_name: site1_db
+    db_password: "secret"
+    apps:
+      - frappe
+
+mariadb:
+  root_password: "root"
+
+redis:
+  cache_port: 13000
+  queue_port: 11000
+  socketio_port: 12000
