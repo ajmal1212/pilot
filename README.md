@@ -2,6 +2,8 @@
 
 A zero-dependency CLI for managing [Frappe](https://frappeframework.com) environments. Single `bench.toml`. No Docker.
 
+![Apps](docs/screenshots/apps.png)
+
 ## Improvements from legacy bench
 
 | | Legacy | bench-cli |
