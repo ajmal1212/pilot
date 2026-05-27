@@ -26,7 +26,9 @@ class NewSiteFromBackupTask(BaseTask):
 
     def run(self) -> None:
         NewSiteFromBackupCommand(
-            self.bench, self.name, self.db_file,
+            self.bench,
+            self.name,
+            self.db_file,
             admin_password=self.admin_password,
             public_files=self.public_files,
             private_files=self.private_files,

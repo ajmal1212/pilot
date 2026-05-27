@@ -1,7 +1,8 @@
 <script setup>
 import { h, ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Badge, Dialog, ListView, FormControl, LoadingText, ErrorMessage } from 'frappe-ui'
+import { Button, Badge, Dialog, ListView, FormControl, LoadingText, ErrorMessage, Switch, TabButtons } from 'frappe-ui'
+import FilePickerField from '../components/FilePickerField.vue'
 
 const router = useRouter()
 const sites = ref([])
@@ -194,25 +195,22 @@ onMounted(() => { load(); loadRegistry() })
 
     <Dialog v-model="showCreate" :options="{ title: 'Create Site' }">
       <template #body-content>
-        <div @pointerdown.stop class="flex flex-col gap-3">
+        <div @pointerdown.stop class="flex flex-col gap-4">
           <FormControl label="Site Name" type="text" v-model="siteName" placeholder="mysite.localhost" @keyup.enter="createSite" />
           <FormControl label="Admin Password" type="password" v-model="adminPassword" placeholder="admin" description="Leave blank to use 'admin'" />
-          <div class="border-t pt-3">
-            <label class="flex cursor-pointer select-none items-center gap-2">
-              <input type="checkbox" v-model="restoreFromBackup" class="h-3.5 w-3.5 rounded" />
-              <span class="text-sm font-medium text-ink-gray-7">Restore from backup</span>
-            </label>
-            <div v-if="restoreFromBackup" class="mt-3 flex flex-col gap-3">
-              <div class="flex gap-4 text-sm">
-                <label class="flex cursor-pointer select-none items-center gap-1.5">
-                  <input type="radio" v-model="restoreMode" value="existing" class="h-3.5 w-3.5" />
-                  <span class="text-ink-gray-7">From this bench</span>
-                </label>
-                <label class="flex cursor-pointer select-none items-center gap-1.5">
-                  <input type="radio" v-model="restoreMode" value="upload" class="h-3.5 w-3.5" />
-                  <span class="text-ink-gray-7">Upload files</span>
-                </label>
-              </div>
+
+          <div class="border-t pt-4">
+            <Switch v-model="restoreFromBackup" label="Restore from backup" />
+
+            <div v-if="restoreFromBackup" class="mt-4 flex flex-col gap-4">
+              <TabButtons
+                v-model="restoreMode"
+                :buttons="[
+                  { label: 'From this bench', value: 'existing' },
+                  { label: 'Upload files', value: 'upload' },
+                ]"
+              />
+
               <template v-if="restoreMode === 'existing'">
                 <FormControl
                   label="Source Site"
@@ -231,24 +229,33 @@ onMounted(() => { load(); loadRegistry() })
                   />
                 </div>
               </template>
+
               <template v-else>
-                <div>
-                  <p class="mb-1 text-xs text-ink-gray-6">Database backup (.sql.gz) *</p>
-                  <input type="file" accept=".gz" @change="uploadDb = $event.target.files[0]" class="w-full text-sm text-ink-gray-8" />
-                </div>
-                <div>
-                  <p class="mb-1 text-xs text-ink-gray-6">Public files (.tar.gz)</p>
-                  <input type="file" accept=".gz" @change="uploadPublic = $event.target.files[0]" class="w-full text-sm text-ink-gray-8" />
-                </div>
-                <div>
-                  <p class="mb-1 text-xs text-ink-gray-6">Private files (.tar.gz)</p>
-                  <input type="file" accept=".gz" @change="uploadPrivate = $event.target.files[0]" class="w-full text-sm text-ink-gray-8" />
-                </div>
+                <FilePickerField
+                  label="Database backup (.sql.gz)"
+                  required
+                  accept=".gz"
+                  :file="uploadDb"
+                  @change="uploadDb = $event"
+                />
+                <FilePickerField
+                  label="Public files (.tar.gz)"
+                  accept=".gz"
+                  :file="uploadPublic"
+                  @change="uploadPublic = $event"
+                />
+                <FilePickerField
+                  label="Private files (.tar.gz)"
+                  accept=".gz"
+                  :file="uploadPrivate"
+                  @change="uploadPrivate = $event"
+                />
               </template>
             </div>
           </div>
+
           <ErrorMessage v-if="createError" :message="createError" />
-          <div class="mt-1 flex justify-end gap-2">
+          <div class="flex justify-end gap-2">
             <Button variant="ghost" @click="showCreate = false">Cancel</Button>
             <Button variant="solid" :loading="creating" @click="createSite">Create Site</Button>
           </div>

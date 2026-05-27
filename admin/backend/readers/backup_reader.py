@@ -43,13 +43,7 @@ class BackupReader:
         result = []
         for ts in sorted(by_ts, reverse=True):
             files = sorted(by_ts[ts], key=lambda f: f.kind)
-            result.append(
-                BackupSet(
-                    timestamp=ts,
-                    created_at=files[0].created_at,
-                    files=files,
-                )
-            )
+            result.append(BackupSet(timestamp=ts, created_at=files[0].created_at, files=files))
         return result
 
     def _parse_file(self, path: Path) -> BackupFile:
@@ -71,11 +65,4 @@ class BackupReader:
         else:
             kind = "other"
 
-        return BackupFile(
-            filename=name,
-            path=str(path),
-            size_bytes=path.stat().st_size,
-            created_at=created_at,
-            kind=kind,
-            timestamp=ts,
-        )
+        return BackupFile(filename=name, path=str(path), size_bytes=path.stat().st_size, created_at=created_at, kind=kind, timestamp=ts)

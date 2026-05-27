@@ -61,8 +61,6 @@ class CronManager:
             subprocess.run(["crontab", "-r"], capture_output=True)
             return
         content = "\n".join(non_empty) + "\n"
-        proc = subprocess.run(
-            ["crontab", "-"], input=content, capture_output=True, text=True
-        )
+        proc = subprocess.run(["crontab", "-"], input=content, capture_output=True, text=True)
         if proc.returncode != 0:
             raise RuntimeError(f"Failed to write crontab: {proc.stderr}")

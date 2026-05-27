@@ -48,9 +48,7 @@ def detail(name: str):
 
     site_dict = asdict(site)
     site_dict["site_config"] = _mask_password(site.site_config)
-    return jsonify(
-        {"site": site_dict, "installable_apps": installable, "http_port": http_port}
-    )
+    return jsonify({"site": site_dict, "installable_apps": installable, "http_port": http_port})
 
 
 @sites_bp.route("/create", methods=["POST"])
@@ -68,9 +66,7 @@ def create():
         return jsonify({"ok": False, "error": f"Site '{name}' already exists."})
 
     try:
-        task_id = TaskRunner(bench_root).run(
-            "new-site", {"name": name, "admin_password": admin_password}
-        )
+        task_id = TaskRunner(bench_root).run("new-site", {"name": name, "admin_password": admin_password})
     except Exception as e:
         return jsonify({"ok": False, "error": f"Could not start new-site: {e}"})
 
@@ -161,9 +157,7 @@ def uninstall_app(name: str):
     if not app:
         return jsonify({"ok": False, "error": "App name is required."})
     try:
-        task_id = TaskRunner(bench_root).run(
-            "uninstall-app", {"site": name, "app": app}
-        )
+        task_id = TaskRunner(bench_root).run("uninstall-app", {"site": name, "app": app})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
     return jsonify({"ok": True, "task_id": task_id})

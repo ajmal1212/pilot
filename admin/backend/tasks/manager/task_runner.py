@@ -78,9 +78,7 @@ class TaskRunner:
 
         status = (task_dir / "status").read_text().strip()
         if status != "running":
-            raise TaskNotRunningError(
-                f"Task is not running: {task_id} (status={status})"
-            )
+            raise TaskNotRunningError(f"Task is not running: {task_id} (status={status})")
 
         pid_text = (task_dir / "pid").read_text().strip()
         pid = int(pid_text)
@@ -135,9 +133,7 @@ class TaskRunner:
         if command == "drop-site":
             return [sys.executable, "-m", "admin.backend.tasks.jobs.drop_site_task", str(self._bench_root), args["site"]]
         if command == "delete-backup":
-            return [
-                sys.executable, "-m", "admin.backend.tasks.jobs.delete_backup_task", str(self._bench_root), args["site"], *args["filenames"]
-            ]
+            return [sys.executable, "-m", "admin.backend.tasks.jobs.delete_backup_task", str(self._bench_root), args["site"], *args["filenames"]]
         if command == "install-app":
             return [sys.executable, "-m", "admin.backend.tasks.jobs.install_app_task", str(self._bench_root), args["site"], args["app"]]
         if command == "switch-branch":
@@ -169,13 +165,7 @@ class TaskRunner:
         if not tasks_dir.exists():
             return
 
-        completed = [
-            entry
-            for entry in tasks_dir.iterdir()
-            if entry.is_dir()
-            and (entry / "status").exists()
-            and (entry / "status").read_text().strip() != "running"
-        ]
+        completed = [entry for entry in tasks_dir.iterdir() if entry.is_dir() and (entry / "status").exists() and (entry / "status").read_text().strip() != "running"]
 
         if len(completed) <= TASK_RETENTION_LIMIT:
             return
