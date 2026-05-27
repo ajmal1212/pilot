@@ -39,6 +39,7 @@ def detail(name: str):
         installable = []
 
     from bench_cli.config.bench_config import BenchConfig
+
     try:
         http_port = BenchConfig.from_file(bench_root / "bench.toml").http_port
     except Exception:
@@ -46,7 +47,9 @@ def detail(name: str):
 
     site_dict = asdict(site)
     site_dict["site_config"] = _mask_password(site.site_config)
-    return jsonify({"site": site_dict, "installable_apps": installable, "http_port": http_port})
+    return jsonify(
+        {"site": site_dict, "installable_apps": installable, "http_port": http_port}
+    )
 
 
 @sites_bp.route("/create", methods=["POST"])
@@ -115,7 +118,9 @@ def uninstall_app(name: str):
     if not app:
         return jsonify({"ok": False, "error": "App name is required."})
     try:
-        task_id = TaskRunner(bench_root).run("uninstall-app", {"site": name, "app": app})
+        task_id = TaskRunner(bench_root).run(
+            "uninstall-app", {"site": name, "app": app}
+        )
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
     return jsonify({"ok": True, "task_id": task_id})
@@ -182,6 +187,7 @@ def enable_ssl(name: str):
         return jsonify({"ok": False, "error": "Site not found."}), 404
 
     import json
+
     current = json.loads(config_path.read_text())
     current["ssl"] = True
     config_path.write_text(json.dumps(current, indent=1))
@@ -205,6 +211,7 @@ def update_config(name: str):
         return jsonify({"ok": False, "error": "Invalid JSON body."}), 400
 
     import json
+
     current = json.loads(config_path.read_text())
 
     # Preserve the real db_password if the masked sentinel came back
@@ -216,6 +223,75 @@ def update_config(name: str):
             del data["db_password"]
 
     config_path.write_text(json.dumps(data, indent=1))
+    return jsonify({"ok": True})
+
+
+@sites_bp.route("/<name>/backups")
+def list_backups(name: str):
+    from ..readers.backup_reader import BackupReader
+
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    try:
+        sets = BackupReader(bench_root, name).read_all()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify(
+        [
+            {
+                "timestamp": s.timestamp,
+                "created_at": s.created_at.isoformat(),
+                "files": [
+                    {
+                        "filename": f.filename,
+                        "path": f.path,
+                        "size_bytes": f.size_bytes,
+                        "kind": f.kind,
+                    }
+                    for f in s.files
+                ],
+            }
+            for s in sets
+        ]
+    )
+
+
+@sites_bp.route("/<name>/backup-schedule", methods=["GET"])
+def get_backup_schedule(name: str):
+    from ..cron_manager import CronManager
+
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    try:
+        schedule = CronManager(bench_root).get_schedule(name)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"schedule": schedule})
+
+
+@sites_bp.route("/<name>/backup-schedule", methods=["POST"])
+def set_backup_schedule(name: str):
+    from ..cron_manager import CronManager
+
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    data = request.get_json(silent=True) or {}
+    schedule = (data.get("schedule") or "").strip()
+    if not schedule:
+        return jsonify({"ok": False, "error": "Schedule expression is required."})
+    try:
+        CronManager(bench_root).set_schedule(name, schedule)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+    return jsonify({"ok": True})
+
+
+@sites_bp.route("/<name>/backup-schedule", methods=["DELETE"])
+def delete_backup_schedule(name: str):
+    from ..cron_manager import CronManager
+
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    try:
+        CronManager(bench_root).remove_schedule(name)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
     return jsonify({"ok": True})
 
 
