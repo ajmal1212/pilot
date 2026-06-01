@@ -171,7 +171,6 @@ def _make_parser() -> argparse.ArgumentParser:
     setup_sub.add_parser("nginx", help="Generate nginx config.")
     setup_sub.add_parser("letsencrypt", help="Setup Let's Encrypt SSL.")
     setup_sub.add_parser("production", help="Full production setup (nginx + supervisor).")
-    setup_sub.add_parser("volume", help="Full production setup (nginx + supervisor).")
     setup_sub.add_parser("requirements", help="Install Python and JS requirements for all apps.")
 
     p_volume = sub.add_parser("volume", help="ZFS volume management commands.")
@@ -376,10 +375,6 @@ def _dispatch_setup(args: argparse.Namespace) -> None:
         from bench_cli.commands.setup.requirements import SetupRequirementsCommand
 
         SetupRequirementsCommand(_load_bench()).run()
-    elif setup_cmd == "volume":
-        from bench_cli.commands.volume import VolumeSetupCommand
-
-        VolumeSetupCommand(_load_bench().config.volume).run()
     else:
         print("Usage: bench setup [config|nginx|letsencrypt|production|requirements|volume]", file=sys.stderr)
         sys.exit(1)
