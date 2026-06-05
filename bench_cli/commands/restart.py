@@ -10,7 +10,7 @@ class RestartCommand:
         self.bench = bench
 
     def run(self) -> None:
-        if not self.bench.config.production.nginx:
+        if not self.bench.config.production.enabled:
             raise BenchError("'bench restart' is only available in production mode. Use 'bench stop' and 'bench start' in dev mode.")
         from bench_cli.managers.supervisor_process_manager import SupervisorProcessManager
         manager = ProcessManagerFactory.create(self.bench)

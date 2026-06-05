@@ -16,6 +16,7 @@ class SetupProductionCommand:
 
     def run(self) -> None:
         self.bench.config.validate()
+        self._require_production_enabled()
         self._require_linux()
         self._write_dns_multitenancy()
         if self.bench.config.production.lightweight:
@@ -26,7 +27,17 @@ class SetupProductionCommand:
             self._setup_nginx()
             self._setup_letsencrypt_if_needed()
 
+        self._build_admin_for_production()
+
         self._print_summary()
+
+    def _require_production_enabled(self) -> None:
+        if not self.bench.config.production.enabled:
+            print(
+                "Error: [production] is not configured in bench.toml. Add a [production] section to enable production setup.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     def _require_linux(self) -> None:
         if not is_linux():
@@ -78,6 +89,11 @@ class SetupProductionCommand:
         from bench_cli.commands.setup.letsencrypt import SetupLetsEncryptCommand
 
         SetupLetsEncryptCommand(self.bench).run()
+
+    def _build_admin_for_production(self) -> None:
+        from bench_cli.commands.admin import BuildAdminCommand
+
+        BuildAdminCommand().run()
 
     def _print_summary(self) -> None:
         from bench_cli.managers.nginx_manager import NginxManager

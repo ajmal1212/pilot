@@ -62,7 +62,7 @@ class BenchConfig:
         mariadb = MariaDBConfig(**data.get("mariadb", {}))
         redis = cls._parse_redis(data.get("redis", {}))
         workers = cls._parse_workers(data.get("workers", {}))
-        production = cls._parse_production(data.get("production", {}))
+        production = cls._parse_production(data.get("production"))
         nginx = cls._parse_nginx(data.get("nginx", {}))
         letsencrypt = cls._parse_letsencrypt(data.get("letsencrypt", {}))
         admin = cls._parse_admin(data.get("admin", {}))
@@ -118,8 +118,11 @@ class BenchConfig:
         )
 
     @staticmethod
-    def _parse_production(data: dict) -> ProductionConfig:
+    def _parse_production(data: dict | None) -> ProductionConfig:
+        if data is None:
+            return ProductionConfig()
         return ProductionConfig(
+            enabled=True,
             nginx=data.get("nginx", False),
             lightweight=data.get("lightweight", False),
         )

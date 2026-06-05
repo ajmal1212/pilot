@@ -27,6 +27,7 @@ _OWN_COMMANDS = frozenset(
         "remove-app",
         "uninstall-app",
         "list-apps",
+        "status",
     ]
 )
 _OWN_GROUP_OPTIONS = frozenset(["--verbose", "--yes", "-y", "--bench", "-b", "--help", "-h"])
@@ -158,6 +159,7 @@ def _make_parser() -> argparse.ArgumentParser:
     p_uninstall.add_argument("app", help="App name to uninstall.")
 
     sub.add_parser("list-apps", help="List apps installed in the bench.")
+    sub.add_parser("status", help="Show bench status summary.")
 
     p_newsite = sub.add_parser("new-site", help="Create a new site and add it to bench.toml.")
     p_newsite.add_argument("name", help="Site name (e.g. site2.localhost).")
@@ -345,6 +347,11 @@ def _dispatch(args: argparse.Namespace) -> None:
 
         UpgradeCommand().run()
 
+    elif cmd == "status":
+        from bench_cli.commands.status import StatusCommand
+
+        StatusCommand(_load_bench()).run()
+
     elif cmd == "setup":
         _dispatch_setup(args)
 
@@ -391,10 +398,7 @@ def _dispatch_setup(args: argparse.Namespace) -> None:
         SetupLetsEncryptCommand(_load_bench()).run()
     elif setup_cmd == "production":
         from bench_cli.commands.setup.production import SetupProductionCommand
-        from bench_cli.commands.admin import BuildAdminCommand
-
-        BuildAdminCommand().run()
-
+    
         SetupProductionCommand(_load_bench()).run()
     elif setup_cmd == "requirements":
         from bench_cli.commands.setup.requirements import SetupRequirementsCommand

@@ -276,7 +276,7 @@ class ProcessManager:
 class ProcessManagerFactory:
     @staticmethod
     def create(bench: "Bench") -> ProcessManager:
-        if not bench.config.production:
+        if not bench.config.production.enabled:
             return ProcessManager(bench)
 
         from bench_cli.managers.systemd_process_manager import SystemdProcessManager
