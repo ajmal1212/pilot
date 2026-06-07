@@ -9,12 +9,23 @@ class RestartCommand:
         self.bench = bench
 
     def run(self) -> None:
-        from bench_cli.managers.supervisor_process_manager import SupervisorProcessManager
-        manager = SupervisorProcessManager(self.bench)
-        if not manager.supervisor_conf_path.exists():
-            raise BenchError(
-                "Supervisor config not found. Run 'bench setup production' first."
-            )
+        manager = self._detect_manager()
         manager.generate_config()
         manager.reload()
         manager.restart()
+
+    def _detect_manager(self):
+        from bench_cli.managers.supervisor_process_manager import SupervisorProcessManager
+        from bench_cli.managers.systemd_process_manager import SystemdProcessManager
+
+        supervisor = SupervisorProcessManager(self.bench)
+        if supervisor.supervisor_conf_path.exists():
+            return supervisor
+
+        systemd = SystemdProcessManager(self.bench)
+        if systemd.is_configured():
+            return systemd
+
+        raise BenchError(
+            "No production process manager found. Run 'bench setup production' first."
+        )
