@@ -13,13 +13,17 @@ import LucideLogOut from '~icons/lucide/log-out'
 import LucidePackage2 from '~icons/lucide/package-2'
 import LucideSettings from '~icons/lucide/settings'
 
-const emit = defineEmits(['logout'])
+const emit = defineEmits(['logout', 'open-settings'])
 
 const route = useRoute()
 
 const header = {
   title: 'Bench',
   logo: '/logos/frappe-icon.png',
+  menuItems: [
+    { label: 'Settings', icon: LucideSettings, onClick: () => emit('open-settings') },
+    { label: 'Logout', icon: LucideLogOut, onClick: () => logout() },
+  ],
 }
 
 const baseNavItems = [
@@ -30,7 +34,6 @@ const baseNavItems = [
   { label: 'Logs', to: '/logs', icon: LucideFileText },
   { label: 'Database', to: '/database', icon: LucideDatabase },
   { label: 'Tasks', to: '/tasks', icon: LucideListTodo },
-  { label: 'Settings', to: '/settings', icon: LucideSettings },
 ]
 
 const snapshotsEnabled = ref(false)
@@ -94,8 +97,6 @@ onUnmounted(() => clearInterval(pollTimer))
         </template>
       </SidebarItem>
     </template>
-    <template #footer-items>
-      <SidebarItem label="Logout" :icon="LucideLogOut" @click="logout" />
-    </template>
+    <template #footer-items />
   </Sidebar>
 </template>

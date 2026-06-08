@@ -8,6 +8,11 @@ from flask import Blueprint, current_app, jsonify, request
 updates_bp = Blueprint("updates", __name__)
 
 
+def _cli_root() -> Path:
+    import bench_cli as _pkg
+    return Path(_pkg.__file__).parent.parent
+
+
 @updates_bp.route("/")
 def get_updates():
     bench_root = Path(current_app.config["BENCH_ROOT"])
@@ -92,3 +97,30 @@ def _log_subject(path: Path, ref: str) -> str:
         text=True,
     )
     return r.stdout.strip()
+
+
+@updates_bp.route("/cli")
+def get_cli_update():
+    cli_root = _cli_root()
+    do_fetch = request.args.get("fetch") == "1"
+
+    branch = _current_branch(cli_root)
+    if do_fetch:
+        _git_fetch(cli_root, branch)
+
+    remote_ref = f"origin/{branch}"
+    behind = _count(cli_root, f"HEAD..{remote_ref}")
+    remote_commit = _log_subject(cli_root, remote_ref)
+    local_commit = _log_subject(cli_root, "HEAD")
+
+    fetch_head = cli_root / ".git" / "FETCH_HEAD"
+    last_fetched = fetch_head.stat().st_mtime if fetch_head.exists() else None
+
+    return jsonify({
+        "branch": branch,
+        "commits_behind": behind,
+        "update_available": behind > 0,
+        "local_commit": local_commit,
+        "remote_commit": remote_commit,
+        "last_fetched": last_fetched,
+    })

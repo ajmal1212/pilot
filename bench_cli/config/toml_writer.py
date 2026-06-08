@@ -58,9 +58,8 @@ def bench_config_to_toml(config: BenchConfig) -> str:
 
     p = config.production
     parts.append("[production]")
-    parts.append(f"enabled = {'true' if p.enabled else 'false'}")
+    parts.append(f'process_manager = "{p.process_manager}"')
     parts.append(f"nginx = {'true' if p.nginx else 'false'}")
-    parts.append(f"lightweight = {'true' if p.lightweight else 'false'}")
     parts.append("")
 
     n = config.nginx

@@ -27,8 +27,7 @@ _RESTART_KEYS = {
     ("workers", "default"),
     ("workers", "short"),
     ("workers", "long"),
-    ("production", "enabled"),
-    ("production", "lightweight"),
+    ("production", "process_manager"),
 }
 
 
@@ -96,8 +95,7 @@ def _config_snapshot(config: BenchConfig) -> dict:
             "long": config.workers.long_count,
         },
         "production": {
-            "enabled": config.production.enabled,
-            "lightweight": config.production.lightweight,
+            "process_manager": config.production.process_manager,
         },
     }
 
@@ -147,9 +145,8 @@ def get_settings():
             "webroot_path": str(config.letsencrypt.webroot_path),
         },
         "production": {
-            "enabled": config.production.enabled,
+            "process_manager": config.production.process_manager,
             "nginx": config.production.nginx,
-            "lightweight": config.production.lightweight,
         },
     })
 
@@ -220,9 +217,12 @@ def update_settings():
     production_data = data.get("production", {})
     if production_data:
         p = config.production
-        p.enabled = bool(production_data.get("enabled", p.enabled))
+        if "process_manager" in production_data:
+            pm = str(production_data["process_manager"])
+            if pm not in ("none", "supervisor", "systemd"):
+                return jsonify({"ok": False, "error": "process_manager must be none, supervisor, or systemd"}), 400
+            p.process_manager = pm
         p.nginx = bool(production_data.get("nginx", p.nginx))
-        p.lightweight = bool(production_data.get("lightweight", p.lightweight))
 
     err = first_error(
         validate_port(config.http_port, "HTTP Port"),
