@@ -326,3 +326,77 @@ def test_toml_writer_production_uses_process_manager() -> None:
     assert "nginx = true" in toml
     assert "lightweight" not in toml
     assert "enabled" not in toml.split("[production]")[1].split("[")[0]
+
+
+# ── volume backing ────────────────────────────────────────────────────────────
+
+
+def _data_with_volume(volume: dict) -> dict:
+    data = copy.deepcopy(MINIMAL_VALID_DATA)
+    data["volume"] = {"enabled": True, "pool": "bench-pool", **volume}
+    return data
+
+
+def test_volume_device_backing_valid() -> None:
+    config = load_from_dict(_data_with_volume({"device": "/dev/sdb"}))
+    assert config.volume.backing == "device"
+    assert config.volume.device == "/dev/sdb"
+
+
+def test_volume_device_backing_requires_device() -> None:
+    with pytest.raises(ConfigError, match="volume.device is required"):
+        load_from_dict(_data_with_volume({}))
+
+
+def test_volume_image_backing_valid() -> None:
+    config = load_from_dict(_data_with_volume({"backing": "image", "image": {"size": "60G"}}))
+    assert config.volume.image.size == "60G"
+    assert config.volume.image_path == "/var/lib/bench-zfs/bench-pool.img"
+
+
+def test_volume_image_backing_requires_size() -> None:
+    with pytest.raises(ConfigError, match="volume.image.size is required"):
+        load_from_dict(_data_with_volume({"backing": "image"}))
+
+
+def test_volume_image_path_must_be_absolute() -> None:
+    with pytest.raises(ConfigError, match="must be an absolute path"):
+        load_from_dict(_data_with_volume({"backing": "image", "image": {"size": "60G", "path": "relative/pool.img"}}))
+
+
+def test_volume_image_custom_path_used() -> None:
+    config = load_from_dict(_data_with_volume({"backing": "image", "image": {"size": "60G", "path": "/data/pool.img"}}))
+    assert config.volume.image_path == "/data/pool.img"
+
+
+def test_volume_auto_backing_requires_no_backing_fields() -> None:
+    config = load_from_dict(_data_with_volume({"backing": "auto"}))
+    assert config.volume.backing == "auto"
+
+
+def test_volume_invalid_backing_rejected() -> None:
+    with pytest.raises(ConfigError, match="Must be 'device', 'image', or 'auto'"):
+        load_from_dict(_data_with_volume({"backing": "loopback"}))
+
+
+def test_volume_reservation_cannot_exceed_quota() -> None:
+    with pytest.raises(ConfigError, match="cannot exceed quota"):
+        load_from_dict(_data_with_volume({"device": "/dev/sdb", "benches": {"reservation": "20G", "quota": "10G"}}))
+
+
+def test_toml_writer_volume_image_backing_round_trip() -> None:
+    config = load_from_dict(_data_with_volume({"backing": "image", "image": {"size": "60G", "path": "/data/pool.img"}}))
+    toml = bench_config_to_toml(config)
+    assert 'backing = "image"' in toml
+    assert '[volume.image]' in toml
+    assert 'size = "60G"' in toml
+    assert 'path = "/data/pool.img"' in toml
+    assert 'device = ' not in toml.split("[volume]")[1]
+
+
+def test_toml_writer_volume_device_backing() -> None:
+    config = load_from_dict(_data_with_volume({"device": "/dev/sdb"}))
+    toml = bench_config_to_toml(config)
+    assert 'backing = "device"' in toml
+    assert 'device = "/dev/sdb"' in toml
+    assert "[volume.image]" not in toml
