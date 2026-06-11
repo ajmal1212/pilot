@@ -308,7 +308,7 @@ onMounted(() => { loadApps(); loadRegistry(); loadUpdateStatus(); loadDefaultBra
   <div class="mx-auto flex max-w-2xl flex-col gap-4">
     <Teleport to="#header-actions">
       <Button variant="outline" :loading="updateLoading" @click="runUpdate">Update Bench</Button>
-      <Button variant="solid" @click="openAdd">Add App</Button>
+      <Button variant="outline" @click="openAdd">Add App</Button>
     </Teleport>
 
     <h2 class="font-normal text-ink-gray-5">Installed Apps</h2>

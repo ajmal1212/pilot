@@ -422,17 +422,17 @@ onMounted(() => { load(); loadRegistry() })
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2">
-          <Button variant="outline" @click="showLogin = true">
-            Login to Site
-          </Button>
           <Button variant="outline" :loading="actionLoading === 'backup'" @click="doAction('backup')">
             Backup
           </Button>
           <Button v-if="nginxEnabled && !site.site_config?.ssl" variant="outline" :loading="sslLoading" @click="enableSsl">
             Enable SSL
           </Button>
-          <Button v-if="installable.length" variant="solid" @click="showInstall = true">
+          <Button v-if="installable.length" variant="outline" @click="showInstall = true">
             Install App
+          </Button>
+          <Button variant="solid" @click="showLogin = true">
+            Login to Site
           </Button>
         </div>
       </div>

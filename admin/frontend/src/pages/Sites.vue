@@ -153,7 +153,7 @@ onMounted(() => { loadSites(); loadRegistry() })
 <template>
   <div class="mx-auto flex max-w-2xl flex-col gap-4">
     <Teleport to="#header-actions">
-      <Button variant="solid" @click="openCreate">Create Site</Button>
+      <Button variant="outline" @click="openCreate">Create Site</Button>
     </Teleport>
 
     <h2 class="font-normal text-ink-gray-5">Your Sites</h2>
