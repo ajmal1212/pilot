@@ -14,7 +14,11 @@ from bench_cli.config.toml_writer import bench_config_to_toml
 FLAT_KEYS = {
     "bench_name": "name",
     "python": "python_version",
+    "http_port": "http_port",
+    "socketio_port": "socketio_port",
     "socketio_backend": "socketio_backend",
+    "redis_cache_port": "redis.cache_port",
+    "redis_queue_port": "redis.queue_port",
     "mariadb_password": "mariadb.root_password",
     "admin_enabled": "admin.enabled",
     "admin_port": "admin.port",

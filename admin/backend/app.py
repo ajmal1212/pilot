@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import os
+import re
 import secrets
 import socket
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -19,11 +22,14 @@ from .views.sites import sites_bp
 from .views.tasks import tasks_bp
 from .views.updates import updates_bp
 from .views.volume import volume_bp
+from bench_cli.commands.admin import _cli_root
+from bench_cli.commands.new import NewCommand
 from bench_cli.config.bench_config import BenchConfig
-from bench_cli.exceptions import ConfigError
+from bench_cli.exceptions import BenchError, ConfigError
 
 _STATIC_DIR = Path(__file__).parent / "static"
 _OPEN_PATHS = {"/api/status", "/api/login", "/api/logout", "/api/benches/"}
+_NAME_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 def _wizard_status(bench_root: Path) -> dict:
@@ -129,6 +135,65 @@ def create_app(bench_root: Path) -> Flask:
             except Exception:
                 continue
         return jsonify(running)
+
+    @app.route("/api/benches/new", methods=["POST"])
+    def api_benches_new():
+        data = request.get_json(silent=True) or {}
+        name = (data.get("name") or "").strip()
+        if not name or not _NAME_RE.match(name):
+            return jsonify({"error": "Bench name must contain only letters, numbers, '-' and '_'"}), 400
+
+        new_dir = bench_root.parent / name
+        try:
+            NewCommand(new_dir, name).run()
+        except BenchError as exc:
+            return jsonify({"error": str(exc)}), 400
+
+        with open(new_dir / "bench.toml", "rb") as f:
+            new_port = tomllib.load(f)["admin"]["port"]
+
+        cli_root = _cli_root()
+        admin_python = cli_root / ".admin-venv" / "bin" / "python"
+        # Strip WERKZEUG_* — if this request is being handled by a dev-mode
+        # (--dev) admin server, its env carries WERKZEUG_SERVER_FD/RUN_MAIN
+        # from its own reloader. Inheriting those into the new bench's admin
+        # process makes Werkzeug try to reuse a stale fd as an already-bound
+        # socket, which crashes it on startup with no visible error.
+        spawn_env = {k: v for k, v in os.environ.items() if not k.startswith("WERKZEUG_")}
+        spawn_env["PYTHONPATH"] = str(cli_root)
+        subprocess.Popen(
+            [
+                str(admin_python),
+                "-m",
+                "admin.backend.server",
+                "--bench-root",
+                str(new_dir),
+                "--port",
+                str(new_port),
+                "--timeout",
+                "7200",
+                "--wizard",
+            ],
+            cwd=str(cli_root),
+            env=spawn_env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        return jsonify({"name": name, "port": new_port})
+
+    @app.route("/api/benches/ready")
+    def api_benches_ready():
+        try:
+            port = int(request.args.get("port", ""))
+        except ValueError:
+            return jsonify({"ready": False}), 400
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                pass
+            return jsonify({"ready": True})
+        except OSError:
+            return jsonify({"ready": False})
 
     app.register_blueprint(setup_bp, url_prefix="/api/setup")
     app.register_blueprint(dashboard_bp, url_prefix="/api")
