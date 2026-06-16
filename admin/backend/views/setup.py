@@ -6,7 +6,7 @@ from flask import Blueprint, Response, current_app, jsonify, request, stream_wit
 
 from admin.backend.tasks.manager.task_reader import TaskReader
 from admin.backend.tasks.manager.task_runner import TaskRunner
-from bench_cli.config.bench_toml_builder import BenchTomlBuilder
+from bench_cli.config.bench_toml_builder import FRAMEWORK_BRANCHES, BenchTomlBuilder
 
 setup_bp = Blueprint("setup", __name__)
 
@@ -15,6 +15,11 @@ setup_bp = Blueprint("setup", __name__)
 def get_config():
     bench_root = Path(current_app.config["BENCH_ROOT"])
     return jsonify(_read_defaults(bench_root))
+
+
+@setup_bp.route("/branches")
+def get_branches():
+    return jsonify({"branches": FRAMEWORK_BRANCHES})
 
 
 @setup_bp.route("/save", methods=["POST"])
@@ -40,6 +45,27 @@ def save_config():
     content = BenchTomlBuilder(_current_name(bench_root), settings).render()
     toml_path.write_text(content)
     return jsonify({"ok": True})
+
+
+@setup_bp.route("/validate-mariadb", methods=["POST"])
+def validate_mariadb():
+    """Tell the wizard whether the entered root password will work.
+
+    - not installed `secure_installation`function will set this password
+    - installed+valid everything is fine
+    - installed+invalid panic
+    """
+    from bench_cli.config.mariadb_config import MariaDBConfig
+    from bench_cli.managers.mariadb_manager import MariaDBManager
+
+    data = request.get_json(silent=True) or {}
+    password = data.get("mariadb_password", "")
+    manager = MariaDBManager(MariaDBConfig(root_password=password))
+    if not manager.is_installed():
+        return jsonify({"state": "will_install"})
+    if manager.check_credentials(password):
+        return jsonify({"state": "valid"})
+    return jsonify({"state": "invalid"})
 
 
 def _validate(data: dict) -> str | None:
@@ -103,9 +129,7 @@ def finish_setup():
     # socket, so the kill can't race ahead of the response. The tiny timer
     # just lets the handler thread finish tearing down the connection.
     response = jsonify({"ok": True})
-    response.call_on_close(
-        lambda: threading.Timer(0.1, lambda: os.kill(os.getpid(), signal.SIGTERM)).start()
-    )
+    response.call_on_close(lambda: threading.Timer(0.1, lambda: os.kill(os.getpid(), signal.SIGTERM)).start())
     return response
 
 
@@ -142,8 +166,8 @@ def stream_task(task_id: str):
 
 
 def _read_defaults(bench_root: Path) -> dict:
-    from bench_cli.platform import is_linux
     from admin.backend.tasks.manager.task_reader import TaskReader
+    from bench_cli.platform import is_linux
 
     result = {
         "bench_name": bench_root.name,

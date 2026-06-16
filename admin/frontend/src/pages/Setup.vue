@@ -19,10 +19,7 @@ const form = ref({
   mariadb_password: '',
   admin_password: '',
   app_repo: 'https://github.com/frappe/frappe',
-  app_branch: 'version-16',
-  http_port: 8000,
-  socketio_port: 9000,
-  redis_port: 13000,
+  app_branch: 'develop',
   workers_default: 2,
   workers_short: 1,
   workers_long: 1,
@@ -37,6 +34,29 @@ const form = ref({
   production_process_manager: 'none',
 })
 
+// ── framework branch dropdown (fetched from the admin backend) ────────────
+const branchOptions = ref([])
+
+async function fetchBranches() {
+  try {
+    const res = await fetch('/api/setup/branches')
+    const data = await res.json()
+    branchOptions.value = data.branches || []
+  } catch {
+    branchOptions.value = []
+  }
+}
+
+// Keep the configured branch selectable even if it isn't in the fetched list,
+// so the dropdown never silently blanks out the saved value.
+const branchSelectOptions = computed(() => {
+  const options = branchOptions.value.map((b) => ({ label: b, value: b }))
+  if (form.value.app_branch && !branchOptions.value.includes(form.value.app_branch)) {
+    options.unshift({ label: form.value.app_branch, value: form.value.app_branch })
+  }
+  return options
+})
+
 // ── volume smart defaults ─────────────────────────────────────────────────
 const CUSTOM_DEVICE = '__custom__'
 const availableDevices = ref([])
@@ -49,13 +69,34 @@ const rootfsFreeBytes = ref(0)
 const freeGiB = computed(() => Math.floor(rootfsFreeBytes.value / GIB))
 const imageSizeMaxGiB = computed(() => Math.max(5, freeGiB.value || 100))
 const imageSizeMinGiB = computed(() => Math.min(5, imageSizeMaxGiB.value))
+// Raw text input value — typed freely, clamped only on blur
+const imageSizeInputValue = ref(String(parseInt(form.value.volume_image_size) || 60))
+
+// Keep text input in sync when the form changes from outside (config load, slider drag)
+watch(
+  () => form.value.volume_image_size,
+  (size) => {
+    const n = parseInt(size)
+    if (!isNaN(n)) imageSizeInputValue.value = String(n)
+  }
+)
+
+function onImageSizeBlur() {
+  const n = parseInt(imageSizeInputValue.value)
+  const clamped = Math.min(
+    imageSizeMaxGiB.value,
+    Math.max(imageSizeMinGiB.value, isNaN(n) ? imageSizeMinGiB.value : n),
+  )
+  form.value.volume_image_size = `${clamped}G`
+}
+
 const imageSliderModel = computed({
   get() {
     const n = parseInt(form.value.volume_image_size) || imageSizeMinGiB.value
     return [Math.min(imageSizeMaxGiB.value, Math.max(imageSizeMinGiB.value, n))]
   },
-  set(arr) {
-    form.value.volume_image_size = `${arr[0]}G`
+  set([n]) {
+    form.value.volume_image_size = `${n}G`
   },
 })
 
@@ -147,6 +188,7 @@ async function loadConfig() {
       streamTask(`/api/setup/stream/${data.running_init_task_id}`, onInitDone)
     }
   } catch {}
+  fetchBranches()
 }
 
 async function postJson(url, body) {
@@ -178,10 +220,26 @@ function streamTask(url, onDone) {
   }
 }
 
-function nextStep() {
-  if (step.value === 'passwords' && (!form.value.mariadb_password || !form.value.admin_password)) {
-    error.value = 'All password fields are required'
-    return
+async function nextStep() {
+  if (step.value === 'passwords') {
+    if (!form.value.mariadb_password || !form.value.admin_password) {
+      error.value = 'All password fields are required'
+      return
+    }
+    loading.value = true
+    try {
+      const { state } = await postJson('/api/setup/validate-mariadb', {
+        mariadb_password: form.value.mariadb_password,
+      })
+      if (state === 'invalid') {
+        error.value = 'Incorrect MariaDB root password.'
+        return
+      }
+    } catch {
+      // Validation is best-effort; init still guards the password.
+    } finally {
+      loading.value = false
+    }
   }
   error.value = ''
   step.value = configSteps.value[configSteps.value.indexOf(step.value) + 1]
@@ -332,13 +390,13 @@ function backToConfig() {
         </div>
 
         <div v-else-if="step === 'customize'" class="flex flex-col gap-4">
-          <FormControl label="Frappe branch" v-model="form.app_branch" placeholder="version-16" />
+          <FormControl
+            type="select"
+            label="Frappe branch"
+            v-model="form.app_branch"
+            :options="branchSelectOptions"
+          />
           <FormControl label="Frappe repository" v-model="form.app_repo" />
-          <div class="grid grid-cols-3 gap-2">
-            <FormControl label="HTTP port" v-model="form.http_port" type="number" />
-            <FormControl label="Socket.IO port" v-model="form.socketio_port" type="number" />
-            <FormControl label="Redis port" v-model="form.redis_port" type="number" />
-          </div>
           <div class="space-y-1.5">
             <FormLabel label="Workers" />
             <div class="grid grid-cols-3 gap-2">
@@ -394,9 +452,19 @@ function backToConfig() {
             placeholder="/dev/sdb"
           />
           <div v-else-if="form.volume_backing === 'image'" class="space-y-1.5">
-            <div class="flex items-baseline justify-between">
+            <div class="flex items-center justify-between gap-2">
               <FormLabel label="Image size" />
-              <span class="text-xs text-ink-gray-5">{{ imageSliderModel[0] }} GB of {{ freeGiB }} GB free</span>
+              <div class="flex items-center gap-1.5">
+                <TextInput
+                  type="number"
+                  class="w-20"
+                  :min="imageSizeMinGiB"
+                  :max="imageSizeMaxGiB"
+                  v-model="imageSizeInputValue"
+                  @blur="onImageSizeBlur"
+                />
+                <span class="text-xs text-ink-gray-5">GB of {{ freeGiB }} GB free</span>
+              </div>
             </div>
             <Slider v-model="imageSliderModel" :min="imageSizeMinGiB" :max="imageSizeMaxGiB" :step="1" />
           </div>
@@ -440,7 +508,7 @@ function backToConfig() {
         <Button v-if="isTerminal && error" variant="subtle" class="w-full" @click="backToConfig">
           Back to configuration
         </Button>
-        <Button v-else-if="step === 'passwords'" variant="solid" class="w-full" @click="nextStep">
+        <Button v-else-if="step === 'passwords'" variant="solid" :loading="loading" class="w-full" @click="nextStep">
           Next
         </Button>
         <Button v-else-if="step !== configSteps[configSteps.length - 1] && isConfiguring" variant="solid" class="flex-1" @click="nextStep">

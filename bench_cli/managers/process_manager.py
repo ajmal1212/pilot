@@ -181,18 +181,15 @@ class ProcessManager:
                 *self._worker_definitions("short", self.bench.config.workers.short_count),
                 *self._worker_definitions("long", self.bench.config.workers.long_count),
             ]
-            defs = [
-                self._web_definition(),
-                self._socketio_definition(),
-                self._admin_definition(),
-                *worker_defs,
-                *[pd for entry in self.bench.config.workers.custom for pd in self._worker_definitions(entry.queue, entry.count)],
-            ]
-        if self.bench.config.redis.is_single_instance:
-            defs.append(self._redis_definition("redis", "redis.conf"))
-        else:
-            defs.append(self._redis_definition("redis_cache", "redis_cache.conf"))
-            defs.append(self._redis_definition("redis_queue", "redis_queue.conf"))
+        defs = [
+            self._web_definition(),
+            self._socketio_definition(),
+            self._admin_definition(),
+            *worker_defs,
+            *[pd for entry in self.bench.config.workers.custom for pd in self._worker_definitions(entry.queue, entry.count)],
+        ]
+        defs.append(self._redis_definition("redis_cache", "redis_cache.conf"))
+        defs.append(self._redis_definition("redis_queue", "redis_queue.conf"))
         return defs
 
     def _process_definitions(self) -> List[ProcessDefinition]:

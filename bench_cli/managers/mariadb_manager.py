@@ -10,6 +10,9 @@ from bench_cli.utils import run_command
 _MACOS_SOCKET_CANDIDATES = ["/tmp/mysql.sock", "/usr/local/var/mysql/mysql.sock"]
 _LINUX_SOCKET_CANDIDATES = ["/var/run/mysqld/mysqld.sock", "/run/mysqld/mysqld.sock"]
 
+DEFAULT_VERSION = "11.8"
+_REPO_SETUP_URL = "https://r.mariadb.com/downloads/mariadb_repo_setup"
+
 
 class MariaDBManager:
     def __init__(self, config: MariaDBConfig) -> None:
@@ -22,8 +25,12 @@ class MariaDBManager:
         if self.is_installed():
             return
         package_manager = get_package_manager()
-        package = self._brew_package() if is_macos() else self._apt_package()
-        package_manager.install(package)
+        if is_macos():
+            package_manager.install(self._brew_package())
+            return
+        self._setup_apt_repo()
+        package_manager.update()
+        package_manager.install("mariadb-server", "mariadb-client")
 
     def start(self) -> None:
         if is_macos():
@@ -37,10 +44,11 @@ class MariaDBManager:
         else:
             run_command(["sudo", "systemctl", "stop", "mariadb"])
 
+    def _version(self) -> str:
+        return self.config.version or DEFAULT_VERSION
+
     def _brew_package(self) -> str:
-        if self.config.version:
-            return f"mariadb@{self.config.version}"
-        return self._installed_brew_formula() or "mariadb"
+        return self._installed_brew_formula() or f"mariadb@{self._version()}"
 
     def _installed_brew_formula(self) -> str | None:
         """Return the mariadb formula Homebrew already manages (e.g. 'mariadb@10.6').
@@ -57,10 +65,60 @@ class MariaDBManager:
             return "mariadb"
         return next((f for f in formulae if f.startswith("mariadb@")), None)
 
-    def _apt_package(self) -> str:
-        if self.config.version:
-            return f"mariadb-server-{self.config.version}"
-        return "mariadb-server"
+    def _setup_apt_repo(self) -> None:
+        """Add MariaDB's official APT repository pinned to the target version.
+
+        Ubuntu/Debian ship far older MariaDB than the 11.8 LTS series
+        """
+        script = subprocess.run(
+            ["curl", "-LsS", _REPO_SETUP_URL],
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(
+            ["sudo", "bash", "-s", "--", f"--mariadb-server-version=mariadb-{self._version()}"],
+            input=script.stdout,
+            check=True,
+        )
+
+    def check_credentials(self, password: str | None = None) -> bool:
+        """Return True if we can connect as the admin user with the given
+        password (defaults to the configured root password)."""
+        import pymysql
+
+        try:
+            connection = self._connect(password)
+        except pymysql.Error:
+            return False
+        connection.close()
+        return True
+
+    def secure_installation(self) -> None:
+        """
+        Set the root password and apply some hardening.
+        Will only work after fresh installs
+        """
+        if self.check_credentials():
+            return
+        user = self.config.admin_user
+        statements = [
+            f"ALTER USER '{user}'@'localhost' IDENTIFIED BY {self._sql_quote(self.config.root_password)};",
+            "DROP USER IF EXISTS ''@'localhost';",
+            "DROP USER IF EXISTS ''@'%';",
+            "DROP DATABASE IF EXISTS test;",
+            "FLUSH PRIVILEGES;",
+        ]
+        self._run_sql_as_superuser("\n".join(statements))
+
+    def _run_sql_as_superuser(self, sql: str) -> None:
+        cmd = ["mariadb"] if is_macos() else ["sudo", "mariadb"]
+        subprocess.run(cmd, input=sql, text=True, check=True)
+
+    @staticmethod
+    def _sql_quote(value: str) -> str:
+        """Quote a value as a MariaDB string literal (escaping \\ and ')."""
+        escaped = value.replace("\\", "\\\\").replace("'", "\\'")
+        return f"'{escaped}'"
 
     def kill_process(self, process_id: int) -> None:
         connection = self._connect()
@@ -82,14 +140,14 @@ class MariaDBManager:
                 cursor.execute("UNLOCK TABLES")
             connection.close()
 
-    def _connect(self):
+    def _connect(self, password: str | None = None):
         import pymysql
 
         return pymysql.connect(
             host=self.config.host,
             port=self.config.port,
             user=self.config.admin_user,
-            password=self.config.root_password,
+            password=self.config.root_password if password is None else password,
             unix_socket=self._detect_socket() or None,
         )
 
