@@ -27,9 +27,32 @@ class GunicornManager:
     def config_path(self) -> Path:
         return self.bench.config_path / "gunicorn.conf.py"
 
+    @property
+    def admin_config_path(self) -> Path:
+        return self.bench.config_path / "admin-gunicorn.conf.py"
+
     def generate_config(self) -> None:
         self.config_path.parent.mkdir(parents=True, exist_ok=True)
         self.config_path.write_text(self._render_config())
+
+    def generate_admin_config(self) -> None:
+        """Gunicorn config for the socket-activated admin.
+
+        Bound to a localhost port as a fallback; under systemd socket activation
+        gunicorn inherits the listening socket via LISTEN_FDS and ignores `bind`.
+        Single worker with threads so the in-app idle watchdog and SSE streams
+        share one process. No preload, so create_app runs in the worker (the
+        watchdog needs the arbiter as its parent)."""
+        cfg = self.bench.config.admin
+        self.admin_config_path.parent.mkdir(parents=True, exist_ok=True)
+        self.admin_config_path.write_text(
+            f'bind = "127.0.0.1:{cfg.internal_port}"\n'
+            f"workers = 1\n"
+            f"threads = 8\n"
+            f'worker_class = "gthread"\n'
+            f"timeout = 120\n"
+            f"preload_app = False\n"
+        )
 
     def _render_config(self) -> str:
         cfg = self.bench.config.gunicorn

@@ -118,6 +118,22 @@ def test_gunicorn_manager_generates_config_file(tmp_path: Path) -> None:
     assert "preload_app = True" in content
 
 
+def test_gunicorn_manager_generates_admin_config(tmp_path: Path) -> None:
+    bench = make_bench(tmp_path)
+    bench.config_path.mkdir(parents=True, exist_ok=True)
+
+    GunicornManager(bench).generate_admin_config()
+
+    config_path = bench.config_path / "admin-gunicorn.conf.py"
+    assert config_path.exists()
+    content = config_path.read_text()
+    assert f'bind = "127.0.0.1:{bench.config.admin.internal_port}"' in content
+    assert "workers = 1" in content
+    assert 'worker_class = "gthread"' in content
+    # No preload so create_app (and its idle watchdog) runs in the worker.
+    assert "preload_app = False" in content
+
+
 def test_gunicorn_manager_bind_uses_bench_http_port(tmp_path: Path) -> None:
     config = BenchConfig._from_dict({
         "bench": {"name": "test-bench", "python": "3.14", "http_port": 9000},

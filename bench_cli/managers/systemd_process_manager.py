@@ -5,8 +5,14 @@ import re
 import subprocess
 from pathlib import Path
 
+from bench_cli.managers.admin_env_manager import AdminEnvManager
+from bench_cli.managers.gunicorn_manager import GunicornManager
 from bench_cli.managers.process_manager import ProcessDefinition, ProcessManager, _cli_root
 from bench_cli.utils import run_command
+
+# Hardcoded for testing: stop the socket-activated admin after this many seconds
+# of inactivity. The next request re-activates it via the systemd socket.
+_ADMIN_IDLE_TIMEOUT = 60
 
 
 class SystemdProcessManager(ProcessManager):
@@ -22,6 +28,9 @@ class SystemdProcessManager(ProcessManager):
 
     def _unit_name(self, service_name: str) -> str:
         return f"{self.bench.config.name}-{service_name}.service"
+
+    def _admin_socket_name(self) -> str:
+        return f"{self.bench.config.name}-admin.socket"
 
     def _target_name(self) -> str:
         return f"{self.bench.config.name}.target"
@@ -39,22 +48,26 @@ class SystemdProcessManager(ProcessManager):
         return ["systemctl", "--user", *args]
 
     def generate_config(self) -> None:
-        from bench_cli.managers.admin_env_manager import AdminEnvManager
-
         AdminEnvManager(_cli_root()).ensure()
         self._ensure_gunicorn_config()
+        GunicornManager(self.bench).generate_admin_config()
         self.systemd_conf_dir.mkdir(parents=True, exist_ok=True)
 
         # Remove stale unit files (e.g. after switching process managers or enabling
         # companion mode, which drops socketio/worker services).
         target_file = self._target_name()
         for path in list(self.systemd_conf_dir.iterdir()):
-            if path.is_file() and (path.suffix == ".service" or path.name == target_file):
+            if path.is_file() and (path.suffix in (".service", ".socket") or path.name == target_file):
                 path.unlink()
 
         defs = self._prod_process_definitions()
         for pd in defs:
-            (self.systemd_conf_dir / self._unit_name(pd.name)).write_text(self._render_unit(pd))
+            if pd.name == "admin":
+                # Socket-activated + idle-stopping; not part of the target.
+                (self.systemd_conf_dir / self._unit_name("admin")).write_text(self._render_admin_service())
+                (self.systemd_conf_dir / self._admin_socket_name()).write_text(self._render_admin_socket())
+            else:
+                (self.systemd_conf_dir / self._unit_name(pd.name)).write_text(self._render_unit(pd))
         (self.systemd_conf_dir / self._target_name()).write_text(self._render_target(defs))
 
     def install_config(self) -> None:
@@ -62,7 +75,7 @@ class SystemdProcessManager(ProcessManager):
 
         self.user_unit_dir.mkdir(parents=True, exist_ok=True)
         defs = self._prod_process_definitions()
-        units = set(self._unit_name(pd.name) for pd in defs) | {self._target_name()}
+        units = set(self._unit_name(pd.name) for pd in defs) | {self._target_name(), self._admin_socket_name()}
 
         # Remove stale user-unit symlinks pointing to this bench's config dir.
         for dst in self.user_unit_dir.iterdir():
@@ -185,8 +198,63 @@ class SystemdProcessManager(ProcessManager):
         ]
         return "\n".join(lines) + "\n"
 
+    def _render_admin_socket(self) -> str:
+        cfg = self.bench.config.admin
+        return (
+            "\n".join(
+                [
+                    "[Unit]",
+                    f"Description={self.bench.config.name} admin (socket)",
+                    f"PartOf={self._target_name()}",
+                    "",
+                    "[Socket]",
+                    f"ListenStream=127.0.0.1:{cfg.internal_port}",
+                    "",
+                    "[Install]",
+                    f"WantedBy={self._target_name()}",
+                ]
+            )
+            + "\n"
+        )
+
+    def _render_admin_service(self) -> str:
+        cli_root = _cli_root()
+        gunicorn = AdminEnvManager(cli_root).gunicorn
+        admin_conf = GunicornManager(self.bench).admin_config_path
+        log_file = self.bench.logs_path / "admin.log"
+        return (
+            "\n".join(
+                [
+                    "[Unit]",
+                    f"Description={self.bench.config.name} admin",
+                    f"PartOf={self._target_name()}",
+                    f"Requires={self._admin_socket_name()}",
+                    f"After={self._admin_socket_name()}",
+                    "",
+                    "[Service]",
+                    "Type=simple",
+                    f"WorkingDirectory={cli_root}",
+                    f"Environment=BENCH_ADMIN_ROOT={self.bench.path}",
+                    f"Environment=PYTHONPATH={cli_root}",
+                    f"Environment=BENCH_ADMIN_IDLE_TIMEOUT={_ADMIN_IDLE_TIMEOUT}",
+                    "Environment=MALLOC_ARENA_MAX=2",
+                    f"ExecStart={gunicorn} -c {admin_conf} admin.backend.wsgi:application",
+                    # Re-activation happens via the socket, not systemd restart.
+                    "Restart=no",
+                    f"StandardOutput=append:{log_file}",
+                    f"StandardError=append:{log_file}.error.log",
+                ]
+            )
+            + "\n"
+        )
+
     def _render_target(self, defs: list[ProcessDefinition]) -> str:
-        wants = " ".join(self._unit_name(pd.name) for pd in defs)
+        # The admin is socket-activated and on-demand, so the target wants its
+        # socket (the always-on listener), never the service itself.
+        wants = " ".join(
+            self._admin_socket_name() if pd.name == "admin" else self._unit_name(pd.name)
+            for pd in defs
+        )
         return (
             "\n".join(
                 [
