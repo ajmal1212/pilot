@@ -400,6 +400,14 @@ def test_volume_skipped_when_not_configured() -> None:
     data = copy.deepcopy(MINIMAL_VALID_DATA)  # no [volume] section
     config = BenchConfig._from_dict(data)
     config.validate()  # must not raise — ZFS validation is skipped when volume not configured
+    assert not config.volume.enabled
+
+
+def test_toml_writer_omits_volume_when_not_configured() -> None:
+    data = copy.deepcopy(MINIMAL_VALID_DATA)
+    config = load_from_dict(data)
+    toml = bench_config_to_toml(config)
+    assert "[volume]" not in toml
 
 
 def test_toml_writer_volume_image_backing_round_trip() -> None:

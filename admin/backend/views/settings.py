@@ -279,17 +279,18 @@ def update_settings():
     if error := ConfigPatcher(config, data).apply():
         return jsonify({"ok": False, "error": error}), 400
 
-    if error := volume_manager.validate_sizes_fit_backing():
-        return jsonify({"ok": False, "error": error}), 400
-    if error := volume_manager.validate_quotas_above_usage():
-        return jsonify({"ok": False, "error": error}), 400
+    if config.volume.enabled:
+        if error := volume_manager.validate_sizes_fit_backing():
+            return jsonify({"ok": False, "error": error}), 400
+        if error := volume_manager.validate_quotas_above_usage():
+            return jsonify({"ok": False, "error": error}), 400
 
     try:
         (bench_root / "bench.toml").write_text(bench_config_to_toml(config))
     except Exception as error:
         return jsonify({"ok": False, "error": f"Failed to write config: {error}"}), 500
 
-    zfs_error = volume_manager.apply_sizes()
+    zfs_error = volume_manager.apply_sizes() if config.volume.enabled else None
 
     restarted, restart_error = False, None
     if _needs_restart(old_restart, _restart_trigger_values(config)):
