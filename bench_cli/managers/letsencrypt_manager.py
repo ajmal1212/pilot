@@ -42,7 +42,9 @@ class LetsEncryptManager:
             get_package_manager().install("certbot")
 
     def ensure_webroot(self) -> None:
-        self.bench.config.letsencrypt.webroot_path.mkdir(parents=True, exist_ok=True)
+        # /var/www is root-owned, so create the webroot with sudo. Default 0755
+        # lets certbot (root) write ACME challenges and nginx read them.
+        run_command(["sudo", "mkdir", "-p", str(self.bench.config.letsencrypt.webroot_path)])
 
     def obtain(self, site: "SiteConfig") -> None:
         from bench_cli.managers.nginx_manager import NginxManager
@@ -60,7 +62,7 @@ class LetsEncryptManager:
         email = self.bench.config.letsencrypt.email
 
         run_command([
-            "certbot", "certonly",
+            "sudo", "certbot", "certonly",
             "--webroot",
             "-w", webroot_path,
             *domain_args,
@@ -88,7 +90,7 @@ class LetsEncryptManager:
             return
 
         run_command([
-            "certbot", "certonly",
+            "sudo", "certbot", "certonly",
             "--webroot",
             "-w", str(self.bench.config.letsencrypt.webroot_path),
             "-d", domain,
@@ -99,7 +101,7 @@ class LetsEncryptManager:
         ])
 
     def renew(self) -> None:
-        run_command(["certbot", "renew", "--quiet"])
+        run_command(["sudo", "certbot", "renew", "--quiet"])
 
     def _is_near_expiry(self, site: "SiteConfig") -> bool:
         from bench_cli.managers.nginx_manager import NginxManager
