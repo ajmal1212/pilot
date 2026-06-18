@@ -8,6 +8,7 @@ class AdminConfig:
     enabled: bool = False
     password: str = ""
     domain: str = ""
+    tls: bool = True  # production admin served over HTTPS when true, plain HTTP otherwise
 
     @property
     def internal_port(self) -> int:

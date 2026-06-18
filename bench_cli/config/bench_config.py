@@ -119,21 +119,29 @@ class BenchConfig:
         return WorkerConfig(groups=groups)
 
     @staticmethod
+    def _normalize_process_manager(value: str) -> str:
+        v = (value or "").strip().lower()
+        if v in ("", "none"):
+            return ""
+        if v == "supervisord":
+            return "supervisor"
+        return v
+
+    @staticmethod
     def _parse_production(data: dict | None) -> ProductionConfig:
         if data is None:
             return ProductionConfig()
-        if "process_manager" in data:
-            return ProductionConfig(
-                process_manager=str(data.get("process_manager", "none")),
-                nginx=data.get("nginx", False),
-                use_companion_manager=data.get("use_companion_manager", False),
-            )
-        # Legacy format: enabled + lightweight → derive process_manager
-        if data.get("enabled", False):
-            pm = "systemd" if data.get("lightweight", False) else "supervisor"
+        pm = BenchConfig._normalize_process_manager(str(data.get("process_manager", "")))
+        if "enabled" in data:
+            enabled = bool(data.get("enabled"))
         else:
-            pm = "none"
+            # Legacy: presence of a real process_manager implied production.
+            enabled = pm != ""
+        # Oldest format derived the manager from a `lightweight` flag.
+        if enabled and not pm and "lightweight" in data:
+            pm = "systemd" if data.get("lightweight", False) else "supervisor"
         return ProductionConfig(
+            enabled=enabled,
             process_manager=pm,
             nginx=data.get("nginx", False),
             use_companion_manager=data.get("use_companion_manager", False),
@@ -167,6 +175,7 @@ class BenchConfig:
             enabled=data.get("enabled", False),
             password=data.get("password", ""),
             domain=data.get("domain", ""),
+            tls=data.get("tls", True),
         )
 
     @staticmethod
@@ -212,6 +221,7 @@ class BenchConfig:
         self._validate_mariadb_version()
         self._validate_mariadb_instance()
         self._validate_redis_version()
+        self._validate_production()
         self._validate_admin_domain()
         if self.volume.enabled:
             self._validate_volume()
@@ -278,6 +288,22 @@ class BenchConfig:
     def _validate_letsencrypt_email(self) -> None:
         if self.letsencrypt.email and not _EMAIL_PATTERN.match(self.letsencrypt.email):
             raise ConfigError(f"letsencrypt.email '{self.letsencrypt.email}' is not a valid email address.")
+
+    def _validate_production(self) -> None:
+        from bench_cli.config.production_config import VALID_PROCESS_MANAGERS
+
+        pm = self.production.process_manager
+        if self.production.enabled:
+            if pm not in VALID_PROCESS_MANAGERS:
+                raise ConfigError(
+                    f"production.process_manager must be one of {', '.join(VALID_PROCESS_MANAGERS)} "
+                    f"when production is enabled (bench '{self.name}'), got '{pm or '(empty)'}'."
+                )
+        elif pm and pm not in VALID_PROCESS_MANAGERS:
+            raise ConfigError(
+                f"production.process_manager '{pm}' is invalid (bench '{self.name}'). "
+                f"Must be one of {', '.join(VALID_PROCESS_MANAGERS)}."
+            )
 
     def _validate_admin_domain(self) -> None:
         domain = self.admin.domain

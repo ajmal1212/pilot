@@ -24,6 +24,7 @@ FLAT_KEYS = {
     "admin_enabled": "admin.enabled",
     "admin_password": "admin.password",
     "admin_domain": "admin.domain",
+    "admin_tls": "admin.tls",
     "volume_enabled": "volume.enabled",
     "volume_pool": "volume.pool",
     "volume_backing": "volume.backing",
@@ -35,7 +36,6 @@ FLAT_KEYS = {
     "volume_mariadb_reservation": "volume.mariadb.reservation",
     "volume_mariadb_quota": "volume.mariadb.quota",
     "volume_mariadb_data_dir": "volume.mariadb.data_dir",
-    "production_process_manager": "production.process_manager",
 }
 
 # Framework branches the setup wizard offers, newest/recommended first. The
@@ -118,6 +118,10 @@ def _apply_setting(config: BenchConfig, key: str, value) -> None:
         config.apps[0].branch = str(value)
     elif key == "workers":
         config.workers.groups = _workers_to_groups(value)
+    elif key == "production_process_manager":
+        pm = "" if str(value) in ("", "none") else str(value)
+        config.production.process_manager = pm
+        config.production.enabled = pm != ""
     # unknown keys (wizard extras like is_linux) are ignored
 
 
@@ -147,6 +151,7 @@ def _flatten(config: BenchConfig) -> dict:
     settings["app_repo"] = app.repo
     settings["app_branch"] = app.branch
     settings["workers"] = [{"queues": list(g.queues), "count": g.count} for g in config.workers.groups]
+    settings["production_process_manager"] = config.production.process_manager or "none"
     return settings
 
 

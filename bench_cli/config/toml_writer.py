@@ -58,8 +58,9 @@ def bench_config_to_toml(config: BenchConfig) -> str:
 
     p = config.production
     parts.append("[production]")
-    parts.append(f'process_manager = "{p.process_manager}"')
-    parts.append(f"nginx = {'true' if p.nginx else 'false'}")
+    parts.append(f"enabled = {'true' if p.enabled else 'false'}")
+    if p.process_manager:
+        parts.append(f'process_manager = "{p.process_manager}"')
     parts.append(f"use_companion_manager = {'true' if p.use_companion_manager else 'false'}")
     parts.append("")
 
@@ -87,6 +88,7 @@ def bench_config_to_toml(config: BenchConfig) -> str:
     parts.append(f"enabled = {'true' if a.enabled else 'false'}")
     parts.append(f'password = "{a.password}"')
     parts.append(f'domain = "{a.domain}"')
+    parts.append(f"tls = {'true' if a.tls else 'false'}")
     parts.append("")
 
     v = config.volume

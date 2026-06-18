@@ -43,7 +43,7 @@ def _restart_trigger_values(config: BenchConfig) -> dict:
         "mariadb": {"host": config.mariadb.host, "port": config.mariadb.port, "admin_user": config.mariadb.admin_user, "socket_path": config.mariadb.socket_path},
         "redis": {"cache_port": config.redis.cache_port, "queue_port": config.redis.queue_port},
         "workers": {"groups": _worker_groups_payload(config)},
-        "production": {"process_manager": config.production.process_manager},
+        "production": {"process_manager": config.production.process_manager or "none"},
     }
 
 
@@ -130,7 +130,9 @@ class ConfigPatcher:
             process_manager = str(production["process_manager"])
             if process_manager not in ("none", "supervisor", "systemd"):
                 return "process_manager must be none, supervisor, or systemd"
-            self.config.production.process_manager = process_manager
+            pm = "" if process_manager == "none" else process_manager
+            self.config.production.process_manager = pm
+            self.config.production.enabled = pm != ""
         return None
 
 
@@ -213,7 +215,7 @@ def _build_settings_response(config: BenchConfig) -> dict:
         },
         "redis": {"cache_port": config.redis.cache_port, "queue_port": config.redis.queue_port, "version": RedisManager.installed_version() or config.redis.version or ""},
         "workers": _worker_groups_payload(config),
-        "production": {"process_manager": config.production.process_manager},
+        "production": {"process_manager": config.production.process_manager or "none"},
         "volume": {
             "pool": volume.pool,
             "backing": volume.backing,
