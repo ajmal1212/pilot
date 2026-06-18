@@ -261,11 +261,18 @@ class ProcessManager:
 
     def _worker_definitions(self, queue: str, count: int) -> List[ProcessDefinition]:
         sites = self.bench.sites_path
+        # `queue` may be a comma-separated list (a worker group can serve several
+        # queues). Commas are illegal in a process/unit name — they break
+        # supervisor's comma-delimited `programs=` list — so slug them for the
+        # name and log file while keeping the real list in the --queue argument.
+        import re
+
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", queue).strip("_") or "default"
         return [
             ProcessDefinition(
-                name=f"worker_{queue}_{i}",
+                name=f"worker_{slug}_{i}",
                 command=f"cd {sites} && {self.bench.env_path}/bin/python -m frappe.utils.bench_helper frappe worker --queue {queue}",
-                log_file=self.bench.logs_path / f"worker_{queue}_{i}.log",
+                log_file=self.bench.logs_path / f"worker_{slug}_{i}.log",
                 env=self._py_memory_env(),
             )
             for i in range(1, count + 1)

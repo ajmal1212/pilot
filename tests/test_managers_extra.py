@@ -500,3 +500,20 @@ def test_supervisor_is_running_false_when_no_running_in_output(tmp_path: Path) -
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(stdout="test-bench:test-bench-web  STOPPED\n")
         assert mgr.is_running() is False
+
+
+def test_supervisor_multiqueue_worker_name_has_no_commas(tmp_path: Path) -> None:
+    """A worker group serving several queues must not produce a comma in the
+    program name — commas break supervisor's `programs=` CSV (regression)."""
+    from bench_cli.config.worker_config import WorkerConfig, WorkerGroup
+
+    mgr = _make_supervisor_manager(tmp_path)
+    mgr.bench.config.workers = WorkerConfig(groups=[WorkerGroup(queues=["default", "short", "long"], count=1)])
+    conf = mgr._render_supervisord_conf()
+    workload_line = [ln for ln in conf.splitlines() if ln.startswith("programs=")][0]
+    # Every program named in the group must exist as a [program:...] section.
+    named = workload_line.split("=", 1)[1].split(",")
+    for prog in named:
+        assert f"[program:{prog}]" in conf, f"{prog} has no matching section"
+    # The worker still serves all three queues via --queue.
+    assert "--queue default,short,long" in conf
