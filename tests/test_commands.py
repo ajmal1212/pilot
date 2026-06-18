@@ -666,6 +666,37 @@ def test_restart_production_restarts_when_configured(tmp_path: Path) -> None:
     mgr.restart.assert_called_once()
 
 
+def test_ls_lists_benches_with_mode_and_address(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    from bench_cli.commands.ls import ListCommand
+
+    benches = tmp_path / "benches"
+    (benches / "alpha").mkdir(parents=True)
+    (benches / "alpha" / "bench.toml").write_text(
+        '[bench]\nname = "alpha"\n\n[production]\nenabled = true\nprocess_manager = "systemd"\n\n'
+        '[admin]\ndomain = "alpha-admin.example.com"\n'
+    )
+    (benches / "beta").mkdir(parents=True)
+    (benches / "beta" / "bench.toml").write_text('[bench]\nname = "beta"\n\n[admin]\nport = 7005\n')
+
+    with patch("bench_cli.loader.cli_root", return_value=tmp_path), \
+         patch("bench_cli.commands.ls.ListCommand._is_running", return_value=False):
+        ListCommand().run()
+
+    out = capsys.readouterr().out
+    assert "Benches (2)" in out
+    assert "alpha" in out and "production" in out and "alpha-admin.example.com" in out
+    assert "beta" in out and "development" in out and "http://localhost:7005" in out
+
+
+def test_ls_empty_when_no_benches(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    from bench_cli.commands.ls import ListCommand
+
+    (tmp_path / "benches").mkdir()
+    with patch("bench_cli.loader.cli_root", return_value=tmp_path):
+        ListCommand().run()
+    assert "No benches yet" in capsys.readouterr().out
+
+
 def _mark_initialized(bench: Bench) -> None:
     (bench.path / "env" / "bin").mkdir(parents=True, exist_ok=True)
     (bench.path / "env" / "bin" / "python").write_text("")
