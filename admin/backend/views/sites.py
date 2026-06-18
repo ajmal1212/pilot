@@ -59,7 +59,7 @@ def detail(name: str):
     try:
         bench_config = BenchConfig.from_file(bench_root / "bench.toml")
         http_port = bench_config.http_port
-        nginx_enabled = bench_config.production.nginx
+        nginx_enabled = bench_config.production.enabled
     except Exception:
         http_port = 8000
         nginx_enabled = False
@@ -263,7 +263,7 @@ def login_to_site(name: str):
     try:
         bench_config = BenchConfig.from_file(bench_root / "bench.toml")
         http_port = bench_config.http_port
-        nginx_enabled = bench_config.production.nginx
+        nginx_enabled = bench_config.production.enabled
     except Exception:
         http_port = 8000
         nginx_enabled = False

@@ -51,7 +51,7 @@ class StatusCommand(Command):
         else:
             print("  (no apps cloned)")
 
-        if prod.enabled and prod.nginx:
+        if prod.enabled:
             self._section("Nginx")
             nginx_status = self._service_status("nginx")
             self._row("Status", nginx_status)

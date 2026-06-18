@@ -98,7 +98,7 @@ class NewSiteCommand(Command):
         )
 
     def _reload_nginx(self) -> None:
-        if not self.bench.config.production.nginx:
+        if not self.bench.config.production.enabled:
             return
         from bench_cli.managers.nginx_manager import NginxManager
 

@@ -143,7 +143,6 @@ class BenchConfig:
         return ProductionConfig(
             enabled=enabled,
             process_manager=pm,
-            nginx=data.get("nginx", False),
             use_companion_manager=data.get("use_companion_manager", False),
         )
 

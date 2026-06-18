@@ -86,7 +86,7 @@ class InitCommand(Command):
         from bench_cli.managers.redis_manager import RedisManager
         from bench_cli.platform import is_linux
 
-        production = self.bench.config.production.nginx
+        production = self.bench.config.production.enabled
         volume_enabled = is_linux() and self.bench.config.volume.enabled
         dedicated_db = is_linux() and bool(self.bench.config.mariadb.instance)
         # Passwordless sudo is configured by install.sh before init ever runs.

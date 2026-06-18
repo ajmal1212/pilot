@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 import tomllib
@@ -19,36 +18,20 @@ class SetupProductionCommand(Command):
     help = "Full production setup (process manager + nginx)."
     group = "setup"
 
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument(
-            "--skip-nginx",
-            action="store_true",
-            help="Configure the process manager only; skip nginx and Let's Encrypt.",
-        )
-
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(bench, skip_nginx=args.skip_nginx)
-
-    def __init__(self, bench: "Bench", skip_nginx: bool = False) -> None:
+    def __init__(self, bench: "Bench") -> None:
         self.bench = bench
-        self.skip_nginx = skip_nginx
 
     def run(self) -> None:
         self._require_linux()
-        if not self.skip_nginx:
-            self._check_admin_domain()
+        self._check_admin_domain()
         self.bench.config.validate()
         self._write_dns_multitenancy()
         if self.bench.config.production.process_manager == "systemd":
             self._setup_systemd()
         else:
             self._setup_supervisor()
-        if not self.skip_nginx:
-            self._enable_nginx()
-            self._setup_nginx()
-            self._setup_letsencrypt_if_needed()
+        self._setup_nginx()
+        self._setup_letsencrypt_if_needed()
 
         self._build_admin_for_production()
 
@@ -74,12 +57,6 @@ class SetupProductionCommand(Command):
         owner = host_owner(self.bench.path, domain)
         if owner:
             raise BenchError(f"Admin domain '{domain}' is already used by bench '{owner}'.")
-
-    def _enable_nginx(self) -> None:
-        """Persist production.nginx so later `bench new-site` reloads nginx."""
-        if not self.bench.config.production.nginx:
-            self.bench.config.production.nginx = True
-            self._persist({"production": {"nginx": True}})
 
     def _persist(self, updates: dict) -> None:
         """Merge ``updates`` into bench.toml in place, preserving all other fields."""
@@ -152,6 +129,5 @@ class SetupProductionCommand(Command):
                 http_port = self.bench.config.nginx.http_port
                 port_suffix = "" if http_port == 80 else f":{http_port}"
                 print(f"  http://{site.config.name}{port_suffix}")
-        if not self.skip_nginx:
-            scheme = "https" if nginx_manager.admin_cert_exists() else "http"
-            print(f"Admin:\n  {scheme}://{self.bench.config.admin.domain}")
+        scheme = "https" if nginx_manager.admin_cert_exists() else "http"
+        print(f"Admin:\n  {scheme}://{self.bench.config.admin.domain}")

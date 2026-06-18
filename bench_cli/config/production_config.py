@@ -9,5 +9,4 @@ VALID_PROCESS_MANAGERS = ("systemd", "supervisor")
 class ProductionConfig:
     enabled: bool = False
     process_manager: str = ""  # systemd | supervisor — required when enabled
-    nginx: bool = False  # deprecated: production always uses nginx
     use_companion_manager: bool = False
