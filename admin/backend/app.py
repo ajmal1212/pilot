@@ -243,11 +243,9 @@ def create_app(bench_root: Path) -> Flask:
         if normalize_host(admin_domain) == normalize_host(name):
             return jsonify({"error": "Admin domain must differ from the bench/site name."}), 400
 
-        # TLS termination is a server-wide setting carried forward from sibling
-        # benches; only override when the caller explicitly provides it.
-        admin_tls = data.get("admin_tls")
-        if admin_tls is not None:
-            admin_tls = bool(admin_tls)
+        # New benches from the UI come up plain HTTP; the user enables HTTPS
+        # later from Settings (or the wizard). Never inherit a sibling's TLS here.
+        admin_tls = bool(data.get("admin_tls", False))
 
         try:
             NewCommand(new_dir, name, process_manager=process_manager,
@@ -269,22 +267,24 @@ def create_app(bench_root: Path) -> Flask:
         spawn_env = {k: v for k, v in os.environ.items() if not k.startswith("WERKZEUG_")}
         spawn_env["PYTHONPATH"] = str(cli_root)
 
-        # A bench created from a production admin should come up the same way:
-        # provision it to production (init + setup production) in the background
-        # and let the dialog redirect to its own domain. A dev admin keeps the
-        # raw-port wizard flow.
+        # Both dev and production parents drop the user on the setup wizard so
+        # they enter the bench's details themselves (DB/admin passwords, site,
+        # then optionally `setup production`). A production parent additionally
+        # routes the new bench's domain to the wizard over plain HTTP, so it's
+        # reached at its own domain rather than a raw host:port. The wizard's
+        # `setup production` step later replaces this routing with the real one.
+        wizard_at_domain = False
         if _current_is_production():
-            subprocess.Popen(
-                [str(admin_python), "-m", "admin.backend.provision_bench", str(new_dir)],
-                cwd=str(cli_root), env=spawn_env,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
-            )
-            admin = new_toml.get("admin", {})
-            scheme = "https" if admin.get("tls", False) else "http"
-            return jsonify({
-                "name": name, "port": new_port, "production": True,
-                "domain": admin.get("domain", ""), "scheme": scheme,
-            })
+            try:
+                from bench_cli.config.bench_config import BenchConfig
+                from bench_cli.core.bench import Bench
+                from bench_cli.managers.nginx_manager import NginxManager
+
+                config = BenchConfig.from_file(new_dir / "bench.toml")
+                NginxManager(Bench(config, new_dir)).setup_wizard_routing(config.admin.port)
+                wizard_at_domain = True
+            except Exception as exc:
+                return jsonify({"error": f"Failed to route the new bench's domain: {exc}"}), 500
 
         subprocess.Popen(
             [str(admin_python), "-m", "admin.backend.server",
@@ -293,7 +293,12 @@ def create_app(bench_root: Path) -> Flask:
             cwd=str(cli_root), env=spawn_env,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
         )
-        return jsonify({"name": name, "port": new_port, "production": False})
+        admin = new_toml.get("admin", {})
+        return jsonify({
+            "name": name, "port": new_port,
+            "wizard_at_domain": wizard_at_domain,
+            "domain": admin.get("domain", ""),
+        })
 
     def _current_is_production() -> bool:
         # Read the flag straight from toml (no full validation) so a slightly
@@ -305,22 +310,6 @@ def create_app(bench_root: Path) -> Flask:
             return bool(prod.get("enabled", pm not in ("", "none")))
         except Exception:
             return False
-
-    @app.route("/api/benches/provision-status")
-    def api_benches_provision_status():
-        name = (request.args.get("name") or "").strip()
-        if not name or not _NAME_RE.match(name):
-            return jsonify({"error": "Invalid bench name"}), 400
-        new_dir = bench_root.parent / name
-        status_file = new_dir / "provision.status"
-        log_file = new_dir / "provision.log"
-        status = status_file.read_text().strip() if status_file.exists() else "unknown"
-        log_tail = ""
-        if log_file.exists():
-            # Tail the log so the dialog can show recent progress without
-            # streaming the whole file every poll.
-            log_tail = "\n".join(log_file.read_text().splitlines()[-40:])
-        return jsonify({"status": status, "log": log_tail})
 
     @app.route("/api/benches/ready")
     def api_benches_ready():

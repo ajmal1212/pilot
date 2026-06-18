@@ -118,13 +118,11 @@ def test_api_benches_new_creates_bench(tmp_path: Path) -> None:
     mock_popen.assert_called_once()
 
 
-def test_api_benches_new_provisions_when_current_is_production(tmp_path: Path) -> None:
-    # A bench created from a production admin is provisioned to production in the
-    # background and the response points at its own domain (not a raw wizard port).
+def test_api_benches_new_routes_wizard_at_domain_when_production(tmp_path: Path) -> None:
+    # A bench created from a production admin is routed to the setup wizard at its
+    # own domain (HTTP) — not auto-provisioned to a password-protected login.
     benches_dir = tmp_path / "benches"
     current = benches_dir / "current"
-    # A real production current bench has an admin domain (config validates).
-    # The parent terminates TLS, so the child inherits HTTPS (scheme = https).
     _write_bench_toml(current, "current", admin_enabled=True, admin_password="secret",
                       admin_domain="current-admin.example.com", admin_tls=True)
     from admin.backend.app import create_app
@@ -139,30 +137,19 @@ def test_api_benches_new_provisions_when_current_is_production(tmp_path: Path) -
     with client.session_transaction() as sess:
         sess["authenticated"] = True
 
-    with patch("subprocess.Popen") as mock_popen:
+    with patch("subprocess.Popen") as mock_popen, \
+         patch("bench_cli.managers.nginx_manager.NginxManager.setup_wizard_routing") as mock_route:
         resp = client.post("/api/benches/new", json=_new_payload("fresh"))
 
     data = resp.get_json()
-    assert data["production"] is True
+    assert data["wizard_at_domain"] is True
     assert data["domain"] == "fresh-admin.example.com"
-    assert data["scheme"] == "https"
-    # Spawned the background provisioner, not a wizard server.
+    # Routed the domain to the wizard and spawned a wizard server (not a provisioner).
+    mock_route.assert_called_once()
     argv = mock_popen.call_args[0][0]
-    assert "admin.backend.provision_bench" in argv
-
-
-def test_api_benches_provision_status_reports_status_and_log(tmp_path: Path) -> None:
-    benches_dir = tmp_path / "benches"
-    client = _client(benches_dir / "current")
-    new_dir = benches_dir / "fresh"
-    new_dir.mkdir(parents=True)
-    (new_dir / "provision.status").write_text("running")
-    (new_dir / "provision.log").write_text("line1\nline2\n")
-
-    resp = client.get("/api/benches/provision-status?name=fresh")
-    data = resp.get_json()
-    assert data["status"] == "running"
-    assert "line2" in data["log"]
+    assert "admin.backend.server" in argv and "--wizard" in argv
+    # New benches from the UI default to plain HTTP (TLS is opt-in afterwards).
+    assert "tls = false" in (benches_dir / "fresh" / "bench.toml").read_text()
 
 
 def test_api_benches_new_rejects_invalid_name(tmp_path: Path) -> None:
