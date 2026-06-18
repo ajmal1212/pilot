@@ -17,16 +17,34 @@ class NewCommand(Command):
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("name", help="Name for the new bench.")
+        parser.add_argument(
+            "--process-manager",
+            choices=["systemd", "supervisor", "supervisord"],
+            default="",
+            help="Intended production process manager (stored for later 'setup production').",
+        )
+        parser.add_argument(
+            "--admin-domain",
+            default="",
+            help="Admin domain for this bench (defaults to <name>-admin.localhost).",
+        )
 
     @classmethod
     def from_args(cls, args, bench):
         from bench_cli.loader import cli_root
 
-        return cls(cli_root() / "benches" / args.name, args.name)
+        return cls(
+            cli_root() / "benches" / args.name,
+            args.name,
+            process_manager=args.process_manager,
+            admin_domain=args.admin_domain,
+        )
 
-    def __init__(self, target_directory: Path, name: str) -> None:
+    def __init__(self, target_directory: Path, name: str, process_manager: str = "", admin_domain: str = "") -> None:
         self.target_directory = target_directory
         self.name = name
+        self.process_manager = process_manager
+        self.admin_domain = admin_domain
 
     def run(self) -> None:
         from bench_cli.config.bench_toml_builder import BenchTomlBuilder, default_ports
@@ -47,8 +65,10 @@ class NewCommand(Command):
         print("Writing bench.toml")
         settings = {
             "admin_password": secrets.token_hex(nbytes=5),
-            "admin_domain": f"{self.name}-admin.localhost",
+            "admin_domain": self.admin_domain or f"{self.name}-admin.localhost",
         }
+        if self.process_manager:
+            settings["production_process_manager"] = self.process_manager
         # New benches get their own MariaDB instance (mariadb@<name>) with an
         # isolated socket/datadir; mariadb.port is offset automatically via
         # _PORT_FIELDS. Existing benches without these fields keep using the

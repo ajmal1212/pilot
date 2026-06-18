@@ -119,9 +119,9 @@ def _apply_setting(config: BenchConfig, key: str, value) -> None:
     elif key == "workers":
         config.workers.groups = _workers_to_groups(value)
     elif key == "production_process_manager":
-        pm = "" if str(value) in ("", "none") else str(value)
-        config.production.process_manager = pm
-        config.production.enabled = pm != ""
+        # Store the manager preference only. Production is enabled (and the
+        # deployment built) by `bench setup production`, never by editing config.
+        config.production.process_manager = "" if str(value) in ("", "none") else str(value)
     # unknown keys (wizard extras like is_linux) are ignored
 
 

@@ -53,6 +53,7 @@ class SetupProductionCommand(Command):
             self._setup_systemd()
         else:
             self._setup_supervisor()
+        self._start_workload()
         self._setup_nginx()
         self._setup_letsencrypt_if_needed()
 
@@ -191,6 +192,13 @@ class SetupProductionCommand(Command):
         mgr.generate_config()
         mgr.install_config()
         mgr.reload()
+
+    def _start_workload(self) -> None:
+        """Start the workload (and admin) so the bench is actually serving once
+        setup completes — otherwise sites 502 until a separate `bench start`."""
+        from bench_cli.managers.process_manager import ProcessManagerFactory
+
+        ProcessManagerFactory.create(self.bench).start()
 
     def _setup_nginx(self) -> None:
         from bench_cli.commands.setup.nginx import SetupNginxCommand

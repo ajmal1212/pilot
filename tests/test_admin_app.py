@@ -96,15 +96,25 @@ def test_api_benches_includes_production_metadata(tmp_path: Path) -> None:
 # ── POST /api/benches/new ────────────────────────────────────────────────────
 
 
+def _new_payload(name: str, **overrides) -> dict:
+    payload = {"name": name, "process_manager": "systemd", "admin_domain": f"{name}-admin.example.com"}
+    payload.update(overrides)
+    return payload
+
+
 def test_api_benches_new_creates_bench(tmp_path: Path) -> None:
     benches_dir = tmp_path / "benches"
     client = _client(benches_dir / "current")
 
     with patch("subprocess.Popen") as mock_popen:
-        resp = client.post("/api/benches/new", json={"name": "fresh"})
+        resp = client.post("/api/benches/new", json=_new_payload("fresh"))
 
     assert resp.get_json()["name"] == "fresh"
-    assert (benches_dir / "fresh" / "bench.toml").exists()
+    toml = (benches_dir / "fresh" / "bench.toml").read_text()
+    assert 'process_manager = "systemd"' in toml
+    assert 'domain = "fresh-admin.example.com"' in toml
+    # Stored as a preference only — not yet deployed.
+    assert "enabled = false" in toml.split("[production]")[1].split("[")[0]
     mock_popen.assert_called_once()
 
 
@@ -112,17 +122,52 @@ def test_api_benches_new_rejects_invalid_name(tmp_path: Path) -> None:
     benches_dir = tmp_path / "benches"
     client = _client(benches_dir / "current")
 
-    resp = client.post("/api/benches/new", json={"name": "bad name!"})
+    resp = client.post("/api/benches/new", json={"name": "bad name!", "process_manager": "systemd", "admin_domain": "x-admin.example.com"})
 
     assert resp.status_code == 400
     assert not (benches_dir / "bad name!").exists()
+
+
+def test_api_benches_new_requires_process_manager(tmp_path: Path) -> None:
+    benches_dir = tmp_path / "benches"
+    client = _client(benches_dir / "current")
+
+    resp = client.post("/api/benches/new", json={"name": "fresh", "admin_domain": "fresh-admin.example.com"})
+
+    assert resp.status_code == 400
+    assert "process manager" in resp.get_json()["error"].lower()
+
+
+def test_api_benches_new_requires_admin_domain(tmp_path: Path) -> None:
+    benches_dir = tmp_path / "benches"
+    client = _client(benches_dir / "current")
+
+    resp = client.post("/api/benches/new", json={"name": "fresh", "process_manager": "systemd"})
+
+    assert resp.status_code == 400
+    assert "domain" in resp.get_json()["error"].lower()
+
+
+def test_api_benches_new_rejects_duplicate_admin_domain(tmp_path: Path) -> None:
+    benches_dir = tmp_path / "benches"
+    client = _client(benches_dir / "current")
+    other = benches_dir / "other"
+    (other / "sites").mkdir(parents=True, exist_ok=True)
+    (other / "bench.toml").write_text(
+        '[bench]\nname = "other"\n\n[admin]\ndomain = "shared-admin.example.com"\n'
+    )
+
+    resp = client.post("/api/benches/new", json=_new_payload("fresh", admin_domain="shared-admin.example.com"))
+
+    assert resp.status_code == 400
+    assert "already used by bench 'other'" in resp.get_json()["error"]
 
 
 def test_api_benches_new_rejects_duplicate_name(tmp_path: Path) -> None:
     benches_dir = tmp_path / "benches"
     client = _client(benches_dir / "current")
 
-    resp = client.post("/api/benches/new", json={"name": "current"})
+    resp = client.post("/api/benches/new", json=_new_payload("current"))
 
     assert resp.status_code == 400
     assert "already exists" in resp.get_json()["error"]

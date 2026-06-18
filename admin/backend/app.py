@@ -33,6 +33,11 @@ from bench_cli.exceptions import BenchError, ConfigError
 _STATIC_DIR = Path(__file__).parent / "static"
 _OPEN_PATHS = {"/api/status", "/api/login", "/api/logout"}
 _NAME_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+# Lenient hostname: dotted alphanumeric/hyphen labels (allows admin.example.com
+# and dev names like my-admin.localhost).
+_ADMIN_DOMAIN_RE = re.compile(
+    r"^(?=.{1,253}$)[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+)
 
 
 def _port_open(port: int) -> bool:
@@ -211,14 +216,34 @@ def create_app(bench_root: Path) -> Flask:
 
     @app.route("/api/benches/new", methods=["POST"])
     def api_benches_new():
+        from bench_cli.utils import host_owner, normalize_host
+
         data = request.get_json(silent=True) or {}
         name = (data.get("name") or "").strip()
         if not name or not _NAME_RE.match(name):
             return jsonify({"error": "Bench name must contain only letters, numbers, '-' and '_'"}), 400
 
+        process_manager = (data.get("process_manager") or "").strip().lower()
+        if process_manager == "supervisord":
+            process_manager = "supervisor"
+        if process_manager not in ("systemd", "supervisor"):
+            return jsonify({"error": "Choose a process manager: systemd or supervisor."}), 400
+
+        admin_domain = (data.get("admin_domain") or "").strip()
+        if not admin_domain:
+            return jsonify({"error": "Admin domain is required so the bench is reachable in production."}), 400
+        if not _ADMIN_DOMAIN_RE.match(admin_domain):
+            return jsonify({"error": f"'{admin_domain}' is not a valid hostname."}), 400
+
         new_dir = bench_root.parent / name
+        owner = host_owner(new_dir, admin_domain)
+        if owner:
+            return jsonify({"error": f"Admin domain '{admin_domain}' is already used by bench '{owner}'."}), 400
+        if normalize_host(admin_domain) == normalize_host(name):
+            return jsonify({"error": "Admin domain must differ from the bench/site name."}), 400
+
         try:
-            NewCommand(new_dir, name).run()
+            NewCommand(new_dir, name, process_manager=process_manager, admin_domain=admin_domain).run()
         except BenchError as exc:
             return jsonify({"error": str(exc)}), 400
 
