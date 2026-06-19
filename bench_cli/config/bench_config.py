@@ -41,7 +41,7 @@ class BenchConfig:
     apps: List[AppConfig] = field(default_factory=list)
     http_port: int = 8000
     socketio_port: int = 9000
-    socketio_backend: str = "python"
+    socketio_backend: str = "node"
     default_branch: str = ""
     production: ProductionConfig = field(default_factory=ProductionConfig)
     nginx: NginxConfig = field(default_factory=NginxConfig)
@@ -86,7 +86,7 @@ class BenchConfig:
             python_version=bench_data.get("python", ""),
             http_port=bench_data.get("http_port", 8000),
             socketio_port=bench_data.get("socketio_port", 9000),
-            socketio_backend=bench_data.get("socketio_backend", "python"),
+            socketio_backend=bench_data.get("socketio_backend", "node"),
             default_branch=bench_data.get("default_branch", ""),
             apps=apps,
             mariadb=mariadb,
