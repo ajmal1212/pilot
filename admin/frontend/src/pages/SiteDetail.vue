@@ -905,22 +905,23 @@ onMounted(() => { load(); loadRegistry() })
     </Dialog>
 
     <!-- Login dialog -->
-    <Dialog v-model="showSslEmail" :options="{ title: 'Enable SSL', size: 'sm' }">
-      <template #body-content>
+    <Dialog v-model="showSslEmail" title="Enable SSL" size="md" :showCloseButton="true">
+      <template #default>
         <div @pointerdown.stop>
           <p class="text-sm text-ink-gray-6">
-            A Let's Encrypt account email is required to issue certificates. It's saved to this
-            bench's config and reused for future certificates and renewal notices.
+            A Let's Encrypt email is required to issue and renew certificates.
           </p>
           <FormControl class="mt-3" label="Let's Encrypt email" type="email" v-model="sslEmail"
             placeholder="you@example.com" @keydown.enter="enableSsl(sslEmail)" />
           <ErrorMessage :message="sslEmailError" class="mt-2" />
-          <div class="mt-4 flex justify-end gap-2">
-            <Button variant="ghost" @click="showSslEmail = false">Cancel</Button>
-            <Button variant="solid" :loading="sslLoading" :disabled="!sslEmail" @click="enableSsl(sslEmail)">
-              Enable SSL
-            </Button>
-          </div>
+        </div>
+      </template>
+      <template #actions>
+        <div class="flex justify-end gap-2">
+          <Button variant="ghost" @click="showSslEmail = false">Cancel</Button>
+          <Button variant="solid" :loading="sslLoading" :disabled="!sslEmail" @click="enableSsl(sslEmail)">
+            Enable SSL
+          </Button>
         </div>
       </template>
     </Dialog>
