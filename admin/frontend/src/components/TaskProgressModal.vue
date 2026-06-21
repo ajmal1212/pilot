@@ -231,7 +231,6 @@ onUnmounted(closeStream)
           <div v-if="!hasSteps" class="flex flex-col items-center justify-center gap-3 py-8">
             <template v-if="streaming || task?.status === 'running'">
               <LucideLoader2 class="h-8 w-8 animate-spin text-ink-gray-4" />
-              <p class="text-sm text-ink-gray-5 text-center max-w-xs truncate">{{ currentStatus || 'Working…' }}</p>
             </template>
             <template v-else-if="task?.status === 'success'">
               <div class="flex h-12 w-12 items-center justify-center rounded-full bg-surface-green-2">
@@ -246,41 +245,6 @@ onUnmounted(closeStream)
             </template>
           </div>
 
-          <!-- Step list -->
-          <div v-if="hasSteps" class="flex flex-col gap-1">
-            <p
-              v-if="currentStatus"
-              class="px-3 pb-1 text-xs text-ink-gray-4 truncate"
-            >{{ currentStatus }}</p>
-            <div
-              v-for="section in stepSections"
-              :key="section.key"
-              class="flex items-center gap-3 rounded-lg px-3 py-2"
-            >
-              <div
-                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-                :class="{
-                  'bg-surface-green-2 text-ink-green-2': section.status === 'done',
-                  'bg-ink-gray-9 text-surface-white': section.status === 'running',
-                  'bg-surface-red-1 text-ink-red-4': section.status === 'failed',
-                  'bg-surface-gray-3': section.status === 'pending',
-                }"
-              >
-                <LucideCheck v-if="section.status === 'done'" class="h-3 w-3" />
-                <LucideLoader2 v-else-if="section.status === 'running'" class="h-3 w-3 animate-spin" />
-                <LucideX v-else-if="section.status === 'failed'" class="h-3 w-3" />
-                <span v-else class="h-1.5 w-1.5 rounded-full bg-ink-gray-3" />
-              </div>
-              <span
-                class="flex-1 text-sm"
-                :class="section.status === 'pending' ? 'text-ink-gray-4' : 'text-ink-gray-9'"
-              >{{ section.label }}</span>
-              <span class="text-xs text-ink-gray-4 shrink-0">
-                <template v-if="stepDuration(section)">{{ stepDuration(section) }}</template>
-                <span v-else-if="section.status === 'running'" class="animate-pulse">running…</span>
-              </span>
-            </div>
-          </div>
         </div>
 
         <!-- Footer: only when done -->
