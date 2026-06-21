@@ -176,6 +176,21 @@ if ! command -v node >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
     run_sudo apt-get install -y nodejs
 fi
 
+# Install timezone data (required by Python's zoneinfo module on systems without system tzdata)
+if [ "$(uname)" != "Darwin" ]; then
+    if command -v apt-get >/dev/null 2>&1; then
+        if ! dpkg -l tzdata 2>/dev/null | grep -q '^ii'; then
+            echo "Installing timezone data..."
+            DEBIAN_FRONTEND=noninteractive run_sudo apt-get install -y tzdata
+        fi
+    elif command -v apk >/dev/null 2>&1; then
+        if ! apk info -e tzdata >/dev/null 2>&1; then
+            echo "Installing timezone data..."
+            run_sudo apk add --no-cache tzdata
+        fi
+    fi
+fi
+
 # ── add bench to PATH ─────────────────────────────────────────────────────────
 add_to_path() {
     local rc="$1"
