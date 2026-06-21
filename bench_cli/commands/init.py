@@ -206,10 +206,12 @@ class InitCommand(Command):
 
     # Build/runtime deps for compiling frappe's Python and Node wheels on Alpine.
     # musl ships no manylinux wheels, so the full header set is needed; bash and
-    # tzdata are runtime deps frappe assumes are present.
+    # tzdata are runtime deps frappe assumes are present. python3-dev provides
+    # Python.h: Alpine ships a system python that `uv venv` reuses, so C
+    # extensions (mysqlclient, etc.) need the matching dev headers to compile.
     _ALPINE_BUILD_PACKAGES = (
         "build-base", "pkgconf", "mariadb-dev", "git", "bash", "tzdata",
-        "linux-headers", "libffi-dev", "openssl-dev", "libxml2-dev",
+        "python3-dev", "linux-headers", "libffi-dev", "openssl-dev", "libxml2-dev",
         "libxslt-dev", "jpeg-dev", "zlib-dev", "freetype-dev", "tiff-dev",
         "lcms2-dev", "openjpeg-dev",
     )
@@ -252,7 +254,9 @@ class InitCommand(Command):
         if is_alpine():
             pkg.install(*self._ALPINE_BUILD_PACKAGES)
         elif is_linux():
-            pkg.install("build-essential", "pkg-config", "libmariadb-dev", "git")
+            # python3-dev provides Python.h for C-extension wheels when uv reuses
+            # a system python (it isn't needed when uv downloads a managed one).
+            pkg.install("build-essential", "pkg-config", "libmariadb-dev", "git", "python3-dev")
         PythonEnvManager(self.bench).ensure_python()
 
     def _write_common_config_for_production(self, production: bool) -> None:
