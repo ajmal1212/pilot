@@ -77,9 +77,8 @@ run_sudo() {
 # Writes /etc/sudoers.d/<user> granting passwordless sudo. Validated with visudo
 # before being installed so a bad file can never lock anyone out.
 write_sudoers() {
-    local user="$1"
-    local file="/etc/sudoers.d/$user"
-    local tmp
+    user="$1"
+    file="/etc/sudoers.d/$user"
     tmp="$(mktemp)"
 
     printf '# Frappe bench — managed by install.sh, do not edit\n%s ALL=(ALL) NOPASSWD: ALL\n' "$user" > "$tmp"
@@ -148,7 +147,7 @@ authenticate_sudo() {
         exit 1
     fi
 
-    local pass
+    pass=""
     while true; do
         printf "[sudo] password for %s: " "$(id -un)" > /dev/tty
         # `read -s` is a bashism; toggle echo via stty so this works under ash too.
@@ -224,8 +223,8 @@ fi
 
 # ── add bench to PATH ─────────────────────────────────────────────────────────
 add_to_path() {
-    local rc="$1"
-    local line="export PATH=\"\$HOME/bench-cli:\$PATH\""
+    rc="$1"
+    line="export PATH=\"\$HOME/bench-cli:\$PATH\""
     if ! grep -qF 'bench-cli' "$rc" 2>/dev/null; then
         echo "$line" >> "$rc"
         echo "Added bench to PATH in $rc"
