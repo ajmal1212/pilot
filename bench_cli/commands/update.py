@@ -5,7 +5,8 @@ import time
 from typing import TYPE_CHECKING
 
 from bench_cli.commands.base import Command
-from bench_cli.exceptions import CommandError
+from bench_cli.exceptions import CommandError, MigrateError
+from bench_cli.managers.snapshot_orchestrator import get_orchestrator
 
 if TYPE_CHECKING:
     from bench_cli.core.bench import Bench
@@ -39,16 +40,30 @@ class UpdateCommand(Command):
         from bench_cli.managers.process_manager import ProcessManagerFactory
 
         self._warn_if_running()
-        self._step("fetch", "Fetching latest code")
-        self._update_apps()
-        self._step("install", "Installing dependencies")
-        self._reinstall_apps()
-        self._step("assets", "Building assets")
-        self._rebuild_assets()
-        self._step("migrate", "Migrating sites")
-        self._migrate_sites()
-        self._step("restart", "Restarting services")
-        ProcessManagerFactory.create(self.bench).reload_web()
+        if self.bench.config.volume.enabled:
+            self.bench.set_maintenance_mode(True)  # Avoid any more requests since we need a stable snapshot state
+            self._step("pre", "Taking a snapshot")
+            self._snapshot()
+        try:
+            self._step("fetch", "Fetching latest code")
+            self._update_apps()
+            self._step("install", "Installing dependencies")
+            self._reinstall_apps()
+            self._step("assets", "Building assets")
+            self._rebuild_assets()
+            self._step("migrate", "Migrating sites")
+            self._migrate_sites()
+            self._step("restart", "Restarting services")
+            ProcessManagerFactory.create(self.bench).reload_web()
+        except MigrateError:
+            if self.bench.config.volume.enabled and self.tag:
+                self._step("post", "Rolling Back")
+                self._rollback()
+            else:
+                sys.exit(1)
+        finally:
+            self.bench.set_maintenance_mode(False) # Just to make sure we are not stuck in maintenance mode
+
         self._step("done", "Done")
 
     def _warn_if_running(self) -> None:
@@ -61,11 +76,27 @@ class UpdateCommand(Command):
             try:
                 answer = input("Continue anyway? [y/N] ").strip().lower()
             except (EOFError, KeyboardInterrupt):
-                print("\nAborted.")
-                sys.exit(1)
+                raise MigrateError("Aborted.")
             if answer not in ("y", "yes"):
-                print("Aborted.")
-                sys.exit(1)
+                raise MigrateError("Aborted.")
+
+    def _snapshot(self):
+        from datetime import datetime
+
+        self.tag = datetime.now().strftime("%Y%m%d-%H%M%S")  # Dynamically set tag for rollbacks
+        try:
+            orchestrator = get_orchestrator(self.bench.path)
+            orchestrator.create_snapshot(self.tag)
+            print(f"Bench snapshot {self.tag} taken")
+        except Exception as e:
+            print(f" Unable to take snapshot for automatic rollbacks: {e}")
+
+    def _rollback(self):
+        try:
+            orchestrator = get_orchestrator(self.bench.path)
+            orchestrator.rollback_snapshot(self.tag)
+        except Exception as e:
+            print(f" Unable to rollback to snapshot: {e}")
 
     def _update_apps(self) -> None:
         for app in self.bench.apps():
@@ -109,4 +140,4 @@ class UpdateCommand(Command):
                 print(f"  Migration failed for {site.config.name}: {e}", file=sys.stderr)
                 failed = True
         if failed:
-            sys.exit(1)
+            raise MigrateError("One or more site migrations failed.")
