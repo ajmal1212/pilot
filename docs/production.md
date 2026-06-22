@@ -82,7 +82,7 @@ use_companion_manager = false    # run scheduler/workers/socketio inside gunicor
 - The Alpine counterpart of systemd. Writes one `supervise-daemon` init script per process to `config/openrc/`, symlinks them into `/etc/init.d/`, and enables them with `rc-update`.
 - `supervise-daemon` keeps each process alive (the equivalent of systemd's `Restart=on-failure`).
 - The admin runs as a plain supervised Flask process on `admin.port` (no socket activation); nginx proxies straight to it. The workload and admin are separate services, so `bench stop` stops the workload while the admin keeps serving.
-- Selected automatically on Alpine; `mariadb` stays on the shared system server (no `mariadb@.service` template units).
+- Selected automatically on Alpine; per-bench `mariadb-<instance>` OpenRC services are provisioned (no `mariadb@.service` template units needed).
 
 ### Companion manager
 
