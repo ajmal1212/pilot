@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import time
 import traceback
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -69,10 +70,8 @@ class UpdateCommand(Command):
             traceback.print_exc()  # print at the point of failure, before any rollback steps
             sys.stdout.flush()
             if volume_enabled and self.tag:
-                self._preserve_failure_context()
                 self._step("post", "Rolling back to snapshot")
-                self._rollback()
-                self._restore_task_log()
+                self._rollback_preserving_log()
                 self._step("restart", "Restarting services after rollback")
                 self._reload_web()
             raise
@@ -111,42 +110,55 @@ class UpdateCommand(Command):
         try:
             orchestrator = get_orchestrator(self.bench.path)
             orchestrator.rollback_snapshot(self.tag)
+            print(f"Successfully rolled back to {self.tag}")
         except Exception as e:
             print(f" Unable to rollback to snapshot: {e}")
 
-    def _preserve_failure_context(self) -> None:
-        """Snapshot the current task log to /tmp before rollback wipes the ZFS pool."""
-        if not self._task_log or not self._task_log.exists():
-            return
-        path = Path("/tmp") / f"bench-update-failure-{self.tag}.txt"
-        try:
-            path.write_bytes(self._task_log.read_bytes())
-        except Exception:
-            pass
+    def _rollback_preserving_log(self) -> None:
+        """Roll back while keeping the full task log across the pool revert.
 
-    def _restore_task_log(self) -> None:
-        """After rollback wipes the task dir, recreate it and write the saved log back.
-
-        Writes via the stdout FD rather than reopening the path, so the FD position
-        stays consistent and there are no null-byte gaps from a truncate-then-write.
+        Rollback reverts the volume — including this task's output.log — to the
+        pre-update snapshot, which would erase everything logged so far. To keep
+        the complete log we:
+          1. copy the current log to a /tmp file (outside the pool),
+          2. send the rollback step's own output to that /tmp file so it survives
+             the revert,
+          3. after the revert, rewrite the preserved log into a fresh output.log
+             and resume logging there.
         """
         if not self._task_log:
+            self._rollback()
             return
-        path = Path("/tmp") / f"bench-update-failure-{self.tag}.txt"
-        if not path.exists():
-            return
+
+        tmp = Path("/tmp") / f"bench-update-rollback-{self.tag}.log"
+
+        # 1. Preserve everything logged up to and including the "post" step.
         try:
-            content = path.read_bytes()
-            self._task_log.parent.mkdir(parents=True, exist_ok=True)
-            # Truncate and rewrite via the open stdout FD so position stays in sync.
-            stdout_fd = sys.stdout.fileno()
-            import os
-            os.ftruncate(stdout_fd, 0)
-            os.lseek(stdout_fd, 0, os.SEEK_SET)
-            os.write(stdout_fd, content)
-            path.unlink()
+            sys.stdout.flush()
+            sys.stderr.flush()
+            tmp.write_bytes(self._task_log.read_bytes())
         except Exception:
-            pass
+            tmp = None  # fall back to plain rollback if we can't preserve
+
+        # 2. Run the rollback, capturing its output into /tmp so it survives the revert.
+        if tmp is not None:
+            with open(tmp, "a") as sink, redirect_stdout(sink), redirect_stderr(sink):
+                self._rollback()
+        else:
+            self._rollback()
+
+        # 3. Rewrite the full preserved log into a fresh output.log and resume there.
+        if tmp is not None:
+            try:
+                self._task_log.parent.mkdir(parents=True, exist_ok=True)
+                restored = open(self._task_log, "w", encoding="utf-8")
+                restored.write(tmp.read_text(encoding="utf-8", errors="replace"))
+                restored.flush()
+                sys.stdout = restored
+                sys.stderr = restored
+                tmp.unlink(missing_ok=True)
+            except Exception:
+                pass
 
     def _update_apps(self) -> None:
         for app in self.bench.apps():
@@ -188,7 +200,6 @@ class UpdateCommand(Command):
                 continue
             print(f"Migrating {site.config.name}...")
             try:
-                raise MigrateError(f"Migration failed for this site: {site.config.name}")
                 site.migrate()
             except CommandError as e:
                 raise MigrateError(f"Migration failed for {site.config.name}") from e
