@@ -11,6 +11,18 @@ from bench_cli.config.bench_toml_builder import FRAMEWORK_BRANCHES, BenchTomlBui
 setup_bp = Blueprint("setup", __name__)
 
 
+def wizard_marker_path(bench_root: Path) -> Path:
+    """Marker that the bench is going through first-time setup via the wizard.
+
+    Written when the wizard kicks off init and cleared when setup finishes (and
+    as a safety-net by /api/status once the bench is fully deployed). It lets the
+    admin tell the wizard's own production deploy — during which production isn't
+    enabled yet and the bench looks 'initialized' — apart from an independent
+    `bench setup production` re-run from Settings or the CLI, which never writes it.
+    """
+    return bench_root / ".wizard-active"
+
+
 @setup_bp.route("/config")
 def get_config():
     bench_root = Path(current_app.config["BENCH_ROOT"])
@@ -175,6 +187,9 @@ def start_init():
 
     try:
         task_id = TaskRunner(bench_root).run("bench-init", {})
+        # Mark the wizard as active so a reload mid-setup (including the later
+        # production deploy) returns to the wizard rather than the dashboard.
+        wizard_marker_path(bench_root).touch()
         return jsonify({"ok": True, "task_id": task_id})
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
@@ -205,10 +220,15 @@ def finish_setup():
     import signal
     import threading
 
+    # Setup is over: drop the wizard marker regardless of how this admin is run,
+    # so the dashboard takes over (the procfile admin returns 400 below but must
+    # still clear the marker).
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    wizard_marker_path(bench_root).unlink(missing_ok=True)
+
     if not current_app.config.get("WIZARD_SERVER"):
         return jsonify({"ok": False, "error": "Not running as the setup-wizard server"}), 400
 
-    bench_root = Path(current_app.config["BENCH_ROOT"])
     if not (bench_root / "config" / "Procfile").exists():
         return jsonify({"ok": False, "error": "Bench is not initialized yet"}), 400
 
@@ -277,10 +297,13 @@ def _read_defaults(bench_root: Path) -> dict:
 
     try:
         tasks = TaskReader(bench_root).list_tasks()
-        running = next((t for t in tasks if t.command == "bench-init" and t.status == "running"), None)
-        result["running_init_task_id"] = running.task_id if running else None
+        running_init = next((t for t in tasks if t.command == "bench-init" and t.status == "running"), None)
+        running_prod = next((t for t in tasks if t.command == "setup-production" and t.status == "running"), None)
+        result["running_init_task_id"] = running_init.task_id if running_init else None
+        result["running_production_task_id"] = running_prod.task_id if running_prod else None
     except Exception:
         result["running_init_task_id"] = None
+        result["running_production_task_id"] = None
 
     return result
 
