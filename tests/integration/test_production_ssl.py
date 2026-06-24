@@ -24,7 +24,7 @@ skips otherwise, and it tears everything down on the way out.
 
 Prerequisites (CI provides these):
     - an initialised bench at BENCH_TEST_ROOT with site1.localhost
-    - nginx, openssl, sudo, uv available
+    - nginx, openssl, sudo available
 """
 
 from __future__ import annotations
