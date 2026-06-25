@@ -65,6 +65,24 @@ class _SlidingWindow:
             return True
 
 
+class _UsedTokens:
+    """Tracks consumed one-time sign-in token ids so each can be used only once.
+    In-memory (single gunicorn worker); entries self-expire at the token's exp."""
+
+    def __init__(self) -> None:
+        self._used: dict[str, float] = {}
+        self._lock = threading.Lock()
+
+    def use(self, jti: str, exp: float) -> bool:
+        now = time.time()
+        with self._lock:
+            self._used = {j: e for j, e in self._used.items() if e > now}
+            if jti in self._used:
+                return False
+            self._used[jti] = exp
+            return True
+
+
 def _client_ip() -> str:
     # nginx overwrites X-Real-IP with the real client address (unspoofable);
     # in dev there is no proxy, so fall back to the direct peer.
@@ -235,6 +253,7 @@ def create_app(bench_root: Path) -> Flask:
     app.config["TEMPLATES_AUTO_RELOAD"] = False
 
     _install_idle_watchdog(app)
+    used_logins = _UsedTokens()
 
     def _load_config():
         return BenchConfig.from_file(bench_root / "bench.toml")
@@ -322,19 +341,19 @@ def create_app(bench_root: Path) -> Flask:
             return jsonify({"ok": False, "error": str(exc)}), 503
         if not config.admin.password:
             return jsonify({"ok": False, "error": "No admin password configured in bench.toml"}), 503
-        from bench_cli.commands.generate_session import ensure_jwt_secret, issue_token, verify_token
+        from bench_cli.commands.generate_session import decode_token, ensure_jwt_secret, issue_token
 
         data = request.get_json(silent=True) or {}
         sid = data.get("sid")
-        if sid:
-            if not verify_token(sid, config.admin.jwt_secret):
-                return jsonify({"ok": False, "error": "Invalid or expired session token"}), 401
-        elif hmac.compare_digest(str(data.get("password", "")), config.admin.password):
-            sid = issue_token(ensure_jwt_secret(bench_root / "bench.toml"))
-        else:
+        if sid is not None:
+            payload = decode_token(sid, config.admin.jwt_secret)
+            jti = payload.get("jti") if payload else None
+            if not jti or not used_logins.use(jti, payload["exp"]):
+                return jsonify({"ok": False, "error": "Invalid or expired sign-in link"}), 401
+        elif not hmac.compare_digest(str(data.get("password", "")), config.admin.password):
             return jsonify({"ok": False, "error": "Incorrect password"}), 401
         resp = jsonify({"ok": True})
-        _set_sid_cookie(resp, sid, config)
+        _set_sid_cookie(resp, issue_token(ensure_jwt_secret(bench_root / "bench.toml")), config)
         return resp
 
     @app.route("/api/logout", methods=["POST"])

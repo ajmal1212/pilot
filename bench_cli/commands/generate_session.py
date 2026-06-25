@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 _HEADER = {"alg": "HS256", "typ": "JWT"}
 DEFAULT_TTL = 24 * 3600
+LOGIN_TTL = 5 * 60
 
 
 def _b64(raw: bytes) -> str:
@@ -34,28 +35,42 @@ def _sign(signing_input: str, secret: str) -> bytes:
     return hmac.new(secret.encode(), signing_input.encode(), hashlib.sha256).digest()
 
 
-def issue_token(secret: str, ttl: int = DEFAULT_TTL, issued_at: float | None = None) -> str:
+def issue_token(secret: str, ttl: int = DEFAULT_TTL, issued_at: float | None = None, jti: str | None = None) -> str:
     if not secret:
         raise ValueError("JWT secret is not configured.")
     now = int(issued_at or time.time())
+    payload = {"sub": "admin", "iat": now, "exp": now + ttl}
+    if jti:
+        payload["jti"] = jti
     body = ".".join(
-        _b64(json.dumps(part, separators=(",", ":")).encode())
-        for part in (_HEADER, {"sub": "admin", "iat": now, "exp": now + ttl})
+        _b64(json.dumps(part, separators=(",", ":")).encode()) for part in (_HEADER, payload)
     )
     return f"{body}.{_b64(_sign(body, secret))}"
 
 
-def verify_token(token: str, secret: str) -> bool:
+def decode_token(token: str, secret: str) -> dict | None:
+    """Return the token's claims if its signature is valid and it has not
+    expired, else None."""
     if not token or not secret:
-        return False
+        return None
     try:
         header_b64, payload_b64, signature_b64 = token.split(".")
         if not hmac.compare_digest(_unb64(signature_b64), _sign(f"{header_b64}.{payload_b64}", secret)):
-            return False
-        exp = json.loads(_unb64(payload_b64)).get("exp")
+            return None
+        payload = json.loads(_unb64(payload_b64))
     except (ValueError, json.JSONDecodeError):
-        return False
-    return isinstance(exp, int) and time.time() < exp
+        return None
+    exp = payload.get("exp")
+    return payload if isinstance(exp, int) and time.time() < exp else None
+
+
+def verify_token(token: str, secret: str) -> bool:
+    return decode_token(token, secret) is not None
+
+
+def issue_login_token(secret: str) -> str:
+    """A short-lived, single-use token for the ?sid= sign-in link."""
+    return issue_token(secret, ttl=LOGIN_TTL, jti=secrets.token_urlsafe(8))
 
 
 def ensure_jwt_secret(toml_path) -> str:
@@ -71,7 +86,7 @@ def ensure_jwt_secret(toml_path) -> str:
 
 class GenerateSessionCommand(Command):
     name = "generate-session"
-    help = "Issue a 1-day admin session token (use --full-path for a sign-in URL)."
+    help = "Issue a 5-minute one-time sign-in token (use --full-path for a sign-in URL)."
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
@@ -91,7 +106,7 @@ class GenerateSessionCommand(Command):
 
         if not self.bench.config.admin.password:
             raise BenchError("Admin has no password set; configure [admin].password in bench.toml first.")
-        token = issue_token(self._jwt_secret())
+        token = issue_login_token(self._jwt_secret())
         if self.full_path:
             print(f"{admin_url(self.bench.config)}/?sid={urllib.parse.quote(token, safe='')}")
         else:

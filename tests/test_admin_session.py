@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from bench_cli.commands.generate_session import issue_token, verify_token
+from bench_cli.commands.generate_session import decode_token, issue_login_token, issue_token, verify_token
 from bench_cli.config.bench_config import BenchConfig
 from bench_cli.config.bench_toml_builder import BenchTomlBuilder
 from bench_cli.core.bench import Bench
@@ -40,6 +40,10 @@ def test_empty_inputs_rejected() -> None:
 def test_issue_requires_secret() -> None:
     with pytest.raises(ValueError):
         issue_token("")
+
+
+def test_login_token_carries_jti() -> None:
+    assert decode_token(issue_login_token("k3y"), "k3y").get("jti")
 
 
 # ── CLI command ───────────────────────────────────────────────────────────────
@@ -130,7 +134,7 @@ def test_invalid_jwt_cookie_stays_unauthenticated(tmp_path: Path) -> None:
 
 def test_login_with_sid_sets_httponly_cookie(tmp_path: Path) -> None:
     client = _client(tmp_path)
-    resp = client.post("/api/login", json={"sid": issue_token("k3y")})
+    resp = client.post("/api/login", json={"sid": issue_login_token("k3y")})
     assert resp.status_code == 200
     cookie = next(h for k, h in resp.headers if k == "Set-Cookie" and h.startswith("sid="))
     assert "HttpOnly" in cookie
@@ -139,9 +143,16 @@ def test_login_with_sid_sets_httponly_cookie(tmp_path: Path) -> None:
 
 def test_login_with_invalid_sid_rejected(tmp_path: Path) -> None:
     client = _client(tmp_path)
-    resp = client.post("/api/login", json={"sid": issue_token("wrong-secret")})
+    resp = client.post("/api/login", json={"sid": issue_login_token("wrong-secret")})
     assert resp.status_code == 401
     assert client.get("/api/benches/").status_code == 401
+
+
+def test_sid_is_single_use(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    sid = issue_login_token("k3y")
+    assert client.post("/api/login", json={"sid": sid}).status_code == 200
+    assert client.post("/api/login", json={"sid": sid}).status_code == 401
 
 
 def test_login_rate_limited_after_limit(tmp_path: Path) -> None:
