@@ -39,6 +39,12 @@ function openWizard() {
   if (wizardUrl.value) window.location.href = wizardUrl.value
 }
 
+// Manual button: open in a new tab so this admin page stays put (the automatic
+// redirect on ready navigates the current tab instead).
+function openWizardInNewTab() {
+  if (wizardUrl.value) window.open(wizardUrl.value, '_blank', 'noopener')
+}
+
 function stopElapsed() {
   if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null }
 }
@@ -235,7 +241,7 @@ async function createBench() {
           <span class="rounded-full bg-surface-gray-2 px-2.5 py-1 text-xs font-medium text-ink-gray-6">
             Elapsed {{ elapsedLabel }}
           </span>
-          <Button variant="subtle" @click="openWizard">Open setup now</Button>
+          <Button variant="subtle" @click="openWizardInNewTab">Open setup now</Button>
         </div>
 
         <!-- Dev bench: guide to the CLI rather than auto-provisioning a
