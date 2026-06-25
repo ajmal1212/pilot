@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import signal
 import subprocess
 import time
@@ -36,12 +37,25 @@ BENCH_BIN = os.environ.get("BENCH_BIN") or str(REPO_ROOT / "bench")
 E2E_PREFIX = "e2e-"
 
 
+def _env_truthy(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
 class Bench:
-    def __init__(self, name: str, env: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        env: dict[str, str] | None = None,
+        admin_password: str | None = None,
+    ) -> None:
         if not name.startswith(E2E_PREFIX):
             raise ValueError(f'Bench name must start with "{E2E_PREFIX}" (got "{name}")')
         self.name = name
         self._extra_env = env or {}
+        # `bench new` no longer pre-generates an admin password (it's set in the
+        # wizard's first step and persisted to bench.toml by /api/setup/save).
+        # So the harness chooses it, the wizard enters it, and login reuses it.
+        self._admin_password = admin_password or secrets.token_urlsafe(12)
         self._proc: subprocess.Popen | None = None
         self._info: dict | None = None
 
@@ -59,9 +73,9 @@ class Bench:
 
     @property
     def admin_password(self) -> str:
-        if not self._info:
-            raise RuntimeError("Bench not created yet — call create() first")
-        return self._info["admin_password"]
+        """The admin password the harness will set via the wizard and log in with
+        (the fresh bench.toml has none until the wizard saves it)."""
+        return self._admin_password
 
     @property
     def admin_url(self) -> str:
@@ -70,7 +84,7 @@ class Bench:
     # ── lifecycle ──────────────────────────────────────────────────────────────
 
     def create(self) -> None:
-        """`bench new <name>` then read the generated admin port/password."""
+        """`bench new <name>` then read the generated admin port."""
         if self.dir.exists():
             raise RuntimeError(f'Bench "{self.name}" already exists at {self.dir} — clean it up first')
         self._run(["new", self.name])
@@ -92,7 +106,8 @@ class Bench:
     def start_wizard(self) -> None:
         """`bench -b <name> start` on an un-initialized bench boots the standalone
         setup-wizard server. Returns once it answers on the admin port."""
-        # Serve the wizard UI from current source.
+        # No-op unless E2E_BUILD_ADMIN is set; otherwise `bench start` downloads
+        # the prebuilt wizard UI itself.
         self._build_admin_ui()
         self._spawn_start()
         self._wait_for_admin(expect_wizard=True)
@@ -110,9 +125,10 @@ class Bench:
 
     def start_full(self) -> None:
         """`bench -b <name> start` on the initialized bench: full admin + workload."""
-        # `bench init` (run by the wizard) re-downloads the prebuilt admin dist
-        # from the GitHub release, clobbering our local build — so rebuild from
-        # current source now, before the full bench starts serving it.
+        # `bench init` (run by the wizard) re-downloads the prebuilt admin dist,
+        # clobbering any local build. Rebuild from source only when E2E_BUILD_ADMIN
+        # is set (no-op otherwise) — e.g. to exercise *this* branch's admin UI
+        # rather than the released bundle.
         self._build_admin_ui()
         self._spawn_start()
         self._wait_for_admin(expect_wizard=False)
@@ -178,10 +194,16 @@ class Bench:
 
     def _build_admin_ui(self) -> None:
         """Build the admin UI from source into admin/backend/static/dist so the
-        server serves this branch's code, not a stale prebuilt bundle. Skip with
-        E2E_SKIP_BUILD=1. Installs frontend deps once if missing."""
-        if os.environ.get("E2E_SKIP_BUILD") == "1":
+        server serves *this branch's* code instead of the prebuilt bundle.
+
+        Opt-in via E2E_BUILD_ADMIN: off by default, in which case the harness
+        never builds and `bench start` serves the prebuilt bundle it downloads
+        (the wizard) / already has from bench init (the full bench). Turn it on
+        to exercise local frontend changes end to end. Installs frontend deps
+        once if missing."""
+        if not _env_truthy("E2E_BUILD_ADMIN"):
             return
+        print("[e2e] Building admin UI from source (E2E_BUILD_ADMIN)...")
         frontend = REPO_ROOT / "admin" / "frontend"
         if not (frontend / "node_modules").exists():
             if subprocess.run(["npm", "install"], cwd=frontend).returncode != 0:
@@ -284,10 +306,8 @@ class Bench:
         )
 
     def _read_config(self) -> dict:
-        """Read admin.port / admin.password from the generated bench.toml."""
+        """Read admin.port from the generated bench.toml. (admin.password is empty
+        on a fresh bench — the wizard sets it; see admin_password.)"""
         with open(self.dir / "bench.toml", "rb") as f:
             data = tomllib.load(f)
-        return {
-            "admin_port": int(data["admin"]["port"]),
-            "admin_password": data["admin"]["password"],
-        }
+        return {"admin_port": int(data["admin"]["port"])}

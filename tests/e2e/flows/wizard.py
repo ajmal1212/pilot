@@ -28,8 +28,10 @@ def complete_dev_wizard(
     db_mode: str = "shared",
     framework_branch: str | None = None,
 ) -> None:
-    """Complete the wizard for a development bench:
-    process manager "none" (run it yourself), no domain, no TLS, no volumes.
+    """Complete the wizard for a development bench (repo defaults, no volumes).
+    The wizard only configures a dev bench — production is a separate
+    `bench setup production` step — so there are no domain/TLS/process-manager
+    prompts to drive here.
 
     db_mode:
         'shared'    — validate against an existing system MariaDB (CI default).
@@ -57,11 +59,13 @@ def complete_dev_wizard(
     expect(page.get_by_text("Incorrect MariaDB credentials.")).to_be_hidden()
 
     # ── Step 3: Customize ───────────────────────────────────────────────────────
+    # The wizard always provisions a development bench (no production/process-manager
+    # choice — that's a separate `bench setup production` step run from the terminal
+    # afterwards). We keep the repo default and leave "Use volumes" unchecked, so on
+    # the last config step "Set up bench" runs init directly.
     expect(page.get_by_text("Customize your bench")).to_be_visible(timeout=30_000)
     if framework_branch:
         _choose_select(page, "Frappe branch", framework_branch)
-    # Development mode: no production process manager, so no domain/TLS prompts.
-    _choose_select(page, "Production process manager", "Development")
 
     page.get_by_role("button", name="Set up bench").click()
 
@@ -103,11 +107,12 @@ def _wizard_error_text(page: Page) -> str:
 
 
 def _choose_select(page: Page, label: str, option_name: str) -> None:
-    """frappe-ui's FormControl ``type="select"`` is a reka-ui Select — a
-    ``<button role="combobox">`` trigger plus a portalled listbox of
-    ``role="option"`` items — not a native ``<select>``, so we open it and click
-    the option rather than calling select_option(). ``option_name`` matches by
-    substring (the visible labels carry em-dashes and hints), so pass a
-    distinctive fragment."""
-    page.get_by_label(label).click()
+    """frappe-ui's FormControl ``type="select"`` is a reka-ui Select: a
+    ``<button role="combobox">`` trigger (labelled via a separate ``<label for>``)
+    plus a portalled listbox of ``role="option"`` items — not a native
+    ``<select>``. ``get_by_label`` won't target the button, so open it by its
+    combobox role + accessible name (the accname comes from the ``<label for>``),
+    then click the option. ``option_name`` matches by substring (labels carry
+    hints like "(recommended)"), so pass a distinctive fragment."""
+    page.get_by_role("combobox", name=label).click()
     page.get_by_role("option", name=option_name).click()

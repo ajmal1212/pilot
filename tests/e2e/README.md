@@ -52,11 +52,11 @@ full trace (DOM snapshots, screenshots, network) with:
 playwright show-trace test-results/<module>/trace.zip
 ```
 
-The harness rebuilds the admin UI from source automatically before each server
-start. This is required because `bench init` re-downloads the prebuilt admin
-bundle from the GitHub release and would otherwise serve stale code instead of
-this branch's source. Skip the rebuild (when the dist is known-fresh) with
-`E2E_SKIP_BUILD=1`.
+By default the harness does **not** build the admin UI — `bench start` serves the
+prebuilt bundle (downloaded for the wizard, fetched by `bench init` for the full
+bench). Set `E2E_BUILD_ADMIN=1` to build the admin UI from source instead, so the
+run exercises *this branch's* frontend (slower, but required to catch frontend
+changes — this is what CI does).
 
 Useful env vars:
 
@@ -67,7 +67,7 @@ Useful env vars:
 | `E2E_MARIADB_PASSWORD` | `admin` | Existing system MariaDB root password. |
 | `E2E_EXTRA_APP_NAME` / `_REPO` / `_BRANCH` | `blog` / `frappe/blog` / `develop` | The extra app installed/uninstalled. Point at `erpnext`, `india-compliance`, etc. to widen coverage. |
 | `E2E_KEEP_ON_FAILURE` | (set) | On failure the bench is kept for inspection; set to `0` to always clean up. |
-| `E2E_SKIP_BUILD` | — | `1` skips the admin UI rebuild. |
+| `E2E_BUILD_ADMIN` | off | `1` builds the admin UI from source (wizard + full bench) so the run exercises *this branch's* frontend. Off (default) = the harness never builds and `bench start` serves the prebuilt bundle (faster). |
 
 The suite creates a bench named `e2e-<db_mode>` (e.g. `e2e-shared`) under
 `benches/` and removes it on teardown. Bench names must start with `e2e-` (the

@@ -14,6 +14,11 @@ from harness.tasks import run_task_action, wait_for_task
 
 
 def login(page: Page, base_url: str, password: str) -> None:
+    # The wizard's /api/setup/save hands back a session cookie, which carries over
+    # in this shared browser context — so without clearing it we'd already be
+    # authenticated and the login form would never render. Drop it to exercise the
+    # actual login.
+    page.context.clear_cookies()
     page.goto(f"{base_url}/")
     page.get_by_placeholder("Password").fill(password)
     page.get_by_role("button", name="Login").click()
