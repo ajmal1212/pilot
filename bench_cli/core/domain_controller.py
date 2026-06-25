@@ -180,7 +180,10 @@ class DomainRouteProvider:
         candidate = self._resolve(domain)
         if not candidate:
             raise BenchError(f"{domain} doesn't resolve yet. Retry once DNS has updated.")
-        if not (candidate & self._resolve(site_name)):
+        expected = self._resolve(site_name)
+        if ip := self._server_ip():
+            expected.add(ip)
+        if not (candidate & expected):
             raise BenchError(f"{domain} doesn't point here yet. Retry once DNS has updated.")
 
     @staticmethod

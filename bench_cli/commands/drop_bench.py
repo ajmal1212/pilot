@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import socket
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -155,8 +156,7 @@ class DropBenchCommand(Command):
         benches share a database iff their identity sets intersect."""
         from bench_cli.managers.mariadb_manager import MariaDBManager
 
-        host = "127.0.0.1" if cfg.host in ("localhost", "127.0.0.1", "") else cfg.host
-        keys = {("tcp", host, cfg.port)}
+        keys = {("tcp", DropBenchCommand._normalize_db_host(cfg.host), cfg.port)}
         if cfg.instance:
             mgr = MariaDBManager(cfg)
             keys |= {
@@ -169,6 +169,37 @@ class DropBenchCommand(Command):
         if cfg.data_dir:
             keys.add(("datadir", cfg.data_dir))
         return keys
+
+    @staticmethod
+    def _normalize_db_host(host: str) -> str:
+        """Canonicalize any address pointing at this machine to '127.0.0.1', so a
+        sibling reaching the same server via localhost, the box's hostname, or an
+        interface IP still collides on the tcp identity key."""
+        host = (host or "").strip()
+        if host in ("", "localhost", "127.0.0.1"):
+            return "127.0.0.1"
+        try:
+            ips = {info[4][0] for info in socket.getaddrinfo(host, None)}
+        except OSError:
+            return host
+        if any(ip.startswith("127.") or ip == "::1" for ip in ips) or (ips & DropBenchCommand._local_machine_ips()):
+            return "127.0.0.1"
+        return host
+
+    @staticmethod
+    def _local_machine_ips() -> set[str]:
+        ips: set[str] = set()
+        try:
+            ips |= {info[4][0] for info in socket.getaddrinfo(socket.gethostname(), None)}
+        except OSError:
+            pass
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+                probe.connect(("8.8.8.8", 80))
+                ips.add(probe.getsockname()[0])
+        except OSError:
+            pass
+        return ips
 
     def _delete_bench_dir(self) -> None:
         path = self.bench.path

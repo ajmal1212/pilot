@@ -22,6 +22,11 @@ _MACOS_SOCKET_CANDIDATES = ["/tmp/mysql.sock", "/usr/local/var/mysql/mysql.sock"
 _LINUX_SOCKET_CANDIDATES = ["/var/run/mysqld/mysqld.sock", "/run/mysqld/mysqld.sock"]
 # Alpine's mariadb package uses the conventional shared datadir.
 _ALPINE_DATA_DIR = Path("/var/lib/mysql")
+# Absolute paths we must never `rm -rf`, even if misconfigured as a datadir.
+_PROTECTED_DATA_DIRS = frozenset(
+    Path(p)
+    for p in ("/", "/var", "/var/lib", "/var/lib/mysql", "/home", "/root", "/etc", "/usr", "/srv", "/opt", "/mnt", "/data")
+)
 
 DEFAULT_VERSION = "11.8"
 _REPO_SETUP_URL = "https://r.mariadb.com/downloads/mariadb_repo_setup"
@@ -164,10 +169,11 @@ class MariaDBManager:
         run_command(_privileged(["rm", "-f", f"/etc/init.d/{service}", f"/var/log/{service}.log"]))
 
     def _remove_data_dir(self) -> None:
-        # Guard against ever wiping the shared server's datadir; only a
-        # per-instance /var/lib/mysql-<instance> should be removed here.
+        # Guard against wiping the shared server's datadir or any shallow system
+        # path; only a per-instance dir (default /var/lib/mysql-<instance>) goes.
         data_dir = self.data_dir()
-        if Path(data_dir) == _ALPINE_DATA_DIR or data_dir.rstrip("/") == "/var/lib/mysql":
+        resolved = Path(data_dir).resolve()
+        if resolved in _PROTECTED_DATA_DIRS or len(resolved.parts) < 3:
             return
         run_command(_privileged(["rm", "-rf", data_dir]))
 

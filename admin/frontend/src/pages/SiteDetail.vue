@@ -675,6 +675,10 @@ async function load() {
     nginxEnabled.value = d.nginx_enabled ?? false
     adminTls.value = d.admin_tls ?? false
     installable.value = d.installable_apps
+    // Tab list is final now (Domains is nginx-only); re-resolve the deep-link
+    // hash against it, since it was first matched before nginxEnabled loaded.
+    const idx = TAB_SLUGS.value.indexOf(initialHash)
+    if (idx >= 0) activeTab.value = idx
     if (nginxEnabled.value) loadDomains()
   } catch (e) {
     error.value = e.message
