@@ -4,7 +4,6 @@ import hmac
 import http.client
 import os
 import re
-import secrets
 import socket
 import subprocess
 import tomllib
@@ -13,7 +12,7 @@ import threading
 import time
 from pathlib import Path
 
-from flask import Flask, jsonify, request, send_file, session
+from flask import Flask, jsonify, request, send_file
 
 from .views.apps import apps_bp
 from .views.dashboard import dashboard_bp
@@ -187,8 +186,6 @@ def create_app(bench_root: Path) -> Flask:
     app = Flask(__name__, static_folder=str(_STATIC_DIR), static_url_path="/static")
     app.config["BENCH_ROOT"] = bench_root
     app.config["TEMPLATES_AUTO_RELOAD"] = False
-    app.secret_key = secrets.token_hex(32)
-    app.config["SESSION_COOKIE_NAME"] = f"bench_session_{bench_root.name}"
 
     _install_idle_watchdog(app)
 
@@ -201,8 +198,6 @@ def create_app(bench_root: Path) -> Flask:
         return None
 
     def _is_authenticated(config: BenchConfig) -> bool:
-        if session.get("authenticated"):
-            return True
         from bench_cli.commands.generate_session import verify_token
 
         return verify_token(request.cookies.get("sid", ""), config.admin.jwt_secret)
@@ -279,24 +274,23 @@ def create_app(bench_root: Path) -> Flask:
             return jsonify({"ok": False, "error": str(exc)}), 503
         if not config.admin.password:
             return jsonify({"ok": False, "error": "No admin password configured in bench.toml"}), 503
+        from bench_cli.commands.generate_session import ensure_jwt_secret, issue_token, verify_token
+
         data = request.get_json(silent=True) or {}
         sid = data.get("sid")
         if sid:
-            from bench_cli.commands.generate_session import verify_token
-
             if not verify_token(sid, config.admin.jwt_secret):
                 return jsonify({"ok": False, "error": "Invalid or expired session token"}), 401
-            resp = jsonify({"ok": True})
-            _set_sid_cookie(resp, sid, config)
-            return resp
-        if hmac.compare_digest(str(data.get("password", "")), config.admin.password):
-            session["authenticated"] = True
-            return jsonify({"ok": True})
-        return jsonify({"ok": False, "error": "Incorrect password"}), 401
+        elif hmac.compare_digest(str(data.get("password", "")), config.admin.password):
+            sid = issue_token(ensure_jwt_secret(bench_root / "bench.toml"))
+        else:
+            return jsonify({"ok": False, "error": "Incorrect password"}), 401
+        resp = jsonify({"ok": True})
+        _set_sid_cookie(resp, sid, config)
+        return resp
 
     @app.route("/api/logout", methods=["POST"])
     def api_logout():
-        session.clear()
         resp = jsonify({"ok": True})
         resp.delete_cookie("sid")
         return resp

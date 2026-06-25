@@ -58,6 +58,17 @@ def verify_token(token: str, secret: str) -> bool:
     return isinstance(exp, int) and time.time() < exp
 
 
+def ensure_jwt_secret(toml_path) -> str:
+    data = tomllib.loads(toml_path.read_text())
+    secret = data.get("admin", {}).get("jwt_secret")
+    if secret:
+        return secret
+    secret = secrets.token_urlsafe(32)
+    data.setdefault("admin", {})["jwt_secret"] = secret
+    write_toml(toml_path, data)
+    return secret
+
+
 class GenerateSessionCommand(Command):
     name = "generate-session"
     help = "Issue a 1-day admin session token (use --full-path for a sign-in URL)."
@@ -87,13 +98,6 @@ class GenerateSessionCommand(Command):
             print(token)
 
     def _jwt_secret(self) -> str:
-        secret = self.bench.config.admin.jwt_secret
-        if secret:
-            return secret
-        secret = secrets.token_urlsafe(32)
-        toml_path = self.bench.path / "bench.toml"
-        data = tomllib.loads(toml_path.read_text())
-        data.setdefault("admin", {})["jwt_secret"] = secret
-        write_toml(toml_path, data)
+        secret = ensure_jwt_secret(self.bench.path / "bench.toml")
         self.bench.config.admin.jwt_secret = secret
         return secret
