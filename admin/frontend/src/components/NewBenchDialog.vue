@@ -111,6 +111,9 @@ watch(show, (open) => {
 function startProvisioning(url) {
   provisioning.value = true
   wizardUrl.value = url
+  // One steady status for the whole wait — the internal stages (bench up, DNS,
+  // settle) shouldn't flicker the heading between messages.
+  status.value = 'Setting up your bench…'
   elapsed.value = 0
   stopElapsed()
   elapsedTimer = setInterval(() => { elapsed.value += 1 }, 1000)
@@ -162,9 +165,6 @@ async function pollReady(query, domain = '', serverIp = '') {
     openWizard()
     return
   }
-  if (!serverReady) status.value = 'Setting up the bench…'
-  else if (!dnsOk) status.value = 'Waiting for DNS to propagate…'
-  else status.value = 'Almost ready…'
   // 5s between cycles: each one hits the public DoH resolver, which rate-limits
   // (and can ban) aggressive callers, so keep the cadence gentle.
   setTimeout(() => pollReady(query, domain, serverIp), 5000)
@@ -235,10 +235,7 @@ async function createBench() {
           <span class="rounded-full bg-surface-gray-2 px-2.5 py-1 text-xs font-medium text-ink-gray-6">
             Elapsed {{ elapsedLabel }}
           </span>
-          <div class="flex flex-col items-center gap-2 pt-1">
-            <Button variant="subtle" @click="openWizard">Open setup now</Button>
-            <span class="font-mono text-xs text-ink-gray-4 break-all">{{ wizardUrl }}</span>
-          </div>
+          <Button variant="subtle" @click="openWizard">Open setup now</Button>
         </div>
 
         <!-- Dev bench: guide to the CLI rather than auto-provisioning a
