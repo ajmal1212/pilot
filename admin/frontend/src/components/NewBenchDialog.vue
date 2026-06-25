@@ -116,25 +116,50 @@ function startProvisioning(url) {
   elapsedTimer = setInterval(() => { elapsed.value += 1 }, 1000)
 }
 
-// Poll the server until the wizard answers, then send the user to it. The server
-// probes nginx over loopback (DNS-free, deterministic), so readiness means the
-// bench is up and routing. We can't probe DNS from here — a no-cors fetch to the
-// http wizard is mixed-content blocked when this page is https — so once ready we
-// just navigate; the top-level redirect does its own resolution and the manual
-// link is the fallback if DNS hasn't reached this browser yet.
-async function pollReady(query) {
+// Don't redirect before this, even when everything reports ready — gives DNS a
+// moment to reach the browser's own resolver beyond the public one DoH queries.
+const MIN_WAIT_SECONDS = 30
+
+// A direct probe of the http wizard is mixed-content blocked from this https page,
+// so resolve via DoH instead: an HTTPS, CORS-enabled lookup that isn't blocked.
+// Returns true if the A record is published (and points here when we know our IP),
+// false if it resolves but not yet, null if the lookup itself couldn't run.
+async function dnsResolved(domain, expectedIp) {
+  try {
+    const response = await fetch(`https://dns.google/resolve?name=${domain}&type=A`,
+      { headers: { accept: 'application/dns-json' } })
+    const aRecords = ((await response.json()).Answer || []).filter((a) => a.type === 1)
+    if (!aRecords.length) return false
+    return expectedIp ? aRecords.some((a) => a.data === expectedIp) : true
+  } catch {
+    return null
+  }
+}
+
+// Poll until the wizard is ready, then send the user to it. Three gates: the
+// server confirms nginx routes the bench (loopback, DNS-free), DoH confirms the
+// domain has propagated, and a minimum wait elapses. The dev/port flow has no
+// domain, so it skips DoH and the wait. DoH being unreachable (null) doesn't block.
+async function pollReady(query, domain = '', serverIp = '') {
   if (!provisioning.value) return
+  let serverReady = false
   try {
     const response = await fetch(`/api/benches/ready?${query}`)
-    if (response.ok && (await response.json()).ready) {
-      stopElapsed()
-      status.value = 'Ready, opening setup…'
-      openWizard()
-      return
-    }
+    serverReady = response.ok && (await response.json()).ready
   } catch { }
-  status.value = 'Setting up the bench…'
-  setTimeout(() => pollReady(query), 2000)
+
+  const dns = domain ? await dnsResolved(domain, serverIp) : true
+  const waited = !domain || elapsed.value >= MIN_WAIT_SECONDS
+  if (serverReady && dns !== false && waited) {
+    stopElapsed()
+    status.value = 'Ready, opening setup…'
+    openWizard()
+    return
+  }
+  if (!serverReady) status.value = 'Setting up the bench…'
+  else if (dns === false) status.value = 'Waiting for DNS to propagate…'
+  else status.value = 'Almost ready…'
+  setTimeout(() => pollReady(query, domain, serverIp), 2000)
 }
 
 async function createBench() {
@@ -170,7 +195,7 @@ async function createBench() {
       // cert is in place). Poll until it answers, then redirect to that scheme.
       const scheme = data.scheme || 'http'
       startProvisioning(`${scheme}://${data.domain}`)
-      pollReady(`domain=${encodeURIComponent(data.domain)}&scheme=${scheme}`)
+      pollReady(`domain=${encodeURIComponent(data.domain)}&scheme=${scheme}`, data.domain, data.server_ip || '')
     } else {
       // Dev parent: standalone wizard on this host's raw port.
       startProvisioning(`${window.location.protocol}//${window.location.hostname}:${data.port}`)

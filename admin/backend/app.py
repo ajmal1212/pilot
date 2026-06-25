@@ -471,11 +471,15 @@ def create_app(bench_root: Path) -> Flask:
                 # later). Report it so the client never redirects to a scheme that
                 # isn't listening yet.
                 serves_https = bool(bench.config.admin.tls and nginx.admin_cert_exists())
+                # The IP the domain's A record should point at, so the browser can
+                # confirm (via DoH) that DNS has propagated to it specifically.
+                server_ip = DomainRouteProvider._server_ip()
             except Exception as exc:
                 return jsonify({"error": f"Failed to bring up the new bench: {exc}"}), 500
             return jsonify({"name": name, "port": new_port, "wizard_at_domain": True,
                             "domain": admin.get("domain", ""),
-                            "scheme": "https" if serves_https else "http"})
+                            "scheme": "https" if serves_https else "http",
+                            "server_ip": server_ip})
 
         # Dev parent (no process manager): run a standalone wizard server on the
         # bench's admin port and reach it on this host. Strip WERKZEUG_* so a
