@@ -1,4 +1,4 @@
-# bench-cli
+# Pilot
 
 [![Unit Tests](https://github.com/frappe/bench-cli/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/frappe/bench-cli/actions/workflows/unit-tests.yml)
 
