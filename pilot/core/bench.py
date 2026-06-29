@@ -125,10 +125,7 @@ class Bench:
                     raw = _json.loads(cfg_path.read_text())
                 except Exception:
                     raw = {}
-                domains = [
-                    (entry.get("domain") if isinstance(entry, dict) else entry)
-                    for entry in (raw.get("domains") or [])
-                ]
+                domains = [(entry.get("domain") if isinstance(entry, dict) else entry) for entry in (raw.get("domains") or [])]
                 domains = [d for d in domains if isinstance(d, str) and d]
                 host_name = (raw.get("host_name") or "").strip()
                 primary = host_name.split("://", 1)[-1] if host_name else ""
@@ -164,6 +161,7 @@ class Bench:
         redis_cache = f"redis://localhost:{r.cache_port}"
         redis_queue = f"redis://localhost:{r.queue_port}"
         redis_socketio = redis_cache
+        # Enable monitoring by default on all the sites on the bench
         config = {
             "redis_cache": redis_cache,
             "redis_queue": redis_queue,
@@ -171,6 +169,7 @@ class Bench:
             "socketio_port": self.config.socketio_port,
             "webserver_port": self.config.http_port,
             "socketio_backend": self.config.socketio_backend,
+            "monitor": True,
         }
         config_path = self.sites_path / "common_site_config.json"
         config_path.write_text(json.dumps(config, indent=2) + "\n")
