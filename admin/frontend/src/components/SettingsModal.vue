@@ -200,6 +200,33 @@ async function updateCli() {
   }
 }
 
+// Monitoring tab
+const monitorStatus = ref(null)
+const monitorStatusLoading = ref(false)
+
+async function loadMonitorStatus() {
+  monitorStatusLoading.value = true
+  monitorStatus.value = null
+  try {
+    const res = await fetch('/api/monitor-status')
+    if (res.ok) monitorStatus.value = await res.json()
+  } finally {
+    monitorStatusLoading.value = false
+  }
+}
+
+function isRecentlyModified(isoString) {
+  return (Date.now() - new Date(isoString).getTime()) < 30_000
+}
+
+function formatRelativeTime(isoString) {
+  const seconds = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000)
+  if (seconds < 60) return `${seconds}s ago`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
+  return `${Math.floor(seconds / 86400)}d ago`
+}
+
 // Apps tab
 const benchApps = ref([])
 const appRegistry = ref([])
@@ -252,6 +279,7 @@ async function loadBenchApps() {
 
 watch(activeTab, (tab) => {
   if (tab === 'apps') loadBenchApps()
+  if (tab === 'monitoring') loadMonitorStatus()
 })
 
 watch(() => props.modelValue, (val) => {
@@ -262,6 +290,7 @@ watch(() => props.modelValue, (val) => {
     cliUpdate.value = null
     showUpdateDetails.value = false
     benchApps.value = []
+    monitorStatus.value = null
     load()
   }
 })
@@ -469,6 +498,28 @@ watch(() => props.modelValue, (val) => {
                         v-model="form.monitor.application_log_max_size"
                         placeholder="500M"
                       />
+                    </div>
+                  </div>
+                  <!-- Monitor log file status -->
+                  <LoadingText v-if="monitorStatusLoading" />
+                  <div v-else-if="monitorStatus?.length" class="overflow-hidden rounded-lg border border-outline-gray-1">
+                    <div class="grid border-b border-outline-gray-1 bg-surface-gray-1 px-3 py-2 text-xs font-medium text-ink-gray-5" style="grid-template-columns: 120px 1fr 110px">
+                      <span>Description</span>
+                      <span>Path</span>
+                      <span>Last Modified</span>
+                    </div>
+                    <div
+                      v-for="row in monitorStatus"
+                      :key="row.description"
+                      class="grid items-center border-b border-outline-gray-1 px-3 py-2.5 last:border-0"
+                      style="grid-template-columns: 120px 1fr 110px"
+                    >
+                      <span class="text-sm text-ink-gray-7">{{ row.description }}</span>
+                      <span class="min-w-0 truncate pr-3 font-mono text-xs text-ink-gray-5">{{ row.path }}</span>
+                      <span>
+                        <Badge v-if="row.last_modified" :label="formatRelativeTime(row.last_modified)" :theme="isRecentlyModified(row.last_modified) ? 'green' : 'orange'" />
+                        <Badge v-else label="No data" theme="gray" />
+                      </span>
                     </div>
                   </div>
                 </template>

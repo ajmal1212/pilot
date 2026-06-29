@@ -36,6 +36,32 @@ def _path_sizes(bench_root: Path, config: BenchConfig) -> list[dict]:
     ]
 
 
+def _log_file_info(description: str, path: Path) -> dict:
+    from datetime import datetime, timezone
+    if path.exists():
+        last_modified = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).isoformat(timespec="seconds")
+    else:
+        last_modified = None
+    return {"description": description, "path": str(path), "last_modified": last_modified}
+
+
+@stats_bp.route("/monitor-status")
+def get_monitor_status():
+    from pilot.config.monitor_config import MonitorConfig
+    from pilot.config.toml_store import BenchTomlStore
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    try:
+        config = BenchTomlStore.for_bench(bench_root).read()
+        mon = config.monitor
+        log_path = mon.log_path or MonitorConfig.default_log_path(config.name)
+        return jsonify([
+            _log_file_info("System Log", mon.system_log_path),
+            _log_file_info("Application Log", log_path),
+        ])
+    except Exception as error:
+        return jsonify({"error": str(error)}), 500
+
+
 @stats_bp.route("/stats")
 def stats():
     bench_root = current_app.config["BENCH_ROOT"]

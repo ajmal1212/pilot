@@ -19,8 +19,6 @@ from pilot.utils import iter_sibling_benches, run_command
 
 if typing.TYPE_CHECKING:
     from pilot.core.bench import Bench, BenchConfig
-    from pilot.managers.supervisor_process_manager import SupervisorProcessManager
-    from pilot.managers.systemd_process_manager import SystemdProcessManager
 
 # Oneshot `systemd --user` service driven by bench-monitor.timer (every 10s).
 # Runs from the cli root so both `pilot` and `admin` import, using the admin
@@ -138,19 +136,15 @@ class ToMonitor:
         self.admin_service_name = f"{self.bench.config.name}-admin"
 
     def systemd_processes(self):
-        from pilot.managers.process_manager import ProcessManagerFactory
+        from pilot.managers.process_managers.systemd import SystemdProcessManager
 
-        bench_process_manager: SystemdProcessManager = ProcessManagerFactory.create(self.bench)
+        bench_process_manager = SystemdProcessManager(self.bench)
         systemd_dir = self.bench.config_path / "systemd"
 
         if not systemd_dir.exists():
             return {}
 
-        services = [
-            service.name
-            for service in systemd_dir.iterdir()
-            if service.name.endswith(".service") and service.name != f"{self.admin_service_name}.service"
-        ]
+        services = [service.name for service in systemd_dir.iterdir() if service.name.endswith(".service") and service.name != f"{self.admin_service_name}.service"]
 
         if not services:
             return {}
@@ -170,10 +164,10 @@ class ToMonitor:
         return pids
 
     def supervisord_processes(self):
-        from pilot.managers.process_manager import ProcessManagerFactory
+        from pilot.managers.process_managers.supervisor import SupervisorProcessManager
 
         pids = {}
-        bench_process_manager: SupervisorProcessManager = ProcessManagerFactory.create(self.bench)
+        bench_process_manager = SupervisorProcessManager(self.bench)
 
         result = run_command(["supervisorctl", "-c", bench_process_manager.supervisor_conf_path, "status"])
         supervised_processes = result.stdout.decode().strip()
@@ -210,6 +204,7 @@ class Monitor:
     @property
     def log_path(self) -> Path:
         from pilot.config.monitor_config import MonitorConfig
+
         # In case of benches that have not configured the monitoring path
         # We still want to log at the default monitoring path
         return self.bench.config.monitor.log_path or MonitorConfig.default_log_path(self.bench.config.name)
