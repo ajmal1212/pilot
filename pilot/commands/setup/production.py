@@ -24,14 +24,12 @@ class SetupProductionCommand(Command):
             "--process-manager",
             choices=["systemd", "supervisord", "openrc"],
             default=None,
-            help="Process manager to deploy with (defaults to production.process_manager in "
-                 "bench.toml, or systemd — openrc on Alpine).",
+            help="Process manager to deploy with (defaults to production.process_manager in bench.toml, or systemd — openrc on Alpine).",
         )
         parser.add_argument(
             "--admin-domain",
             default=None,
-            help="Admin domain the deployment is reached at (required: pass it here "
-                 "or set admin.domain in bench.toml).",
+            help="Admin domain the deployment is reached at (required: pass it here or set admin.domain in bench.toml).",
         )
         parser.add_argument(
             "--tls",
@@ -39,23 +37,33 @@ class SetupProductionCommand(Command):
             action="store_true",
             default=None,  # None = leave the bench.toml value untouched; only --tls turns it on
             help="Terminate TLS via Let's Encrypt for the admin and SSL-enabled sites. "
-                 "Omit to serve plain HTTP (a central proxy may terminate TLS upstream).",
+            "Omit to serve plain HTTP (a central proxy may terminate TLS upstream).",
         )
         parser.add_argument(
             "--letsencrypt-email",
             dest="letsencrypt_email",
             default=None,
-            help="Contact email for Let's Encrypt (required with --tls unless "
-                 "letsencrypt.email is already set in bench.toml).",
+            help="Contact email for Let's Encrypt (required with --tls unless letsencrypt.email is already set in bench.toml).",
         )
 
     @classmethod
     def from_args(cls, args, bench):
-        return cls(bench, process_manager=args.process_manager, admin_domain=args.admin_domain,
-                   admin_tls=args.admin_tls, letsencrypt_email=args.letsencrypt_email)
+        return cls(
+            bench,
+            process_manager=args.process_manager,
+            admin_domain=args.admin_domain,
+            admin_tls=args.admin_tls,
+            letsencrypt_email=args.letsencrypt_email,
+        )
 
-    def __init__(self, bench: "Bench", process_manager: Optional[str] = None, admin_domain: Optional[str] = None,
-                 admin_tls: Optional[bool] = None, letsencrypt_email: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        bench: "Bench",
+        process_manager: Optional[str] = None,
+        admin_domain: Optional[str] = None,
+        admin_tls: Optional[bool] = None,
+        letsencrypt_email: Optional[str] = None,
+    ) -> None:
         self.bench = bench
         self._pm_arg = process_manager
         self._domain_arg = admin_domain
@@ -91,6 +99,7 @@ class SetupProductionCommand(Command):
             self._build_admin_for_production()
 
             self._persist_production_state()
+            self._setup_monitoring()
         except BaseException:
             # A later step failed but the new admin route is already live at the
             # provider; release it so a failed setup leaves no dead external route.
@@ -144,8 +153,7 @@ class SetupProductionCommand(Command):
             )
         if letsencrypt_email_required(self.bench) and not self.bench.config.letsencrypt.email:
             raise BenchError(
-                "A contact email is required with --tls for Let's Encrypt. "
-                "Pass --letsencrypt-email <email>, or set letsencrypt.email in bench.toml."
+                "A contact email is required with --tls for Let's Encrypt. Pass --letsencrypt-email <email>, or set letsencrypt.email in bench.toml."
             )
 
     def _installed_manager(self) -> Optional[str]:
@@ -188,6 +196,15 @@ class SetupProductionCommand(Command):
             from pilot.managers.process_managers.systemd import SystemdProcessManager
 
             SystemdProcessManager(self.bench).remove_units()
+
+    def _setup_monitoring(self):
+        """Install the shared bench-monitor timer unit and persist monitor config to bench.toml."""
+        from pilot.config.toml_store import BenchTomlStore
+        from pilot.core.monitor import ConfigureMonitor, resolve_monitor_log_path
+
+        ConfigureMonitor().install()
+        self.bench.config.monitor.log_path = resolve_monitor_log_path(self.bench.config)
+        BenchTomlStore(self.bench.path).write(self.bench.config)
 
     def _persist_production_state(self) -> None:
         """Write the production state to bench.toml LAST, so the switcher never
@@ -290,6 +307,7 @@ class SetupProductionCommand(Command):
 
     def _setup_supervisor(self) -> None:
         import subprocess
+
         from pilot.platform import get_package_manager
 
         pkg = get_package_manager()

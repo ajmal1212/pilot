@@ -1,13 +1,11 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { Button, FormControl, ErrorMessage, LoadingText, Select, Badge, useTheme, Dialog, TextInput } from 'frappe-ui'
 import LucideX from '~icons/lucide/x'
 import { useTaskProgress } from '../composables/useTaskProgress.js'
 
 const props = defineProps({ modelValue: Boolean })
 const emit = defineEmits(['update:modelValue'])
-const router = useRouter()
 const { watchTask } = useTaskProgress()
 
 const show = computed({
@@ -32,6 +30,7 @@ const BASE_TABS = [
   { key: 'appearance', label: 'Appearance' },
   { key: 'redis', label: 'Redis' },
   { key: 'workers', label: 'Workers' },
+  { key: 'monitoring', label: 'Monitoring' },
   { key: 'updates', label: 'Updates' },
 ]
 const isLinux = ref(false)
@@ -54,6 +53,7 @@ const saveError = ref('')
 const saveSuccess = ref('')
 
 const form = ref(null)
+const originalProcessManager = ref(null)
 
 const dbEngineLabel = computed(() => (form.value?.bench?.db_type === 'postgres' ? 'PostgreSQL' : 'MariaDB'))
 
@@ -68,9 +68,11 @@ async function load() {
     if (Array.isArray(data.workers))
       data.workers = data.workers.map(g => ({ queues: (g.queues || []).join(', '), count: g.count }))
     // root_password is write-only — keep it blank so an untouched save preserves it
-    // Degrade gracefully if an older backend omits the postgres block.
+    // Degrade gracefully if an older backend omits the postgres or monitor blocks.
     data.postgres = { host: 'localhost', port: 5432, admin_user: 'postgres', password_set: false, ...(data.postgres || {}), root_password: '' }
+    data.monitor = { system_log_path: '', log_path: '', system_log_max_size: '500M', application_log_max_size: '500M', ...(data.monitor || {}) }
     form.value = data
+    originalProcessManager.value = data.production?.process_manager ?? 'none'
   } catch (e) {
     loadError.value = e.message
   } finally {
@@ -131,7 +133,8 @@ async function save() {
     if (!d.ok) { saveError.value = d.error; return }
 
     const pm = form.value.production.process_manager
-    const setupCommand = pm !== 'none' ? 'setup-production' : null
+    const pmChanged = pm !== originalProcessManager.value
+    const setupCommand = pmChanged && pm !== 'none' ? 'setup-production' : null
 
     if (setupCommand) {
       const taskRes = await fetch('/api/tasks/run', {
@@ -197,6 +200,33 @@ async function updateCli() {
   }
 }
 
+// Monitoring tab
+const monitorStatus = ref(null)
+const monitorStatusLoading = ref(false)
+
+async function loadMonitorStatus() {
+  monitorStatusLoading.value = true
+  monitorStatus.value = null
+  try {
+    const res = await fetch('/api/monitor-status')
+    if (res.ok) monitorStatus.value = await res.json()
+  } finally {
+    monitorStatusLoading.value = false
+  }
+}
+
+function isRecentlyModified(isoString) {
+  return (Date.now() - new Date(isoString).getTime()) < 30_000
+}
+
+function formatRelativeTime(isoString) {
+  const seconds = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000)
+  if (seconds < 60) return `${seconds}s ago`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
+  return `${Math.floor(seconds / 86400)}d ago`
+}
+
 // Apps tab
 const benchApps = ref([])
 const appRegistry = ref([])
@@ -249,6 +279,7 @@ async function loadBenchApps() {
 
 watch(activeTab, (tab) => {
   if (tab === 'apps') loadBenchApps()
+  if (tab === 'monitoring') loadMonitorStatus()
 })
 
 watch(() => props.modelValue, (val) => {
@@ -259,6 +290,7 @@ watch(() => props.modelValue, (val) => {
     cliUpdate.value = null
     showUpdateDetails.value = false
     benchApps.value = []
+    monitorStatus.value = null
     load()
   }
 })
@@ -419,6 +451,80 @@ watch(() => props.modelValue, (val) => {
                 </div>
               </div>
 
+              <!-- Monitoring -->
+              <div v-else-if="activeTab === 'monitoring'" class="flex flex-col gap-4">
+                <template v-if="form.production?.process_manager === 'none'">
+                  <div class="flex flex-col gap-2 rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-4 py-5">
+                    <p class="text-sm font-medium text-ink-gray-7">Monitoring is only active in production</p>
+                    <p class="text-xs text-ink-gray-5">Deploy this bench to production to enable system and application monitoring.</p>
+                    <div class="mt-2">
+                      <p class="text-xs font-medium text-ink-gray-6">Deploy to production</p>
+                      <code class="mt-1 block rounded bg-surface-gray-2 px-2 py-1.5 font-mono text-sm text-ink-gray-8 select-all">bench setup production --admin-domain &lt;your-domain&gt; --tls --letsencrypt-email &lt;you@example.com&gt;</code>
+                    </div>
+                  </div>
+                </template>
+                <template v-else>
+                  <p class="rounded-md bg-surface-gray-2 px-3 py-2 text-xs text-ink-gray-5">
+                    Log paths are set automatically during <span class="font-mono">bench setup production</span>.
+                    Override them here if needed. Max sizes accept values like <span class="font-mono">500M</span> or <span class="font-mono">1G</span>.
+                  </p>
+                  <div class="flex flex-col gap-3">
+                    <p class="text-sm font-medium text-ink-gray-7">System Log</p>
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <FormControl
+                        class="sm:col-span-2"
+                        label="Path"
+                        v-model="form.monitor.system_log_path"
+                        placeholder="/var/log/bench-system-stats.log"
+                      />
+                      <FormControl
+                        label="Max Size"
+                        v-model="form.monitor.system_log_max_size"
+                        placeholder="500M"
+                      />
+                    </div>
+                  </div>
+                  <div class="flex flex-col gap-3">
+                    <p class="text-sm font-medium text-ink-gray-7">Application Log</p>
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <FormControl
+                        class="sm:col-span-2"
+                        label="Path"
+                        v-model="form.monitor.log_path"
+                        :placeholder="`/var/log/${form.bench.name}-stats.log (default)`"
+                      />
+                      <FormControl
+                        label="Max Size"
+                        v-model="form.monitor.application_log_max_size"
+                        placeholder="500M"
+                      />
+                    </div>
+                  </div>
+                  <!-- Monitor log file status -->
+                  <LoadingText v-if="monitorStatusLoading" />
+                  <div v-else-if="monitorStatus?.length" class="overflow-hidden rounded-lg border border-outline-gray-1">
+                    <div class="grid border-b border-outline-gray-1 bg-surface-gray-1 px-3 py-2 text-xs font-medium text-ink-gray-5" style="grid-template-columns: 120px 1fr 110px">
+                      <span>Description</span>
+                      <span>Path</span>
+                      <span>Last Modified</span>
+                    </div>
+                    <div
+                      v-for="row in monitorStatus"
+                      :key="row.description"
+                      class="grid items-center border-b border-outline-gray-1 px-3 py-2.5 last:border-0"
+                      style="grid-template-columns: 120px 1fr 110px"
+                    >
+                      <span class="text-sm text-ink-gray-7">{{ row.description }}</span>
+                      <span class="min-w-0 truncate pr-3 font-mono text-xs text-ink-gray-5">{{ row.path }}</span>
+                      <span>
+                        <Badge v-if="row.last_modified" :label="formatRelativeTime(row.last_modified)" :theme="isRecentlyModified(row.last_modified) ? 'green' : 'orange'" />
+                        <Badge v-else label="No data" theme="gray" />
+                      </span>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
               <!-- ZFS Volume -->
               <div v-else-if="activeTab === 'volume'" class="flex flex-col gap-4">
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -467,7 +573,7 @@ watch(() => props.modelValue, (val) => {
           </div>
 
           <!-- Footer -->
-          <div v-if="activeTab !== 'appearance' && activeTab !== 'updates' && activeTab !== 'apps'" class="flex items-center justify-end gap-3 px-6 py-3 border-t border-outline-gray-1 flex-shrink-0">
+          <div v-if="activeTab !== 'appearance' && activeTab !== 'updates' && activeTab !== 'apps' && !(activeTab === 'monitoring' && form?.production?.process_manager === 'none')" class="flex items-center justify-end gap-3 px-6 py-3 border-t border-outline-gray-1 flex-shrink-0">
             <ErrorMessage :message="saveError" />
             <span v-if="saveSuccess" class="text-sm text-ink-green-2 font-medium">{{ saveSuccess }}</span>
             <Button @click="show = false">Cancel</Button>
