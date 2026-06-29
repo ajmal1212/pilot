@@ -151,7 +151,7 @@ class ProcessReader:
             from pilot.managers.process_managers.openrc import OpenRCProcessManager
 
             openrc = OpenRCProcessManager(bench)
-            if openrc.is_running() or openrc.admin_is_running():
+            if openrc.is_running() or openrc.is_admin_running():
                 return self._read_from_openrc(openrc)
             return self._read_from_pids()
 

@@ -141,7 +141,7 @@ def _admin_running(bench_dir: Path, toml_path: Path) -> bool | None:
 
     try:
         bench = Bench(BenchConfig.from_file(toml_path), bench_dir)
-        return ProcessManager.for_bench(bench).admin_is_running()
+        return ProcessManager.for_bench(bench).is_admin_running()
     except Exception:
         return None
 

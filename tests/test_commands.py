@@ -803,9 +803,9 @@ def test_ls_state_admin_active_when_workload_down_but_admin_up(tmp_path: Path) -
     with patch.object(ProcessManager, "for_bench") as create:
         manager = create.return_value
         manager.is_running.return_value = False
-        manager.admin_is_running.return_value = True
+        manager.is_admin_running.return_value = True
         assert ListCommand()._state(bench, production=True) == "admin"
-        manager.admin_is_running.return_value = False
+        manager.is_admin_running.return_value = False
         assert ListCommand()._state(bench, production=True) == "stopped"
         manager.is_running.return_value = True
         assert ListCommand()._state(bench, production=True) == "running"

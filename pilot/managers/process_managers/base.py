@@ -106,7 +106,7 @@ class ManagedProcessManager(ProcessManager, ABC):
         return self.are_units_running(UnitGroup.WORKLOAD)
 
     @override
-    def admin_is_running(self) -> bool:
+    def is_admin_running(self) -> bool:
         return self.are_units_running(UnitGroup.ADMIN)
 
     @override

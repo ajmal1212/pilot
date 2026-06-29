@@ -176,7 +176,7 @@ class ProcessManager:
     def restart_admin(self) -> None:
         pass
 
-    def admin_is_running(self) -> bool:
+    def is_admin_running(self) -> bool:
         return _tcp_port_open(self.bench.config.admin.port)
 
     def reload_workers(self, web_only: bool = False) -> None:

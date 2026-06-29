@@ -95,11 +95,11 @@ class ListCommand(Command):
         try:
             if not production:
                 manager = ProcessManager.detect_running(bench)
-                return "running" if manager.admin_is_running() else "stopped"
+                return "running" if manager.is_admin_running() else "stopped"
             manager = ProcessManager.for_bench(bench)
             if manager.is_running():
                 return "running"
-            return "admin" if manager.admin_is_running() else "stopped"
+            return "admin" if manager.is_admin_running() else "stopped"
         except Exception:
             return "stopped"
 
