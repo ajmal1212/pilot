@@ -14,6 +14,7 @@ declare module 'vue' {
     AppIcon: typeof import('./src/components/AppIcon.vue')['default']
     AppSidebar: typeof import('./src/components/AppSidebar.vue')['default']
     MarketplaceAppCard: typeof import('./src/components/MarketplaceAppCard.vue')['default']
+    NewSiteDialog: typeof import('./src/components/NewSiteDialog.vue')['default']
     ReconnectOverlay: typeof import('./src/components/ReconnectOverlay.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

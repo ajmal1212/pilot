@@ -22,7 +22,7 @@ function parseBenchBranch(branch) {
   return { version: null, label: normalizeBranchLabel(branch) || null }
 }
 
-function isFrappeApp(app) {
+export function isFrappeApp(app) {
   return Boolean(app.repo?.includes('github.com/frappe/'))
 }
 

@@ -18,7 +18,7 @@
         </template>
       </FormControl>
       <!-- Status filter -->
-      <FormControl v-model="statusFilter" type="select" :options="statusOptions" class="w-32" />
+      <FormControl v-model="statusFilter" type="select" :options="statusOptions" class="max-w-24 sm:max-w-32" />
       <!-- List view type -->
       <TabButtons v-model="view" :options="viewOptions" />
     </div>
@@ -130,7 +130,8 @@
     </Button>
   </Teleport>
 
-  <NewSiteDialog v-model="showCreate" :sites="sites" @created="(name) => router.push({ name: 'SiteDetail', params: { name } })" />
+  <NewSiteDialog v-model="showCreate" :sites="sites"
+    @created="(name) => router.push({ name: 'SiteDetail', params: { name } })" />
 </template>
 
 <script setup>
@@ -139,6 +140,7 @@ import { useRouter } from 'vue-router'
 import {
   Button,
   Dropdown,
+  ErrorMessage,
   FormControl,
   ListView,
   LoadingText,
