@@ -67,7 +67,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Badge, Button, Dropdown, ErrorMessage, LoadingText, TabButtons } from 'frappe-ui'
+import { Badge, Button, Dropdown, ErrorMessage, LoadingText, TabButtons, toast } from 'frappe-ui'
 import UpdatesAvailableButton from '@/components/UpdatesAvailableButton.vue'
 import SiteApps from '@/components/sites/Apps.vue'
 import SiteBackups from '@/components/sites/Backups.vue'
@@ -130,9 +130,17 @@ function goToMarketplace() {
   router.push({ path: '/marketplace', query: { site: siteName } })
 }
 
+function loginAsAdmin() {
+  toast.promise(login(), {
+    loading: 'Logging in as admin…',
+    success: 'Logged in as admin',
+    error: 'Could not log in as admin',
+  })
+}
+
 const menuOptions = computed(() => [
   ...(isMobile.value ? [{ label: 'Install app', icon: 'lucide-plus', onClick: goToMarketplace }] : []),
-  { label: 'Login as admin', icon: 'lucide-log-in', onClick: login },
+  { label: 'Login as admin', icon: 'lucide-log-in', onClick: loginAsAdmin },
   { label: 'Back up now', icon: 'lucide-database-backup', onClick: () => { } },
   { label: 'Deactivate site', icon: 'lucide-power', onClick: () => { } },
 ])
