@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 """
-Clone a marketplace app's repo and run it through scripts/semgrep-rules/
-(press's marketplace audit ruleset, plus frappe/semgrep-rules' checks that
-aren't already covered there). Exits non-zero if any finding is blocking,
-so CI can fail the PR.
+Clone a marketplace app's repo and run it through scripts/semgrep-rules/.
+Exits non-zero if any finding is blocking, so CI can fail the PR.
 
-Blocking logic ported from press's marketplace_app_audit check: a finding
-blocks if its rule metadata sets is_blocking: true, or its Semgrep severity
-maps to Critical/Major (ERROR/CRITICAL/HIGH).
+Blocking logic: a finding blocks if its rule metadata sets is_blocking: true,
+or its Semgrep severity maps to Critical/Major (ERROR/CRITICAL/HIGH).
 
 Run:
-    python3 scripts/run_marketplace_app_check.py <repo-url> <branch>
+    python3 scripts/run_semgrep.py <repo-url> <target> <target_type>
 """
 
 from __future__ import annotations
@@ -20,6 +17,9 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+from clone_utils import clone_app
 
 RULES_DIR = Path(__file__).parent / "semgrep-rules"
 
@@ -35,17 +35,7 @@ SEMGREP_TO_AUDIT_SEVERITY = {
 BLOCKING_AUDIT_SEVERITIES = {"Critical", "Major"}
 
 
-def clone_app(repo: str, branch: str, target_dir: Path) -> None:
-    result = subprocess.run(
-        ["git", "clone", "--depth", "1", "--branch", branch, repo, str(target_dir)],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"Could not clone {repo}@{branch}: {result.stderr.strip()}")
-
-
-def run_semgrep(target_dir: Path) -> list[dict]:
+def scan_target(target_dir: Path) -> list[dict]:
     result = subprocess.run(
         ["semgrep", "scan", "--config", str(RULES_DIR), "--json", "--quiet", str(target_dir)],
         capture_output=True,
@@ -72,28 +62,35 @@ def print_finding(finding: dict) -> None:
     print(f"    {message}")
 
 
-def main() -> None:
-    if len(sys.argv) != 3:
-        print("Usage: run_marketplace_app_check.py <repo-url> <branch>", file=sys.stderr)
-        sys.exit(1)
+def run_semgrep(target_dir: Path, label: str) -> bool:
+    findings = scan_target(target_dir)
+    blocking_findings = [f for f in findings if is_blocking(f)]
 
-    repo, branch = sys.argv[1], sys.argv[2]
-    with tempfile.TemporaryDirectory() as tmp:
-        clone_dir = Path(tmp) / "app"
-        clone_app(repo, branch, clone_dir)
-        findings = run_semgrep(clone_dir)
-
-    blocking_findings = [finding for finding in findings if is_blocking(finding)]
-
-    print(f"Scanned {repo}@{branch}: {len(findings)} finding(s), {len(blocking_findings)} blocking.\n")
+    print(f"Scanned {label}: {len(findings)} finding(s), {len(blocking_findings)} blocking.\n")
     for finding in findings:
         print_finding(finding)
 
     if blocking_findings:
         print(f"\nFAILED: {len(blocking_findings)} blocking issue(s) must be fixed before this can be merged.")
-        sys.exit(1)
+        return False
 
     print("\nPASSED.")
+    return True
+
+
+def main() -> None:
+    if len(sys.argv) != 4:
+        print("Usage: run_semgrep.py <repo-url> <target> <target_type>", file=sys.stderr)
+        sys.exit(1)
+
+    repo, target, target_type = sys.argv[1], sys.argv[2], sys.argv[3]
+    with tempfile.TemporaryDirectory() as tmp:
+        clone_dir = Path(tmp) / "app"
+        clone_app(repo, target, target_type, clone_dir)
+        passed = run_semgrep(clone_dir, f"{repo}@{target}")
+
+    if not passed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
