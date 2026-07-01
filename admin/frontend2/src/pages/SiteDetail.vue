@@ -153,7 +153,6 @@ const menuOptions = computed(() => [
   ...(isMobile.value ? [{ label: 'Install app', icon: 'lucide-plus', onClick: goToMarketplace }] : []),
   { label: 'Login as admin', icon: 'lucide-log-in', onClick: loginAsAdmin },
   { label: 'Back up now', icon: 'lucide-archive', onClick: backupNow },
-  { label: 'Deactivate site', icon: 'lucide-power', onClick: () => { } },
 ])
 
 onMounted(() => {
