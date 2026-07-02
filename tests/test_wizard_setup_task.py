@@ -29,12 +29,15 @@ def test_run_finishes_production_setup_when_process_manager_chosen() -> None:
     venv/framework app this task's init step installs actually exist.
     SetupProductionCommand then finishes the job (workload, nginx, TLS,
     persisting production.enabled) the same way `bench setup production`
-    would from the CLI, instead of duplicating those steps here."""
+    would from the CLI, instead of duplicating those steps here. TLS is
+    best-effort here (unlike the CLI): nobody's watching to retry by hand if
+    a cert can't issue yet, so a DNS hiccup must not roll back the rest."""
     task = _make_task("systemd")
 
     with patch("pilot.commands.init.InitCommand.run") as mock_init, \
-         patch("pilot.commands.setup.production.SetupProductionCommand.run") as mock_setup:
+         patch("pilot.commands.setup.production.SetupProductionCommand") as mock_cls:
         task.run()
 
     mock_init.assert_called_once()
-    mock_setup.assert_called_once()
+    mock_cls.assert_called_once_with(task.bench, best_effort_tls=True)
+    mock_cls.return_value.run.assert_called_once()

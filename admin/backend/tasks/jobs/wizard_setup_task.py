@@ -30,7 +30,11 @@ class WizardSetupTask(BaseTask):
     def _setup_production(self) -> None:
         from pilot.commands.setup.production import SetupProductionCommand
 
-        SetupProductionCommand(self.bench).run()
+        # A cert that can't issue yet (DNS still propagating for a domain
+        # created moments ago) shouldn't roll back an otherwise-working
+        # deployment - unlike a CLI `--tls` request, nobody's watching this to
+        # retry by hand, so leave the bench live on HTTP and let it retry later.
+        SetupProductionCommand(self.bench, best_effort_tls=True).run()
 
 
 if __name__ == "__main__":
