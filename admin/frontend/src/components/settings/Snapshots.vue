@@ -72,8 +72,9 @@
             <span v-if="snap.is_offsite" class="size-4 text-ink-green-6 lucide-circle-check" title="Backed up offsite" />
             <span v-else class="text-ink-gray-4 text-sm">—</span>
           </div>
-          <Button variant="subtle" icon="lucide-history" @click="openRollback(snap)" />
-          <Button variant="subtle" icon="lucide-x" @click="openDelete(snap)" />
+          <Button v-if="snap.is_local && !snap.is_uploading" variant="subtle" icon="lucide-history" title="Rollback"
+            @click="openRollback(snap)" />
+          <Button v-if="!snap.is_uploading" variant="subtle" icon="lucide-x" @click="openDelete(snap)" />
         </div>
       </div>
 
@@ -112,10 +113,15 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Alert, Button, Dialog, ErrorMessage, TextInput, toast } from 'frappe-ui'
 import CronScheduleControl from '@/components/CronScheduleControl.vue'
 import { settingsApi } from '@/api/settings'
 import { volumeApi } from '@/api/volume'
+import { openTaskDetailPage } from '@/utils/taskRoute'
+
+const router = useRouter()
+const emit = defineEmits(['close'])
 
 const fetchSnapshotSchedule = () => volumeApi.snapshots.schedule.get()
 const setSnapshotSchedule = (cron) => volumeApi.snapshots.schedule.set(cron)
@@ -202,6 +208,14 @@ async function createSnapshot() {
     const result = await volumeApi.snapshots.create()
     if (result.error) {
       snapshotError.value = result.error
+      return
+    }
+    if (result.task_id) {
+      // S3 is configured: the offsite upload runs as a background task —
+      // close Settings and send the user there instead of leaving them
+      // watching this list.
+      emit('close')
+      openTaskDetailPage(router, result.task_id)
       return
     }
     toast.success(`Snapshot ${result.tag} created`)

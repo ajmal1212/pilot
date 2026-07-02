@@ -31,7 +31,7 @@
           <Firewall v-else-if="currentSection === 'firewall'" />
           <Git v-else-if="currentSection === 'github'" />
           <S3 v-else-if="currentSection === 's3'" />
-          <Snapshots v-else-if="currentSection === 'snapshots'" />
+          <Snapshots v-else-if="currentSection === 'snapshots'" @close="open = false" />
           <SystemInfo v-else-if="currentSection === 'system-info'" />
         </div>
       </div>

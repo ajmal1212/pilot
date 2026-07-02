@@ -14,6 +14,14 @@ class SnapshotEntry:
     created_at: datetime
     used_bytes: int
     is_offsite: bool = False
+    # False only for a remote-only snapshot (already offloaded, local copy
+    # destroyed) — `zfs rollback` needs a local snapshot, so these can't be
+    # restored until downloaded back.
+    is_local: bool = True
+    # True while an offsite-snapshot task for this tag is still running — a
+    # successful upload destroys the local copy, so a rollback started now
+    # could have its snapshot vanish out from under it.
+    is_uploading: bool = False
 
 
 @dataclass
@@ -47,6 +55,10 @@ class SnapshotReader:
         entries = {entry.tag: entry for entry in self._read_local_snapshots(manager, dataset)}
         self._overlay_remote_snapshots(entries, dataset, limit)
 
+        for tag in self._uploading_tags():
+            if entry := entries.get(tag):
+                entry.is_uploading = True
+
         ordered = sorted(entries.values(), key=lambda entry: entry.tag, reverse=True)
         return SnapshotStatus(
             volume_enabled=True,
@@ -69,8 +81,25 @@ class SnapshotReader:
 
         offsite_snapshot = OffsiteSnapshot.from_config(self._bench_config.s3)
         for tag in offsite_snapshot.list_snapshots(self._bench_config.name, limit=limit):
-            entry = entries.setdefault(tag, SnapshotEntry(dataset=dataset, tag=tag, created_at=self._parse_tag(tag), used_bytes=0))
+            entry = entries.setdefault(
+                tag, SnapshotEntry(dataset=dataset, tag=tag, created_at=self._parse_tag(tag), used_bytes=0, is_local=False)
+            )
             entry.is_offsite = True
+
+    def _uploading_tags(self) -> set[str]:
+        """Tags with an offsite-snapshot task still running. Reading the task
+        registry is a handful of small local file reads."""
+        from admin.backend.tasks.manager.task_reader import TaskReader
+
+        try:
+            tasks = TaskReader(self._bench_root).list_tasks()
+        except Exception:
+            return set()
+        return {
+            task.args["tag"]
+            for task in tasks
+            if task.status == "running" and task.command == "offsite-snapshot" and task.args.get("tag")
+        }
 
     def _parse_tag(self, tag: str) -> datetime:
         try:
