@@ -299,7 +299,7 @@ def get_and_install_app(name: str):
             return jsonify({"ok": False, "error": "Repo URL is required."})
         from pilot.core.git_providers import GitProviderError, resolve_app_name_from_repo
         try:
-            app = resolve_app_name_from_repo(bench_root, repo, target)
+            app = resolve_app_name_from_repo(bench_root, repo, target)["name"]
         except GitProviderError as e:
             return jsonify({"ok": False, "error": f"Could not determine app name: {e}"})
         except Exception as e:

@@ -75,13 +75,14 @@
 
       <p class="mt-10 text-ink-gray-5 text-sm">
         Building your own?
-        <Button variant="ghost" class="!px-1 !text-ink-gray-7">Install from GitHub</Button>
+        <Button variant="ghost" class="!px-1 !text-ink-gray-7" @click="onInstallCustom">Install from GitHub</Button>
       </p>
     </template>
   </div>
 
   <ChooseSiteDialog v-model:open="showChooseSite" v-model:site="currentSiteName" :sites="sites" />
-  <InstallAppDialog v-model:open="showInstallApp" :app="installTarget" :sites="sites" :site-name="currentSiteName" />
+  <InstallAppDialog v-model:open="showInstallApp" :app="installTarget" :sites="sites" :site-name="currentSiteName"
+    :custom="installTarget === null" :existing-apps="benchApps" />
 </template>
 
 <script setup>
@@ -111,6 +112,7 @@ const {
   load,
   sites,
   currentSiteName,
+  benchApps,
 } = useMarketplace(route.query.site)
 
 const showChooseSite = ref(false)
@@ -119,6 +121,11 @@ const installTarget = ref(null)
 
 function onInstall(app) {
   installTarget.value = app
+  showInstallApp.value = true
+}
+
+function onInstallCustom() {
+  installTarget.value = null
   showInstallApp.value = true
 }
 

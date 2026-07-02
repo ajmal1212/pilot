@@ -22,6 +22,7 @@
           </div>
           <Workers v-if="activeSection === 'workers'" ref="workersRef" />
           <Firewall v-else-if="activeSection === 'firewall'" />
+          <GitHub v-else-if="activeSection === 'github'" />
           <SystemInfo v-else-if="activeSection === 'system-info'" />
         </div>
       </div>
@@ -33,13 +34,15 @@
 import { ref, computed } from 'vue'
 import { Dialog, Button } from 'frappe-ui'
 import Firewall from '@/components/settings/Firewall.vue'
+import GitHub from '@/components/settings/GitHub.vue'
 import SystemInfo from '@/components/settings/SystemInfo.vue'
 import Workers from '@/components/settings/Workers.vue'
 
 const open = defineModel()
 
 const sections = [
-  { id: 'workers', label: 'Workers', icon: 'lucide-server' },
+  { id: 'github', label: 'Git Settings', icon: 'lucide-git-branch' },
+  { id: 'workers', label: 'Workers', icon: 'lucide-server-cog' },
   { id: 'firewall', label: 'Firewall', icon: 'lucide-shield' },
   { id: 'system-info', label: 'System Info', icon: 'lucide-info' },
 ]

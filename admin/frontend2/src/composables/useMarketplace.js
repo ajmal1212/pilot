@@ -49,6 +49,7 @@ export function useMarketplace(initialSiteName = '') {
 
   const sites = ref([])
   const currentSiteName = ref('')
+  const benchApps = ref([])
 
   async function load() {
     loading.value = true
@@ -61,6 +62,7 @@ export function useMarketplace(initialSiteName = '') {
         sitesApi.list(),
       ])
       registry.value = registryData.filter((app) => app.name !== 'frappe')
+      benchApps.value = installed.map((app) => app.name)
       benchName.value = settings.bench?.name || 'this bench'
       const benchBranch =
         parseBenchBranch(settings.bench?.default_branch) ||
@@ -130,5 +132,6 @@ export function useMarketplace(initialSiteName = '') {
     load,
     sites,
     currentSiteName,
+    benchApps,
   }
 }
