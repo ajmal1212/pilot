@@ -154,5 +154,11 @@ class OffsiteBackup:
                 break
         return runs
 
+    def get_backup(self, site_name: str, timestamp: str) -> dict[str, str] | None:
+        """Files for a single backup run, or None if it doesn't exist offsite.
+        Reads only that run's monthly metadata file, not the whole history."""
+        keys = BackupKeys(site_name)
+        return self._metadata(keys)._read_month(keys.month(timestamp)).get(timestamp)
+
     def _metadata(self, keys: BackupKeys) -> Metadata:
         return Metadata(self.s3, self.bucket, keys)

@@ -4,8 +4,13 @@ from pathlib import Path
 from typing import Any
 
 import boto3
+from boto3.s3.transfer import TransferConfig
 from botocore.client import BaseClient, Config
 from botocore.exceptions import ClientError, EndpointConnectionError
+
+# Multipart downloads write out of order via seek(), which a pipe (e.g. a
+# subprocess's stdin) can't support — force a single sequential stream.
+_SEQUENTIAL_TRANSFER = TransferConfig(use_threads=False)
 
 ENDPOINT_TEMPLATES = {
     "aws": "https://s3.{region}.amazonaws.com",
@@ -114,6 +119,17 @@ class S3:
         except ClientError as error:
             raise S3IntegrationError(
                 f"Failed to upload stream to '{bucket_name}/{remote_key}': {error.response['Error'].get('Message', error)}",
+            ) from error
+
+    def download_stream(self, bucket_name: str, remote_key: str, fileobj) -> None:
+        """Streams an S3 object into any writable file-like object — e.g. a
+        subprocess's stdin pipe — without ever buffering the whole thing in
+        memory or on disk."""
+        try:
+            self.client.download_fileobj(bucket_name, remote_key, fileobj, Config=_SEQUENTIAL_TRANSFER)
+        except ClientError as error:
+            raise S3IntegrationError(
+                f"Failed to download stream from '{bucket_name}/{remote_key}': {error.response['Error'].get('Message', error)}",
             ) from error
 
     def download_file(self, bucket_name: str, remote_key: str, local_path: Path) -> None:
