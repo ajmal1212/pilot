@@ -91,13 +91,13 @@ class UpdateCommand(Command):
             if volume_enabled and self.tag:
                 self._step("post", "Rolling back to snapshot")
                 self._rollback_preserving_log()
-                self._step("post", "Removing snapshot")
-                self._remove_snapshot()
                 self._step("restart", "Restarting services after rollback")
                 self.bench.reload_workers()
             raise
         finally:
             if volume_enabled:
+                self._step("post", "Removing snapshot")
+                self._remove_snapshot()
                 self.bench.set_maintenance_mode(False)
 
         self._step("done", "Done")
