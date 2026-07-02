@@ -416,6 +416,7 @@ def _build_settings_response(config: BenchConfig) -> dict:
         "s3": _s3_payload(config),
         "s3_providers": _s3_provider_options(),
         "volume": {
+            "enabled": volume.enabled,
             "pool": volume.pool,
             "backing": volume.backing,
             "device": volume.device,
