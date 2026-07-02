@@ -58,7 +58,7 @@
       <section v-if="otherBenchApps.length" class="mt-6">
         <div class="flex justify-between items-center">
           <p class="font-semibold text-ink-gray-9 text-base">Your Apps</p>
-          <Button variant="subtle" size="sm" @click="showAddFromGithub = true">Add app</Button>
+          <Button variant="subtle" size="sm" @click="showAddFromGithub = true">Add from GitHub</Button>
         </div>
         <div class="gap-x-10 grid grid-cols-1 md:grid-cols-2 mt-2">
           <MarketplaceAppCard v-for="app in otherBenchApps" :key="app.name" :app="app" @install="onInstall" />
@@ -84,12 +84,10 @@
         No apps found.
       </p>
 
-      <p class="mt-10 text-ink-gray-5 text-sm">
-        Building your own?
-        <Button variant="ghost" class="!px-1 !text-ink-gray-7" @click="showAddFromGithub = true">
-          Install from GitHub
-        </Button>
-      </p>
+      <button type="button" class="block mt-6 text-ink-gray-5 text-sm text-left hover:underline underline-offset-2"
+        @click="showAddFromGithub = true">
+        Building your own? Install from GitHub
+      </button>
     </template>
   </div>
 
