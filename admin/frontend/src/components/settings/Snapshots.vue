@@ -30,6 +30,11 @@
       </div>
     </div>
 
+    <CronScheduleControl v-if="snapshotsEnabled" title="Automatic snapshots" noun="snapshots"
+      enabled-hint="Taken on a schedule." disabled-hint="Automatic snapshots are disabled."
+      disable-body="Automatic snapshots will stop. Existing snapshots are kept." :fetch-schedule="fetchSnapshotSchedule"
+      :set-schedule="setSnapshotSchedule" :remove-schedule="removeSnapshotSchedule" />
+
     <div class="space-y-2">
       <div class="flex justify-between items-center">
         <p class="font-medium text-ink-gray-8 text-base leading-normal">Snapshots</p>
@@ -61,6 +66,11 @@
           <div class="w-24 space-y-1.5 shrink-0">
             <p v-if="index === 0" class="font-medium text-ink-gray-7 text-sm">Size</p>
             <p class="text-ink-gray-8 text-sm">{{ fmtSize(snap.used_bytes) }}</p>
+          </div>
+          <div class="w-16 space-y-1.5 shrink-0">
+            <p v-if="index === 0" class="font-medium text-ink-gray-7 text-sm">Offsite</p>
+            <span v-if="snap.is_offsite" class="size-4 text-ink-green-6 lucide-circle-check" title="Backed up offsite" />
+            <span v-else class="text-ink-gray-4 text-sm">—</span>
           </div>
           <Button variant="subtle" icon="lucide-history" @click="openRollback(snap)" />
           <Button variant="subtle" icon="lucide-x" @click="openDelete(snap)" />
@@ -103,8 +113,13 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { Alert, Button, Dialog, ErrorMessage, TextInput, toast } from 'frappe-ui'
+import CronScheduleControl from '@/components/CronScheduleControl.vue'
 import { settingsApi } from '@/api/settings'
 import { volumeApi } from '@/api/volume'
+
+const fetchSnapshotSchedule = () => volumeApi.snapshots.schedule.get()
+const setSnapshotSchedule = (cron) => volumeApi.snapshots.schedule.set(cron)
+const removeSnapshotSchedule = () => volumeApi.snapshots.schedule.remove()
 
 const loading = ref(true)
 const reservation = ref('')

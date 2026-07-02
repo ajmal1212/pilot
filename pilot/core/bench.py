@@ -161,6 +161,9 @@ class Bench:
 
     def sync_s3_credentials(self, s3_config: S3Config):
         config_path = self.sites_path / "common_site_config.json"
+        if not config_path.exists():
+            return
+
         config = json.loads(config_path.read_text())
         config["s3_access_key"] = s3_config.access_key
         config["s3_bucket"] = s3_config.bucket

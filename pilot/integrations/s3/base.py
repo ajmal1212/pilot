@@ -106,6 +106,16 @@ class S3:
                 f"Failed to upload '{local_path.name}' to '{bucket_name}/{remote_key}': {error.response['Error'].get('Message', error)}",
             ) from error
 
+    def upload_stream(self, bucket_name: str, remote_key: str, fileobj) -> None:
+        """Multipart-uploads any readable file-like object — e.g. a subprocess's
+        stdout pipe — without ever buffering the whole thing in memory or on disk."""
+        try:
+            self.client.upload_fileobj(fileobj, bucket_name, remote_key)
+        except ClientError as error:
+            raise S3IntegrationError(
+                f"Failed to upload stream to '{bucket_name}/{remote_key}': {error.response['Error'].get('Message', error)}",
+            ) from error
+
     def download_file(self, bucket_name: str, remote_key: str, local_path: Path) -> None:
         try:
             self.client.download_file(bucket_name, remote_key, str(local_path))
