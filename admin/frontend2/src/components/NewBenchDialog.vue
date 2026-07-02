@@ -215,94 +215,78 @@ async function createBench() {
       <div class="flex flex-col gap-5">
         <!-- Provisioning: the bench exists; wait until its wizard answers. -->
         <div v-if="provisioning" class="flex flex-col items-center gap-5 py-8 text-center">
-          <LoadingIndicator class="h-10 w-10 text-ink-gray-5" />
+          <LoadingIndicator class="w-10 h-10 text-ink-gray-5" />
           <div class="flex flex-col gap-2">
-            <p class="text-lg font-semibold text-ink-gray-9">This may take a few minutes</p>
-            <p class="max-w-xs text-sm text-ink-gray-6">Opens automatically when ready.</p>
+            <p class="font-semibold text-ink-gray-9 text-lg">This may take a few minutes</p>
+            <p class="max-w-xs text-ink-gray-6 text-sm">Opens automatically when ready.</p>
           </div>
-          <span class="rounded-full bg-surface-gray-2 px-2.5 py-1 text-xs font-medium text-ink-gray-6">
+          <span class="bg-surface-gray-2 px-2.5 py-1 rounded-full font-medium text-ink-gray-6 text-xs">
             Elapsed {{ elapsedLabel }}
           </span>
           <Button variant="subtle" @click="openWizardInNewTab">Open setup now</Button>
         </div>
 
+        <!-- Loading -->
+        <div v-else-if="isProduction === null" class="flex flex-col justify-center items-center gap-3 py-16">
+          <LoadingIndicator class="w-6 h-6 text-ink-gray-5" />
+        </div>
+
         <!-- Dev bench: guide to the CLI rather than auto-provisioning a
              managed bench the host probably can't run. -->
         <div v-else-if="isProduction === false" class="flex flex-col gap-3">
-          <p class="text-sm text-ink-gray-7">
+          <p class="text-ink-gray-7 text-sm">
             This bench is running in development mode, so new benches can be
             created from the command line :
           </p>
-          <pre class="rounded-lg bg-surface-gray-2 px-3 py-2.5 text-sm text-ink-gray-8 select-all">bench new my-bench</pre>
+          <pre
+            class="bg-surface-gray-2 px-3 py-2.5 rounded-lg text-ink-gray-8 text-sm select-all">bench new my-bench</pre>
         </div>
 
         <!-- Production bench: a process manager is configured, so we create the
              bench and route its domain to the setup wizard. -->
         <template v-else-if="isProduction === true">
-          <FormControl
-            label="Bench name"
-            type="text"
-            v-model="name"
-            placeholder="my-bench"
-            @input="error = ''"
-            @keyup.enter="createBench"
-          />
+          <FormControl label="Bench name" type="text" v-model="name" placeholder="my-bench" @input="error = ''"
+            @keyup.enter="createBench" />
           <div>
-            <span class="mb-1.5 block text-xs text-ink-gray-5">Process manager</span>
-            <div class="grid grid-cols-2 gap-2">
-              <button
-                v-for="opt in processManagerOptions"
-                :key="opt.value"
-                type="button"
-                class="rounded-lg border px-3 py-2 text-left transition-colors"
-                :class="processManager === opt.value
+            <span class="block mb-1.5 text-ink-gray-5 text-xs">Process manager</span>
+            <div class="gap-2 grid grid-cols-2">
+              <button v-for="opt in processManagerOptions" :key="opt.value" type="button"
+                class="px-3 py-2 border rounded-lg text-left transition-colors" :class="processManager === opt.value
                   ? 'border-outline-gray-3 bg-surface-gray-2'
-                  : 'border-outline-gray-2 hover:bg-surface-gray-1'"
-                @click="processManager = opt.value"
-              >
-                <span class="block text-sm font-medium text-ink-gray-9">{{ opt.label }}</span>
-                <span class="block text-xs text-ink-gray-5">{{ opt.hint }}</span>
+                  : 'border-outline-gray-2 hover:bg-surface-gray-1'" @click="processManager = opt.value">
+                <span class="block font-medium text-ink-gray-9 text-sm">{{ opt.label }}</span>
+                <span class="block text-ink-gray-5 text-xs">{{ opt.hint }}</span>
               </button>
             </div>
           </div>
           <div>
             <template v-if="wildcardDomains.length === 0">
-              <FormControl
-                label="Admin domain"
-                type="text"
-                v-model="adminDomain"
-                placeholder="my-admin.example.com"
-                @input="error = ''"
-                @keyup.enter="createBench"
-              />
-              <p class="mt-1.5 rounded bg-surface-gray-2 px-2.5 py-2 text-xs text-ink-gray-6">
+              <FormControl label="Admin domain" type="text" v-model="adminDomain" placeholder="my-admin.example.com"
+                @input="error = ''" @keyup.enter="createBench" />
+              <p class="bg-surface-gray-2 mt-1.5 px-2.5 py-2 rounded text-ink-gray-6 text-xs">
                 Point this domain's DNS A record to this server <b>before</b> creating the
                 bench. It isn't provisioned automatically, so setup can't be reached until
                 it resolves here.
               </p>
             </template>
             <div v-else>
-              <span class="mb-1.5 block text-xs text-ink-gray-5">Admin domain</span>
+              <span class="block mb-1.5 text-ink-gray-5 text-xs">Admin domain</span>
               <div class="flex items-stretch gap-2">
-                <FormControl
-                  class="min-w-0 flex-1"
-                  type="text"
-                  v-model="adminPrefix"
-                  placeholder="my-admin"
-                  @input="error = ''"
-                  @keyup.enter="createBench"
-                />
+                <FormControl class="flex-1 min-w-0" type="text" v-model="adminPrefix" placeholder="my-admin"
+                  @input="error = ''" @keyup.enter="createBench" />
                 <Select v-if="wildcardDomains.length > 1" class="w-48 shrink-0" v-model="selectedSuffix"
                   :options="wildcardDomains.map(d => ({ label: d, value: d }))" />
-                <span v-else class="flex shrink-0 items-center whitespace-nowrap text-sm text-ink-gray-6">{{ wildcardDomains[0] }}</span>
+                <span v-else class="flex items-center text-ink-gray-6 text-sm whitespace-nowrap shrink-0">{{
+                  wildcardDomains[0]
+                  }}</span>
               </div>
             </div>
-            <p class="mt-1.5 text-xs text-ink-gray-5">
+            <p class="mt-1.5 text-ink-gray-5 text-xs">
               The web address you'll use to open this bench.
             </p>
           </div>
           <ErrorMessage v-if="error" :message="error" />
-          <p v-if="status" class="text-sm text-ink-gray-6">{{ status }}</p>
+          <p v-if="status" class="text-ink-gray-6 text-sm">{{ status }}</p>
         </template>
       </div>
     </template>
