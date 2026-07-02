@@ -4,8 +4,10 @@
       <div class="relative flex sm:h-[39rem] min-h-[24rem] max-h-[85vh]">
         <div class="flex-col p-4 sm:border-r border-outline-gray-2 w-full sm:w-52 shrink-0"
           :class="activeSection ? 'hidden sm:flex' : 'flex'">
-          <h3 class="mb-1 p-2 pb-3 border-b border-outline-gray-2 font-semibold text-ink-gray-9 text-base">Settings</h3>
-          <Button v-if="!activeSection" class="top-3 right-3 absolute sm:hidden" variant="ghost" icon="lucide-x"
+          <h3
+            class="mb-1 p-2 pb-3 border-b sm:border-b-0 border-outline-gray-2 font-semibold text-ink-gray-9 text-base">
+            Settings</h3>
+          <Button v-if="!activeSection" class="sm:hidden top-3 right-3 absolute" variant="ghost" icon="lucide-x"
             @click="close" />
           <div class="flex flex-col gap-0.5">
             <Button v-for="section in sections" :key="section.id" variant="ghost" class="!justify-start w-full"
