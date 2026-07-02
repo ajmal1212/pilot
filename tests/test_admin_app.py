@@ -166,7 +166,9 @@ def test_api_benches_new_creates_bench(tmp_path: Path) -> None:
 
 def test_api_benches_new_routes_wizard_at_domain_when_production(tmp_path: Path) -> None:
     # A bench created from a production admin is routed to the setup wizard at its
-    # own domain (HTTP) — not auto-provisioned to a password-protected login.
+    # own domain — not auto-provisioned to a password-protected login. Its process
+    # manager and TLS choice are still brought up automatically, mirroring the
+    # parent bench.
     benches_dir = tmp_path / "benches"
     current = benches_dir / "current"
     _write_bench_toml(current, "current", admin_enabled=True, admin_password="secret",
@@ -185,9 +187,11 @@ def test_api_benches_new_routes_wizard_at_domain_when_production(tmp_path: Path)
     client.set_cookie("sid", issue_token(secret))
 
     with patch("pilot.managers.process_managers.systemd.SystemdProcessManager.start_admin") as mock_admin, \
+         patch("pilot.managers.process_managers.systemd.SystemdProcessManager.apply_unit_action") as mock_apply, \
          patch("pilot.managers.nginx_manager.NginxManager.generate_config") as mock_gen, \
          patch("pilot.managers.nginx_manager.NginxManager.install_config"), \
          patch("pilot.managers.nginx_manager.NginxManager.reload"), \
+         patch("pilot.managers.nginx_manager.NginxManager.admin_cert_exists", return_value=False), \
          patch("pilot.core.domain_controller.DomainRouteProvider.register") as mock_register, \
          patch("pilot.core.domain_controller.DomainRouteProvider.wildcard_domains", return_value=[]), \
          patch("subprocess.Popen") as mock_popen:
@@ -203,9 +207,15 @@ def test_api_benches_new_routes_wizard_at_domain_when_production(tmp_path: Path)
     mock_admin.assert_called_once()
     mock_gen.assert_called_once()
     mock_popen.assert_not_called()
+    # start_admin only socket-activates the admin; the workload (web/worker/redis)
+    # is started explicitly too, so the bench is actually running, not just enabled.
+    from pilot.managers.process_managers.base import UnitGroup
+
+    mock_apply.assert_called_once_with("start", UnitGroup.WORKLOAD)
     fresh_toml = (benches_dir / "fresh" / "bench.toml").read_text()
-    # New benches from the UI default to plain HTTP (TLS is opt-in afterwards).
-    assert "tls = false" in fresh_toml
+    # The sibling production bench serves TLS, so the new one inherits that choice
+    # instead of being forced onto plain HTTP.
+    assert "tls = true" in fresh_toml
     # Its admin now runs under the chosen manager, so it's recorded as production
     # (else `bench status`/`stop` would treat it as a foreground dev bench).
     assert "enabled = true" in fresh_toml.split("[production]")[1].split("[")[0]

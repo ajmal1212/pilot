@@ -31,6 +31,25 @@ _ADMIN_DOMAIN_RE = re.compile(
 )
 
 
+def _obtain_admin_tls(bench, nginx) -> None:
+    """Issue a Let's Encrypt cert for a freshly created bench's admin domain
+    when it inherited TLS from a sibling production bench, then switch nginx
+    over to serving it. Best-effort: issuance failures leave the bench on the
+    HTTP config already installed, retryable later from Settings."""
+    from pilot.managers.letsencrypt_manager import LetsEncryptManager, _is_public_domain
+
+    if not bench.config.admin.tls or not bench.config.letsencrypt.email:
+        return
+    if not _is_public_domain(bench.config.admin.domain):
+        return
+    try:
+        LetsEncryptManager(bench).obtain_admin()
+        nginx.generate_config(ssl_ready=True)
+        nginx.reload()
+    except Exception:
+        pass
+
+
 @benches_bp.route("/")
 def get_all():
     bench_root = Path(current_app.config["BENCH_ROOT"])
@@ -199,7 +218,9 @@ def new():
     if patterns and not matches_wildcard(admin_domain, patterns):
         return jsonify({"error": f"Admin domain must match one of: {', '.join(patterns)}."}), 400
 
-    admin_tls = bool(data.get("admin_tls", False))
+    # None (client never sends this) lets NewCommand inherit the sibling
+    # production bench's TLS choice instead of forcing HTTP-only.
+    admin_tls = bool(data["admin_tls"]) if "admin_tls" in data else None
 
     try:
         NewCommand(new_dir, name, process_manager=process_manager,
@@ -215,9 +236,9 @@ def new():
 
     if current_is_production(bench_root):
         try:
-            from pilot.config.bench_config import BenchConfig
             from pilot.core.bench import Bench
             from pilot.managers.nginx_manager import NginxManager
+            from pilot.managers.process_managers.base import UnitGroup
 
             bench = Bench(BenchTomlStore.for_bench(new_dir).read(), new_dir)
             DomainRouteProvider(bench).register(admin_domain, admin_domain)
@@ -228,11 +249,16 @@ def new():
                 from pilot.managers.process_managers.openrc import OpenRCProcessManager as PM
             else:
                 from pilot.managers.process_managers.supervisor import SupervisorProcessManager as PM
-            PM(bench).start_admin()
+            pm = PM(bench)
+            pm.start_admin()
+            # start_admin only brings up the (socket-activated) admin; the
+            # workload (web/worker/redis) must be started explicitly too.
+            pm.apply_unit_action("start", UnitGroup.WORKLOAD)
             nginx = NginxManager(bench)
             nginx.generate_config()
             nginx.install_config()
             persist_toml(new_dir, {"production": {"enabled": True}})
+            _obtain_admin_tls(bench, nginx)
             serves_https = bool(bench.config.admin.tls and nginx.admin_cert_exists())
             server_ip = DomainRouteProvider._server_ip()
         except Exception as exc:
