@@ -11,12 +11,14 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActionMenu: typeof import('./src/components/ActionMenu.vue')['default']
     Actions: typeof import('./src/components/sites/settings/Actions.vue')['default']
     AddDomainDialog: typeof import('./src/components/sites/settings/domains/AddDomainDialog.vue')['default']
     AppIcon: typeof import('./src/components/AppIcon.vue')['default']
     Apps: typeof import('./src/components/sites/Apps.vue')['default']
     AppSidebar: typeof import('./src/components/AppSidebar.vue')['default']
     Backups: typeof import('./src/components/sites/Backups.vue')['default']
+    BenchSwitcherDialog: typeof import('./src/components/BenchSwitcherDialog.vue')['default']
     ChartCard: typeof import('./src/components/ChartCard.vue')['default']
     ChooseSiteDialog: typeof import('./src/components/ChooseSiteDialog.vue')['default']
     Config: typeof import('./src/components/sites/Config.vue')['default']
@@ -26,7 +28,9 @@ declare module 'vue' {
     General: typeof import('./src/components/sites/settings/General.vue')['default']
     InstallAppDialog: typeof import('./src/components/InstallAppDialog.vue')['default']
     LogView: typeof import('./src/components/LogView.vue')['default']
+    LucideMoreVertical: typeof import('~icons/lucide/more-vertical')['default']
     MarketplaceAppCard: typeof import('./src/components/MarketplaceAppCard.vue')['default']
+    NewBenchDialog: typeof import('./src/components/NewBenchDialog.vue')['default']
     NewSiteDialog: typeof import('./src/components/NewSiteDialog.vue')['default']
     ReconnectOverlay: typeof import('./src/components/ReconnectOverlay.vue')['default']
     RemoveDomainDialog: typeof import('./src/components/sites/settings/domains/RemoveDomainDialog.vue')['default']

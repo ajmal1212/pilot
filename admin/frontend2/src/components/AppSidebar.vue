@@ -6,6 +6,8 @@ import { sidebarSections } from '@/navigation'
 import { authApi } from '@/api/auth'
 import { useIsMobile } from '@/composables/useIsMobile'
 import SettingsDialog from '@/components/SettingsDialog.vue'
+import BenchSwitcherDialog from '@/components/BenchSwitcherDialog.vue'
+import NewBenchDialog from '@/components/NewBenchDialog.vue'
 const { setTheme } = useTheme()
 
 const route = useRoute()
@@ -14,6 +16,8 @@ const sections = sidebarSections()
 const isMobile = useIsMobile()
 
 const showSettings = ref(false)
+const showBenches = ref(false)
+const showNewBench = ref(false)
 
 function isActive(to) {
   const target = router.resolve(to)
@@ -38,12 +42,17 @@ const header = computed(() => ({
     ...(isMobile.value
       ? []
       : [
-          {
-            label: 'Settings',
-            icon: 'lucide-settings',
-            onClick: () => (showSettings.value = true),
-          },
-        ]),
+        {
+          label: 'Settings',
+          icon: 'lucide-settings',
+          onClick: () => (showSettings.value = true),
+        },
+      ]),
+    {
+      label: 'Switch Bench',
+      icon: 'lucide-repeat',
+      onClick: () => (showBenches.value = true),
+    },
     {
       label: 'Theme',
       icon: 'lucide-sun-moon',
@@ -65,7 +74,7 @@ const header = computed(() => ({
         :class="isActive(item.to) ? '!text-ink-gray-9' : '!text-ink-gray-7'" />
     </template>
     <template #header-logo>
-      <svg width="28" height="28" viewBox="0 0 118 118" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="32" height="32" viewBox="0 0 118 118" fill="none" xmlns="http://www.w3.org/2000/svg">
         <g clip-path="url(#clip0_2001_9)">
           <path
             d="M93.9278 0H23.1013C10.3428 0 0 10.3428 0 23.1013V93.9278C0 106.686 10.3428 117.029 23.1013 117.029H93.9278C106.686 117.029 117.029 106.686 117.029 93.9278V23.1013C117.029 10.3428 106.686 0 93.9278 0Z"
@@ -84,4 +93,6 @@ const header = computed(() => ({
     </template>
   </Sidebar>
   <SettingsDialog v-model="showSettings" />
+  <BenchSwitcherDialog v-model="showBenches" @new-bench="showNewBench = true" />
+  <NewBenchDialog v-model="showNewBench" />
 </template>

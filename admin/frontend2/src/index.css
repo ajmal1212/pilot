@@ -3,10 +3,10 @@
   z-index: 50;
 }
 
-/* Dropdown menus teleport to <body> without a z-index; lift them above both the
-   dialog overlay (z-50, so in-dialog menus like bench actions aren't hidden) and
-   the mobile sidebar drawer (z-30, so the sidebar's Bench menu stays usable). */
-.dropdown-content {
+/* Dropdown/Menu content teleports to <body> without a z-index; lift it above both
+   the dialog overlay (z-50, so in-dialog menus like bench actions aren't hidden)
+   and the mobile sidebar drawer (z-30, so the sidebar's Bench menu stays usable). */
+.menu-content {
   z-index: 51;
 }
 

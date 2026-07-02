@@ -35,13 +35,12 @@
       <div v-if="view === 'grid'" class="gap-3 grid grid-cols-1 md:grid-cols-2">
         <!-- Site Card -->
         <div v-for="site in filteredSites" :key="site.name"
-          class="flex items-start gap-3 bg-surface-elevation-1 hover:bg-surface-gray-1 p-4 border rounded-xl border-outline-gray-2 hover:border-outline-gray-3 transition-colors">
+          class="flex items-center gap-3 bg-surface-elevation-1 hover:bg-surface-gray-1 p-4 border rounded-xl border-outline-gray-2 hover:border-outline-gray-3 transition-colors">
           <RouterLink :to="{ name: 'SiteDetail', params: { name: site.name } }"
-            class="flex flex-1 items-start gap-3 min-w-0 no-underline">
+            class="flex flex-1 items-center gap-3 min-w-0 no-underline">
             <!-- Icon -->
-            <div
-              class="place-items-center grid bg-surface-elevation-1 border rounded-lg border-outline-gray-2 size-8 text-ink-gray-6 shrink-0">
-              <span class="size-4 lucide-globe"></span>
+            <div class="place-items-center grid bg-surface-elevation-1 rounded-lg size-10 text-ink-gray-6 shrink-0">
+              <span class="size-5 lucide-globe"></span>
             </div>
             <div class="flex-1 min-w-0">
               <!-- First Line -->
@@ -53,11 +52,8 @@
                   </span>
 
                   <!-- Status -->
-                  <span class="rounded-full size-1.5 shrink-0" :class="statusDot(site)" />
-
-                  <span class="text-ink-gray-5 text-p-sm shrink-0">
-                    {{ statusLabel(site) }}
-                  </span>
+                  <Badge :label="statusLabel(site)" :theme="statusTheme(site)" variant="subtle" size="sm"
+                    class="shrink-0" />
                 </div>
 
                 <div class="flex justify-end">
@@ -73,8 +69,8 @@
               </div>
 
               <!-- Second Line -->
-              <p class="mt-1 text-ink-gray-5 text-p-sm">
-                {{ site.installed_apps?.length || 0 }} apps
+              <p class="text-ink-gray-5 text-p-sm">
+                {{ appsLabel(site) }}
               </p>
             </div>
           </RouterLink>
@@ -87,18 +83,16 @@
         <template #cell="{ column, row, item }">
           <div v-if="column.key === 'site'" class="flex items-center gap-3">
             <!-- Icon -->
-            <div
-              class="place-items-center grid bg-surface-elevation-1 border rounded-lg border-outline-gray-2 size-8 text-ink-gray-6 shrink-0">
-              <span class="size-4 lucide-globe" />
+            <div class="place-items-center grid bg-surface-elevation-1 rounded-lg size-10 text-ink-gray-6 shrink-0">
+              <span class="size-5 lucide-globe" />
             </div>
             <RouterLink :to="{ name: 'SiteDetail', params: { name: row.site.name } }"
               class="font-medium text-ink-gray-9 text-sm no-underline truncate">
               {{ row.site.name }}
             </RouterLink>
           </div>
-          <div v-else-if="column.key === 'status'" class="flex items-center gap-2">
-            <span class="rounded-full size-1.5" :class="statusDot(row.site)" />
-            <span class="text-ink-gray-6 text-sm">{{ statusLabel(row.site) }}</span>
+          <div v-else-if="column.key === 'status'">
+            <Badge :label="statusLabel(row.site)" :theme="statusTheme(row.site)" variant="subtle" size="sm" />
           </div>
           <div v-else-if="column.key === 'apps'" class="text-ink-gray-6 text-sm">
             {{ item }}
@@ -138,6 +132,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  Badge,
   Button,
   Dropdown,
   ErrorMessage,
@@ -170,9 +165,9 @@ const viewOptions = [
 ]
 
 const SITE_STATUS = {
-  online: { label: 'Active', dot: 'bg-[var(--ink-green-7)]' },
-  broken: { label: 'Broken', dot: 'bg-[var(--ink-green-7)]' },
-  offline: { label: 'Paused', dot: 'bg-[var(--ink-amber-5)]' },
+  online: { label: 'Active', theme: 'green' },
+  broken: { label: 'Broken', theme: 'red' },
+  offline: { label: 'Paused', theme: 'orange' },
 }
 
 const statusOptions = [
@@ -189,7 +184,12 @@ function siteStatus(site) {
 }
 
 const statusLabel = (site) => SITE_STATUS[siteStatus(site)].label
-const statusDot = (site) => SITE_STATUS[siteStatus(site)].dot
+const statusTheme = (site) => SITE_STATUS[siteStatus(site)].theme
+
+function appsLabel(site) {
+  const count = site.installed_apps?.length || 0
+  return count === 1 ? '1 app' : `${count} apps`
+}
 
 const filteredSites = computed(() => {
   const query = search.value.toLowerCase().trim()
@@ -211,7 +211,7 @@ const listRows = computed(() =>
   filteredSites.value.map((site) => ({
     name: site.name,
     site,
-    apps: `${site.installed_apps?.length || 0} apps`,
+    apps: appsLabel(site),
   })),
 )
 
