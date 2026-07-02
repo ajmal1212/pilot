@@ -2,6 +2,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useSetupHandoff } from './useSetupHandoff'
 import { useVolumeStorage } from './useVolumeStorage'
 import { setupApi } from '../api/setup'
+import { meetsPasswordRequirements } from '../utils/passwordStrength'
 
 const STEP_TITLES = {
   passwords: 'Admin password',
@@ -73,6 +74,9 @@ export function useSetup() {
     postgresWillInstall.value
       ? 'PostgreSQL will be installed and its superuser password set to this value.'
       : undefined,
+  )
+  const isAdminPasswordValid = computed(() =>
+    meetsPasswordRequirements(form.value.admin_password),
   )
   const isPostgresDedicated = computed(
     () => isLinux.value && !isAlpine.value && form.value.dedicated_db === 'dedicated',
@@ -198,6 +202,8 @@ export function useSetup() {
 
   async function validatePasswordStep() {
     if (!form.value.admin_password) return 'Admin password is required'
+    if (!meetsPasswordRequirements(form.value.admin_password))
+      return 'Password does not meet all requirements'
     return null
   }
 
@@ -357,6 +363,7 @@ export function useSetup() {
     streamUrl,
     streamStatus,
     showStreamDetails,
+    isAdminPasswordValid,
     mariadbWillInstall,
     mariadbPasswordDescription,
     postgresPasswordDescription,

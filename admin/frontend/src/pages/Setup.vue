@@ -9,8 +9,8 @@
         <p v-if="isConfiguring" class="mb-1 text-xs text-ink-gray-4">
           Step {{ stepNumber }} of {{ stepSequence.length }}
         </p>
-        <h1 class="font-medium text-ink-gray-7">{{ stepTitle }}</h1>
-        <p v-if="stepSubtitle" class="mt-0.5 text-sm text-ink-gray-4">{{ stepSubtitle }}</p>
+        <h1 class="text-lg font-semibold text-ink-gray-9">{{ stepTitle }}</h1>
+        <p v-if="stepSubtitle" class="mt-0.5 text-p-base text-ink-gray-5">{{ stepSubtitle }}</p>
       </div>
 
       <div class="flex-1 overflow-y-auto p-5">
@@ -19,12 +19,15 @@
         </div>
 
         <div v-else-if="currentStep === 'passwords'" class="flex flex-col gap-4">
-          <Password
-            label="Admin password"
-            v-model="form.admin_password"
-            placeholder="Choose a password"
-            @keydown.enter="goToNextStep"
-          />
+          <div class="flex flex-col gap-2">
+            <Password
+              label="Admin password"
+              v-model="form.admin_password"
+              placeholder="Choose a password"
+              @keydown.enter="goToNextStep"
+            />
+            <PasswordStrengthMeter :password="form.admin_password" />
+          </div>
           <ErrorMessage v-if="errorMessage" :message="errorMessage" />
         </div>
 
@@ -219,6 +222,7 @@
             v-if="currentStep === 'passwords'"
             variant="solid"
             class="w-full"
+            :disabled="!isAdminPasswordValid"
             @click="goToNextStep"
           >
             Next
@@ -260,6 +264,7 @@ import {
   FeatherIcon,
 } from 'frappe-ui'
 import TaskStream from '../components/TaskStream.vue'
+import PasswordStrengthMeter from '../components/PasswordStrengthMeter.vue'
 import { useSetup } from '../composables/useSetup'
 
 const {
@@ -273,6 +278,7 @@ const {
   streamUrl,
   streamStatus,
   showStreamDetails,
+  isAdminPasswordValid,
   mariadbWillInstall,
   mariadbPasswordDescription,
   postgresPasswordDescription,
