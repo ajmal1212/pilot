@@ -46,7 +46,7 @@
           </div>
           <div v-else-if="column.key === 'offsite'" class="flex justify-center">
             <span v-if="row.snap.is_offsite" class="size-4 text-ink-gray-6 lucide-check" title="Backed up offsite" />
-            <span v-else class="text-ink-gray-4 text-sm">—</span>
+            <span v-else class="size-4 text-ink-gray-4 lucide-x" title="Not backed up offsite" />
           </div>
           <ListRowItem v-else :column="column" :row="row" :item="item" :align="column.align" />
         </template>
