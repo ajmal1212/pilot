@@ -12,24 +12,6 @@
       </template>
     </Alert>
 
-    <div class="space-y-3">
-      <p class="font-medium text-ink-gray-8 text-base leading-normal">Storage</p>
-      <div class="gap-3 grid grid-cols-2">
-        <div class="space-y-1.5">
-          <p class="font-medium text-ink-gray-7 text-sm">Reservation</p>
-          <TextInput v-model="reservation" placeholder="5G" class="w-full" />
-        </div>
-        <div class="space-y-1.5">
-          <p class="font-medium text-ink-gray-7 text-sm">Quota</p>
-          <TextInput v-model="quota" placeholder="50G" class="w-full" />
-        </div>
-      </div>
-      <ErrorMessage v-if="volumeError" :message="volumeError" />
-      <div class="flex justify-end">
-        <Button variant="solid" :loading="savingVolume" @click="saveVolume">Save changes</Button>
-      </div>
-    </div>
-
     <CronScheduleControl v-if="snapshotsEnabled" title="Automatic snapshots" noun="snapshots"
       enabled-hint="Taken on a schedule." disabled-hint="Automatic snapshots are disabled."
       disable-body="Automatic snapshots will stop. Existing snapshots are kept." :fetch-schedule="fetchSnapshotSchedule"
@@ -112,9 +94,8 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import { Alert, Button, Dialog, ErrorMessage, TextInput, toast } from 'frappe-ui'
+import { Alert, Button, Dialog, ErrorMessage, toast } from 'frappe-ui'
 import CronScheduleControl from '@/components/CronScheduleControl.vue'
-import { settingsApi } from '@/api/settings'
 import { volumeApi } from '@/api/volume'
 
 const fetchSnapshotSchedule = () => volumeApi.snapshots.schedule.get()
@@ -122,11 +103,6 @@ const setSnapshotSchedule = (cron) => volumeApi.snapshots.schedule.set(cron)
 const removeSnapshotSchedule = () => volumeApi.snapshots.schedule.remove()
 
 const loading = ref(true)
-const reservation = ref('')
-const quota = ref('')
-const savingVolume = ref(false)
-const volumeError = ref('')
-
 const snapshotsEnabled = ref(false)
 const snapshots = ref([])
 const creating = ref(false)
@@ -153,13 +129,6 @@ function openDelete(snap) {
   showDelete.value = true
 }
 
-async function loadVolumeSettings() {
-  const data = await settingsApi.get()
-  const volume = data.volume || {}
-  reservation.value = volume.reservation || ''
-  quota.value = volume.quota || ''
-}
-
 async function loadSnapshots() {
   snapshotError.value = ''
   try {
@@ -174,24 +143,6 @@ async function loadSnapshots() {
   } catch (e) {
     snapshotsEnabled.value = false
     snapshotError.value = e.message || 'Failed to load snapshots.'
-  }
-}
-
-async function saveVolume() {
-  volumeError.value = ''
-  savingVolume.value = true
-  try {
-    const result = await settingsApi.update({ volume: { reservation: reservation.value.trim(), quota: quota.value.trim() } })
-    if (result.ok) {
-      toast.success('Storage settings saved')
-      if (result.zfs_error) toast.error(result.zfs_error)
-    } else {
-      volumeError.value = result.error || 'Failed to save.'
-    }
-  } catch (e) {
-    volumeError.value = e.message || 'Failed to save.'
-  } finally {
-    savingVolume.value = false
   }
 }
 
@@ -251,7 +202,7 @@ async function confirmDelete() {
 
 onMounted(async () => {
   try {
-    await Promise.all([loadVolumeSettings(), loadSnapshots()])
+    await loadSnapshots()
   } finally {
     loading.value = false
   }
