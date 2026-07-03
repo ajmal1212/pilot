@@ -193,6 +193,7 @@ async function loadSnapshots() {
     const data = await volumeApi.snapshots.list()
     if (data.error) {
       snapshots.value = []
+      snapshotError.value = data.error
       return
     }
     snapshots.value = data.snapshots || []

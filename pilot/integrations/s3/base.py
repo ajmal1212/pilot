@@ -67,7 +67,10 @@ class S3:
     client: BaseClient = field(init=False)
 
     def __post_init__(self):
-        self.endpoint_url = build_endpoint_url(self.provider, self.region_name)
+        try:
+            self.endpoint_url = build_endpoint_url(self.provider, self.region_name)
+        except ValueError as error:
+            raise S3IntegrationError(str(error)) from error
         addressing_style = "virtual" if self.provider == "aws" else "path"
 
         self.client = boto3.client(
