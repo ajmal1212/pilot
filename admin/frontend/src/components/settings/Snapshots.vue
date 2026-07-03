@@ -29,8 +29,8 @@
           <span class="size-5 text-ink-gray-5 lucide-camera"></span>
         </div>
         <p class="font-medium text-ink-gray-7 text-sm">No snapshots yet</p>
-        <p class="max-w-xs text-ink-gray-5 text-xs">
-          Snapshots capture the bench's dataset (files and database together) so you can roll back instantly.
+        <p class="max-w-xs text-ink-gray-5 text-xs text-balance">
+          Snapshots capture your bench's files and database so you can roll back instantly.
         </p>
       </div>
 
