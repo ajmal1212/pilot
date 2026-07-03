@@ -1097,6 +1097,21 @@ def test_orchestrator_rollback_stops_mariadb_and_sets_maintenance() -> None:
     assert bench.set_maintenance_mode.call_args_list == [call(True), call(False)]
 
 
+def test_destroy_snapshot_command_also_removes_downloaded_dataset() -> None:
+    from unittest.mock import patch
+
+    from pilot.commands.volume import VolumeDestroySnapshotCommand
+    from pilot.config.volume_config import VolumeConfig
+
+    config = VolumeConfig(enabled=True, pool="bench-pool", name="shop")
+    with patch("pilot.managers.volume_manager.VolumeManager") as manager_cls:
+        manager = manager_cls.return_value
+        VolumeDestroySnapshotCommand(config, "tag1").run()
+
+    manager.destroy_snapshot.assert_called_once_with(config.dataset_path, "tag1")
+    manager.destroy_dataset.assert_called_once_with(f"{config.dataset_path}-restored-tag1")
+
+
 def _restore_mocks():
     from unittest.mock import MagicMock
 

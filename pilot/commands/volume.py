@@ -233,7 +233,11 @@ class VolumeDestroySnapshotCommand(Command):
     def run(self) -> None:
         from pilot.managers.volume_manager import VolumeManager
 
-        VolumeManager(self.config).destroy_snapshot(self.config.dataset_path, self.tag)
+        manager = VolumeManager(self.config)
+        manager.destroy_snapshot(self.config.dataset_path, self.tag)
+        # Downloaded snapshots (see OffsiteSnapshot.download) live in their own
+        # dataset, separate from the one above — a no-op if never downloaded.
+        manager.destroy_dataset(f"{self.config.dataset_path}-restored-{self.tag}")
         print(f"Snapshot destroyed: {self.config.dataset_path}@{self.tag}")
 
 

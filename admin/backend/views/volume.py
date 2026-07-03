@@ -151,6 +151,11 @@ def destroy_snapshot(tag: str):
         if any(snap.snapshot_tag == tag for snap in manager.list_snapshots(dataset)):
             manager.destroy_snapshot(dataset, tag)
 
+        # A downloaded snapshot (see OffsiteSnapshot.download) lives in its
+        # Remove the dataset from here as well.
+        # If it does not exist will just skip
+        manager.destroy_dataset(f"{dataset}-restored-{tag}")
+
         if bench_config.s3.is_configured:
             OffsiteSnapshot.from_config(bench_config.s3).delete(bench_config.name, tag)
     except Exception as e:
