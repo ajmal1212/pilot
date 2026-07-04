@@ -42,7 +42,12 @@ def summary(name: str):
         billing = _central().billing_summary()
     except CentralClientError as exc:
         return jsonify({"error": str(exc)}), 502
-    billing["usage"] = _usage_meters(billing.get("plan") or {})
+    # Central should return a dict; anything else surfaces as the billing-error shape
+    # the other routes use, not a 500 while we index it.
+    if not isinstance(billing, dict):
+        return jsonify({"error": "Central returned an unexpected billing summary."}), 502
+    plan = billing.get("plan")
+    billing["usage"] = _usage_meters(plan if isinstance(plan, dict) else {}, current_app.config["BENCH_ROOT"])
     return jsonify(billing)
 
 
@@ -152,14 +157,15 @@ def checkout_status(name: str):
     return _proxy(lambda: _central().checkout_status(reference))
 
 
-def _usage_meters(plan: dict) -> list[dict]:
+def _usage_meters(plan: dict, path) -> list[dict]:
     """Live server usage (this bench's VM) labelled with the plan's specs — the
-    percentages come from the host, the labels from Central's plan."""
+    percentages come from the host, the labels from Central's plan. Disk is measured
+    on the bench's own mount (which may be a separate volume), not root."""
     import psutil
 
     specs = plan.get("specs") or {}
     memory = psutil.virtual_memory()
-    disk = psutil.disk_usage("/")
+    disk = psutil.disk_usage(str(path))
     return [
         {"name": "CPU", "percent": round(psutil.cpu_percent()), "detail": specs.get("cpu")},
         {"name": "Memory", "percent": round(memory.percent), "detail": specs.get("memory")},
