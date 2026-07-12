@@ -69,7 +69,7 @@ class Validator:
         return list(self.module_path.rglob("*.py"))
 
     def _is_internal(self, module: str) -> bool:
-        return module.startswith(self.app.module_name)
+        return module == self.app.module_name or module.startswith(self.app.module_name + ".")
 
     @staticmethod
     def _top_level_package(module: str) -> str:
