@@ -32,7 +32,6 @@ jobs:
           - ubuntu:24.04
           - fedora:latest
           - archlinux:latest
-          - ghcr.io/void-linux/void-glibc:latest
           - alpine:latest
     steps:
       - uses: actions/checkout@v4

@@ -24,7 +24,6 @@ A zero-dependency CLI for managing [Frappe](https://frappeframework.com) environ
 **Debian 12+ / Ubuntu 22.04+** — Python 3.11+, a user with `sudo` access  
 **Fedora 40+** — dnf + systemd; redis is provided by valkey  
 **Arch Linux** — pacman + systemd; redis is provided by valkey  
-**Void Linux (glibc)** — xbps; production process management not yet supported (runit)  
 **Alpine 3.20+** — apk + OpenRC; production runs under OpenRC (`process_manager = "openrc"`) instead of systemd  
 **macOS** — Python 3.11+, [Homebrew](https://brew.sh) (dev only — no `sudo` setup)
 

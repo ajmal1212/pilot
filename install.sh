@@ -4,7 +4,7 @@ set -e
 # POSIX sh (not bash) so a bare box can bootstrap via `wget -qO- ... | sh`
 # before bash exists. The provisioned-host one-liner still pipes to bash.
 #
-# Supported distros: Debian, Ubuntu, Fedora, Arch, Void, Alpine (and their
+# Supported distros: Debian, Ubuntu, Fedora, Arch, Alpine (and their
 # derivatives via ID_LIKE). Unknown distros fall back to apt when available.
 
 # ── configuration ────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ detect_distro() {
     # shellcheck disable=SC1091
     distro_like=$(. /etc/os-release; echo "${ID_LIKE:-}")
     case "$distro_id" in
-        debian|ubuntu|fedora|arch|void|alpine) echo "$distro_id"; return ;;
+        debian|ubuntu|fedora|arch|alpine) echo "$distro_id"; return ;;
     esac
     # Derivatives advertise their parent in ID_LIKE (e.g. Mint -> ubuntu).
     for token in $distro_like; do
@@ -88,7 +88,6 @@ pkg_update() {
     case "$DISTRO" in
         fedora) run_sudo dnf -y makecache ;;
         arch)   run_sudo pacman -Sy --noconfirm --disable-download-timeout ;;
-        void)   run_sudo xbps-install -S ;;
         alpine) run_sudo apk update ;;
         *)      run_sudo apt-get update ;;
     esac
@@ -101,7 +100,6 @@ pkg_install() {
         # -Sy: sync the package database first; stale Arch mirrors 404 otherwise.
         # The download timeout aborts large transfers on slow links; disable it.
         arch)   run_sudo pacman -Sy --noconfirm --needed --disable-download-timeout "$@" ;;
-        void)   run_sudo xbps-install -Sy "$@" ;;
         alpine) run_sudo apk add --no-cache "$@" ;;
         *)      run_sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "$@" ;;
     esac
@@ -111,7 +109,6 @@ pkg_installed() {
     case "$DISTRO" in
         fedora) rpm -q "$1" >/dev/null 2>&1 ;;
         arch)   pacman -Qi "$1" >/dev/null 2>&1 ;;
-        void)   xbps-query "$1" >/dev/null 2>&1 ;;
         alpine) apk info -e "$1" >/dev/null 2>&1 ;;
         *)      dpkg -l "$1" 2>/dev/null | grep -q '^ii' ;;
     esac
@@ -142,9 +139,6 @@ bootstrap_packages() {
             pkg_install git curl bash sudo shadow-utils python3 python3-devel gcc gcc-c++ make tzdata ;;
         arch)
             pkg_install git curl bash sudo python base-devel tzdata ;;
-        void)
-            # Minimal images lack `su` (util-linux) and `tar`/`gzip` (uv installer).
-            pkg_install git curl bash sudo shadow util-linux tar gzip python3 python3-devel base-devel tzdata ;;
         alpine)
             pkg_install git curl bash sudo shadow python3 python3-dev build-base linux-headers tzdata ;;
     esac
@@ -310,8 +304,8 @@ fi
 
 # ── Node.js ───────────────────────────────────────────────────────────────────
 # NodeSource pins Node 24 on the deb/rpm distros; the rolling distros (Arch,
-# Void, Alpine) ship a current Node in their own repos — and NodeSource has no
-# musl builds anyway.
+# Alpine) ship a current Node in their own repos — and NodeSource has no musl
+# builds anyway.
 install_node_nodesource() {
     kind="$1"; shift
     NODE_SETUP_TMP="$(mktemp)"
@@ -331,7 +325,6 @@ install_node() {
             echo "Installing Node.js..."
             install_node_nodesource rpm dnf install -y nodejs ;;
         arch)   echo "Installing Node.js..."; pkg_install nodejs npm ;;
-        void)   echo "Installing Node.js..."; pkg_install nodejs ;;
         alpine) echo "Installing Node.js..."; pkg_install nodejs npm ;;
         *)
             # Same fallback as before this script knew about distros: NodeSource

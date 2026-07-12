@@ -129,8 +129,8 @@ class PythonEnvManager:
         elif distro == Distro.FEDORA:
             self._install_node_nodesource("rpm", ["dnf", "install", "-y", "nodejs"])
         else:
-            # Arch/Void/Alpine repos ship current Node; nodesource has no
-            # builds for them (and none at all for musl).
+            # Arch/Alpine repos ship current Node; nodesource has no builds
+            # for them (and none at all for musl).
             get_package_manager().install("nodejs", "npm")
 
     def _install_node_nodesource(self, kind: str, install_argv: list[str]) -> None:

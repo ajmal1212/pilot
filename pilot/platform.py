@@ -39,7 +39,6 @@ class Distro(Enum):
     UBUNTU = "ubuntu"
     FEDORA = "fedora"
     ARCH = "arch"
-    VOID = "void"
     ALPINE = "alpine"
     UNKNOWN = "unknown"
 

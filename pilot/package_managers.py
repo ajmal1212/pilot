@@ -152,41 +152,6 @@ class PacmanPackageManager(SystemPackageManager):
         subprocess.run(_privileged(["pacman", "-Sy", "--noconfirm"]))
 
 
-class XbpsPackageManager(SystemPackageManager):
-    package_aliases = {
-        "build-essential": "base-devel",
-        "python3-dev": "python3-devel",
-        "libmariadb-dev": "libmariadbclient-devel",
-        "libpq-dev": "postgresql-libs-devel",
-        "mariadb-server": "mariadb",
-        "mariadb-client": "mariadb",
-        "redis-server": "redis",
-        # Void versions its postgres packages like Alpine does.
-        "postgresql": "postgresql16",
-        "postgresql-client": "postgresql16-client",
-        "zfsutils-linux": "zfs",
-        # npm ships inside Void's nodejs package.
-        "npm": "nodejs",
-    }
-
-    def install(self, *packages: str) -> None:
-        subprocess.run(
-            _privileged(["xbps-install", "-Sy", *self._resolve(*packages)]),
-            check=True,
-        )
-
-    def is_installed(self, package: str) -> bool:
-        resolved = self._resolve(package)[0]
-        result = subprocess.run(
-            ["xbps-query", resolved],
-            capture_output=True,
-        )
-        return result.returncode == 0
-
-    def update(self):
-        subprocess.run(_privileged(["xbps-install", "-S"]))
-
-
 class BrewPackageManager(SystemPackageManager):
     def install(self, *packages: str) -> None:
         subprocess.run(
@@ -209,7 +174,6 @@ _LINUX_PACKAGE_MANAGERS: dict[Distro, type[SystemPackageManager]] = {
     Distro.ALPINE: ApkPackageManager,
     Distro.FEDORA: DnfPackageManager,
     Distro.ARCH: PacmanPackageManager,
-    Distro.VOID: XbpsPackageManager,
 }
 
 

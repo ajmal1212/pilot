@@ -13,7 +13,6 @@ from pilot.package_managers import (
     BrewPackageManager,
     DnfPackageManager,
     PacmanPackageManager,
-    XbpsPackageManager,
     get_package_manager,
 )
 from pilot.platform import Distro
@@ -31,7 +30,7 @@ def _force_linux(monkeypatch) -> None:
 
 # ── detect_distro ─────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("distro_id", ["debian", "ubuntu", "fedora", "arch", "void", "alpine"])
+@pytest.mark.parametrize("distro_id", ["debian", "ubuntu", "fedora", "arch", "alpine"])
 def test_detect_distro_by_id(tmp_path: Path, monkeypatch, distro_id: str) -> None:
     _force_linux(monkeypatch)
     _write_os_release(tmp_path, monkeypatch, f'ID={distro_id}\n')
@@ -90,7 +89,6 @@ def test_is_alpine_from_os_release(tmp_path: Path, monkeypatch) -> None:
         (Distro.UNKNOWN, AptPackageManager),
         (Distro.FEDORA, DnfPackageManager),
         (Distro.ARCH, PacmanPackageManager),
-        (Distro.VOID, XbpsPackageManager),
         (Distro.ALPINE, ApkPackageManager),
     ],
 )
@@ -117,12 +115,8 @@ def test_resolve_expands_tuple_aliases() -> None:
 
 
 def test_resolve_deduplicates() -> None:
-    # Void maps both nodejs and npm onto the single nodejs package.
-    assert XbpsPackageManager()._resolve("nodejs", "npm") == ["nodejs"]
-
-
-def test_resolve_mariadb_single_package_on_void() -> None:
-    assert XbpsPackageManager()._resolve("mariadb-server", "mariadb-client") == ["mariadb"]
+    # Alpine aliases mariadb-server onto the same package as a bare mariadb.
+    assert ApkPackageManager()._resolve("mariadb-server", "mariadb") == ["mariadb"]
 
 
 # ── install/is_installed/update argv ──────────────────────────────────────────
@@ -136,7 +130,6 @@ def _run_as_root(monkeypatch) -> None:
     [
         (DnfPackageManager(), ["dnf", "install", "-y", "nginx"]),
         (PacmanPackageManager(), ["pacman", "-S", "--noconfirm", "--needed", "nginx"]),
-        (XbpsPackageManager(), ["xbps-install", "-Sy", "nginx"]),
         (ApkPackageManager(), ["apk", "add", "--no-cache", "nginx"]),
         (AptPackageManager(), ["apt-get", "install", "-y", "nginx"]),
     ],
@@ -153,7 +146,6 @@ def test_install_argv(monkeypatch, manager, expected) -> None:
     [
         (DnfPackageManager(), ["rpm", "-q", "valkey"]),
         (PacmanPackageManager(), ["pacman", "-Qi", "valkey"]),
-        (XbpsPackageManager(), ["xbps-query", "redis"]),
         (ApkPackageManager(), ["apk", "info", "-e", "redis"]),
         (AptPackageManager(), ["dpkg", "-l", "redis-server"]),
     ],
@@ -170,7 +162,6 @@ def test_is_installed_argv(monkeypatch, manager, expected) -> None:
     [
         (DnfPackageManager(), ["dnf", "-y", "makecache"]),
         (PacmanPackageManager(), ["pacman", "-Sy", "--noconfirm"]),
-        (XbpsPackageManager(), ["xbps-install", "-S"]),
         (ApkPackageManager(), ["apk", "update"]),
         (AptPackageManager(), ["apt-get", "-y", "update"]),
     ],
@@ -218,7 +209,7 @@ def test_install_node_fedora_uses_nodesource_rpm(monkeypatch) -> None:
     assert commands[1] == ["sudo", "dnf", "install", "-y", "nodejs"]
 
 
-@pytest.mark.parametrize("distro", [Distro.ARCH, Distro.VOID, Distro.ALPINE])
+@pytest.mark.parametrize("distro", [Distro.ARCH, Distro.ALPINE])
 def test_install_node_native_repos(monkeypatch, distro) -> None:
     commands = _node_install_commands(monkeypatch, distro)
     assert commands == [["nodejs", "npm"]]
