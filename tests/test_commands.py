@@ -204,6 +204,27 @@ def test_new_command_mariadb_port_is_not_offset_between_benches(tmp_path: Path, 
     assert data["bench"]["http_port"] == 8001  # other ports still offset
 
 
+def test_new_command_second_mariadb_bench_inherits_password(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every bench for this OS user shares one MariaDB server, so a second
+    bench must reuse the password that already secured it — not the bare
+    default, which would reset (and lock bench 1 out of) a server a sibling
+    already secured with a different password."""
+    from pilot.commands.new import NewCommand
+
+    monkeypatch.setattr("builtins.input", lambda _: "")
+    monkeypatch.setattr(NewCommand, "_port_is_live", staticmethod(lambda port: False))
+    benches_dir = tmp_path / "benches"
+    NewCommand(benches_dir / "m1", "m1").run()
+    with open(benches_dir / "m1" / "bench.toml", "rb") as f:
+        first = tomllib.load(f)
+    assert first["mariadb"]["root_password"]  # non-empty default for the first bench
+
+    NewCommand(benches_dir / "m2", "m2").run()
+    with open(benches_dir / "m2" / "bench.toml", "rb") as f:
+        second = tomllib.load(f)
+    assert second["mariadb"]["root_password"] == first["mariadb"]["root_password"]
+
+
 def test_new_command_skips_offset_with_live_port(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An orphaned process holding a port with no matching bench.toml must
     also be avoided, not just offsets already on disk."""

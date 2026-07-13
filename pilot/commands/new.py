@@ -93,6 +93,12 @@ class NewCommand(Command):
             # system-wide MariaDB, and MariaDBManager refuses to bind an
             # occupied port.
             settings["mariadb_port"] = self._sibling_mariadb_port() or self._pick_mariadb_port()
+            # Every bench for this OS user shares one MariaDB server, so a new
+            # bench must inherit the password that already secured it — a fresh
+            # random one here would lock it out of a server a sibling provisioned.
+            sibling_mariadb_password = self._sibling_mariadb_password()
+            if sibling_mariadb_password:
+                settings["mariadb_password"] = sibling_mariadb_password
         if self.db_type == "postgres":
             # Every bench for this OS user shares one PostgreSQL server, so a new
             # bench must inherit the password that already secured it — a fresh
@@ -155,6 +161,14 @@ class NewCommand(Command):
         while self._port_is_live(port):
             port += 1
         return port
+
+    def _sibling_mariadb_password(self) -> str:
+        """The MariaDB root password from any sibling MariaDB bench — every
+        bench for this OS user shares one server (see MariaDBManager)."""
+        for _, config in iter_sibling_benches(self.target_directory):
+            if config.db_type == "mariadb" and config.mariadb.root_password:
+                return config.mariadb.root_password
+        return ""
 
     def _sibling_postgres_password(self) -> str:
         """The PostgreSQL superuser password from any sibling Postgres bench —
