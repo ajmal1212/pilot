@@ -97,6 +97,11 @@ class NewCommand(Command):
         sibling_email = self._sibling_letsencrypt_email()
         if sibling_email:
             settings["letsencrypt_email"] = sibling_email
+        # The remote JWKS issuer is server-wide too: carry it forward so the
+        # control plane can authenticate to a freshly created bench right away.
+        sibling_jwks_url = self._sibling_admin_jwks_url()
+        if sibling_jwks_url:
+            settings["admin_jwks_url"] = sibling_jwks_url
         # MariaDB benches get their own instance with an isolated socket/datadir;
         # mariadb.port is offset automatically via _PORT_FIELDS. Linux uses a
         # per-bench instance (systemd mariadb@<name>, or a generated OpenRC
@@ -125,6 +130,15 @@ class NewCommand(Command):
             email = getattr(config.letsencrypt, "email", "")
             if email:
                 return email
+        return ""
+
+    def _sibling_admin_jwks_url(self) -> str:
+        """The remote JWKS endpoint from any sibling bench that has one, so a
+        new bench trusts the same issuer without reconfiguring it."""
+        for _, config in iter_sibling_benches(self.target_directory):
+            jwks_url = getattr(config.admin, "jwks_url", "")
+            if jwks_url:
+                return jwks_url
         return ""
 
     def _sibling_admin_tls(self) -> bool:
