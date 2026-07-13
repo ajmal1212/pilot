@@ -557,12 +557,12 @@ jwks_url = "https://control-plane.example.com/.well-known/jwks.json"
 
 The issuer holds a private key and signs JWTs; the bench fetches the matching **public** keys from that URL and verifies incoming tokens against them. No secret is shared, and a new bench created from the UI or CLI inherits `jwks_url` from a sibling, so the same issuer is trusted everywhere.
 
-A JWKS-signed token is accepted anywhere the local token is:
+A JWKS-signed token has two uses:
 
-- **Log in to the admin UI** — hand it to the browser as `…/?sid=<jwt>`. The frontend exchanges it for a 1-day `HttpOnly` session cookie.
-- **Drive the API** — send it as `Authorization: Bearer <jwt>` to any `/api/*` route: run tasks, manage sites, and call `POST /api/sites/<name>/login` to obtain a Frappe **Administrator** login URL for that site.
+- **Log in to the admin UI** — hand it to the browser as `…/?sid=<jwt>`. The frontend exchanges it for a 1-day `HttpOnly` session cookie. A sign-in token **must be bench-scoped and carry a unique `jti`**: the `jti` makes it single-use (it cannot be replayed for further sessions), and site-scoped tokens are refused here so they can never be escalated into a full admin session.
+- **Drive the API** — send it as `Authorization: Bearer <jwt>` to any `/api/*` route: run tasks, manage sites, and call `POST /api/sites/<name>/login` to obtain a Frappe **Administrator** login URL for that site. Bearer tokens don't need a `jti`.
 
-Scope claims work exactly as for local tokens: a `scope: "site"` token is confined to its `site`; a bench-scoped token (the default) can reach every endpoint.
+Scope claims work exactly as for local tokens: a `scope: "site"` token is confined to its `site` (Bearer use only); a bench-scoped token (the default) can reach every endpoint.
 
 ### JWKS endpoint format
 
@@ -602,14 +602,14 @@ Scope claims work exactly as for local tokens: a `scope: "site"` token is confin
 The signed JWT must use an **asymmetric** algorithm and carry an expiry:
 
 - **Header:** e.g. `{"alg": "RS256", "typ": "JWT", "kid": "2026-07-rsa-1"}`. Accepted `alg` values: `RS256/384/512`, `PS256/384/512`, `ES256/384/512`, `EdDSA`. Symmetric `HS*` and `none` are rejected, so a published public key can never be replayed as an HMAC secret.
-- **Payload:** a numeric `exp` (Unix seconds) is **required** and enforced. Optional claims: `scope` (`"bench"` default, or `"site"` with a `site` claim to confine it) and `jti` (if present, the `?sid=` login treats the token as single-use).
+- **Payload:** a numeric `exp` (Unix seconds) is **required** and enforced. Claims: `scope` (`"bench"` default, or `"site"` with a `site` claim to confine it); `jti` (**required** for `?sid=` login — makes it single-use); `aud` (**required** when `admin.jwks_audience` is set — see below).
 
-Only the signature and `exp` are checked — issuer/audience (`iss`/`aud`) are not validated in this phase.
+By default only the signature and `exp` are verified. To bind tokens to a specific bench — important when several benches share one issuer, since a new bench inherits the sibling's `jwks_url` — set `admin.jwks_audience` and have the issuer put that value in the token's `aud` claim. A token whose `aud` doesn't match (or is absent) is then rejected. `jwks_audience` is **not** inherited by sibling benches, so give each bench its own value.
 
 ### Operational notes
 
 - **Runs in the admin venv.** Verification uses [PyJWT](https://pyjwt.readthedocs.io/) with the `cryptography` backend (declared in the `admin` extra), which is why RSA, EC, and EdDSA are all supported. The `pilot` core stays dependency-free — this code lives in `admin/backend/`.
-- **Caching & rotation.** The key set is cached (5-minute lifespan) and refetched on a `kid` miss, so publishing a new key and signing with it works without waiting for the cache to expire — keep the old key in the document until its last token expires.
+- **Caching & rotation.** The key set is cached with a 5-minute lifespan and refreshed only when that lifespan expires — an unknown `kid` never forces a per-request refetch (which an attacker could use to hammer the issuer). When rotating, publish the new key **before** you start signing with it, and keep the old key in the document until its last token expires; the new key is picked up within 5 minutes.
 - **Fails closed.** An unreachable endpoint, malformed JWKS, unknown `kid`, disallowed algorithm, bad signature, or expired token all result in rejection (HTTP 401/403), never a fallback to unauthenticated access.
 - **HTTPS.** Serve the JWKS endpoint over HTTPS — its integrity is the root of trust for every remote login.
 
