@@ -20,7 +20,7 @@ class NewCommand(Command):
             "--admin-domain",
             default="",
             help="Admin domain for this bench. Optional for development; "
-                 "required by 'bench setup production' (pass it there if omitted here).",
+            "required by 'bench setup production' (pass it there if omitted here).",
         )
         parser.add_argument(
             "--database",
@@ -40,8 +40,15 @@ class NewCommand(Command):
             db_type=args.database,
         )
 
-    def __init__(self, target_directory: Path, name: str, process_manager: str = "",
-                 admin_domain: str = "", admin_tls: bool | None = None, db_type: str = "mariadb") -> None:
+    def __init__(
+        self,
+        target_directory: Path,
+        name: str,
+        process_manager: str = "",
+        admin_domain: str = "",
+        admin_tls: bool | None = None,
+        db_type: str = "mariadb",
+    ) -> None:
         self.target_directory = target_directory
         self.name = name
         self.process_manager = process_manager
@@ -90,7 +97,9 @@ class NewCommand(Command):
             # Every bench for this OS user shares one PostgreSQL server, so a new
             # bench must inherit the password that already secured it — a fresh
             # random one here would lock it out of a server a sibling provisioned.
-            settings["postgres_password"] = self._sibling_postgres_password() or secrets.token_hex(nbytes=8)
+            settings["postgres_password"] = self._sibling_postgres_password() or secrets.token_hex(
+                nbytes=8
+            )
         if self.process_manager:
             settings["production_process_manager"] = self.process_manager
         # The Let's Encrypt account email is a server-wide setting; inherit it
@@ -109,19 +118,6 @@ class NewCommand(Command):
             settings["admin_jwks_url"] = sibling_admin.jwks_url
             if sibling_admin.jwks_audience:
                 settings["admin_jwks_audience"] = sibling_admin.jwks_audience
-        # MariaDB benches get their own instance with an isolated socket/datadir;
-        # mariadb.port is offset automatically via _PORT_FIELDS. Linux uses a
-        # per-bench instance (systemd mariadb@<name>, or a generated OpenRC
-        # mariadb-<name> on Alpine). macOS (Homebrew) and PostgreSQL benches have
-        # no per-instance mechanism, so they stay on the shared server.
-        if self.db_type == "mariadb" and is_linux():
-            settings.update(
-                {
-                    "mariadb_instance": self.name,
-                    "mariadb_socket_path": f"/run/mysqld/mysqld-{self.name}.sock",
-                    "mariadb_data_dir": f"/var/lib/mysql-{self.name}",
-                }
-            )
         BenchTomlStore(bench_toml).write_flat(self.name, settings, port_offset=offset)
 
         admin_port = default_ports()["admin.port"] + offset
@@ -167,6 +163,7 @@ class NewCommand(Command):
             if config.db_type == "postgres" and config.postgres.root_password:
                 return config.postgres.root_password
         return ""
+
     def _sibling_jwks_admin(self):
         """The admin config of the first sibling that trusts a remote JWKS
         issuer, so a new bench inherits the same jwks_url and audience."""
