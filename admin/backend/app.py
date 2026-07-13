@@ -104,12 +104,12 @@ def create_app(bench_root: Path) -> Flask:
         return None
 
     def _is_authenticated(config: BenchConfig) -> bool:
-        from pilot.commands.generate_session import decode_token
+        from pilot.commands.generate_session import decode_session_token
 
         token = _extract_token()
         if not token:
             return False
-        claims = decode_token(token, config.admin.jwt_secret)
+        claims = decode_session_token(token, config)
         if claims is None:
             return False
         g.jwt_claims = claims
@@ -188,14 +188,16 @@ def create_app(bench_root: Path) -> Flask:
             return jsonify({"ok": False, "error": str(exc)}), 503
         if not config.admin.password:
             return jsonify({"ok": False, "error": "No admin password configured in bench.toml"}), 503
-        from pilot.commands.generate_session import decode_token, ensure_jwt_secret, issue_token
+        from pilot.commands.generate_session import decode_session_token, ensure_jwt_secret, issue_token
 
         data = request.get_json(silent=True) or {}
         sid = data.get("sid")
         if sid is not None:
-            payload = decode_token(sid, config.admin.jwt_secret)
+            payload = decode_session_token(sid, config)
             jti = payload.get("jti") if payload else None
-            if not jti or not used_logins.use(jti, payload["exp"]):
+            # Local login links always carry a jti and are single-use; a remote
+            # JWKS-minted token without one is accepted on its signature + expiry.
+            if payload is None or (jti and not used_logins.use(jti, payload["exp"])):
                 return jsonify({"ok": False, "error": "Invalid or expired sign-in link"}), 401
         elif not hmac.compare_digest(str(data.get("password", "")), config.admin.password):
             return jsonify({"ok": False, "error": "Incorrect password"}), 401
