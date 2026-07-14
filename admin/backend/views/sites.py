@@ -690,10 +690,10 @@ def offsite_backup_urls(name: str, timestamp: str):
 
 
 def _backup_cron_command(bench_root: Path, site: str) -> str:
-    python = bench_root / "env" / "bin" / "python"
-    sites_dir = bench_root / "sites"
+    import sys
+
     log_file = bench_root / "logs" / f"backup-{site}.log"
-    return f"cd {sites_dir} && {python} -m frappe.utils.bench_helper frappe --site {site} backup --with-files >> {log_file} 2>&1"
+    return f"{sys.executable} -m admin.backend.tasks.jobs.backup_site_task {bench_root} {site} --with-files >> {log_file} 2>&1"
 
 
 @sites_bp.route("/<name>/backup-schedule", methods=["GET"])
