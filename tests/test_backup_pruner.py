@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 from pilot.config.backup_config import BackupConfig
@@ -6,16 +7,19 @@ from pilot.core.backup_pruner import BackupPruner
 _RUNS = ["20260101_020000", "20260102_020000", "20260103_020000"]  # oldest → newest
 
 
-def _bench(tmp_path, scheme="fifo", keep_last=1):
-    config = SimpleNamespace(backup=BackupConfig(scheme=scheme, keep_last=keep_last))
-    return SimpleNamespace(sites_path=tmp_path / "sites", config=config)
+def _bench(tmp_path):
+    return SimpleNamespace(sites_path=tmp_path / "sites")
 
 
-def _write_local_runs(bench, site):
-    backups = bench.sites_path / site / "private" / "backups"
+def _setup_site(bench, site, retention=BackupConfig(scheme="fifo", keep_last=1)):
+    site_dir = bench.sites_path / site
+    backups = site_dir / "private" / "backups"
     backups.mkdir(parents=True)
     for ts in _RUNS:
         (backups / f"{ts}-{site}-database.sql.gz").write_text("x")
+    if retention is not None:
+        config = {"backup_retention": {"scheme": retention.scheme, **retention.counts}}
+        (site_dir / "site_config.json").write_text(json.dumps(config))
     return backups
 
 
@@ -36,16 +40,26 @@ class _FakeOffsite:
         self.deleted.append((timestamp, filename))
 
 
+def test_no_retention_keeps_everything(tmp_path) -> None:
+    """Automated backups off (no backup_retention in site_config) → never prune."""
+    bench = _bench(tmp_path)
+    backups = _setup_site(bench, "site1", retention=None)
+
+    pruner = BackupPruner(bench, "site1")
+    pruner._offsite = lambda: None
+    assert pruner.prune() == []
+    assert all((backups / f"{ts}-site1-database.sql.gz").exists() for ts in _RUNS)
+
+
 def test_offsite_failure_keeps_local_and_is_not_reported(tmp_path) -> None:
     bench = _bench(tmp_path)
-    backups = _write_local_runs(bench, "site1")
+    backups = _setup_site(bench, "site1")
     fake = _FakeOffsite(_RUNS, fail_on={"20260102_020000"})
 
     pruner = BackupPruner(bench, "site1")
     pruner._offsite = lambda: fake
     pruned = pruner.prune()
 
-    # keep_last=1 keeps only the newest run; the older two are selected for deletion.
     assert pruned == ["20260101_020000"]  # the failing run is not reported as pruned
     assert not (backups / "20260101_020000-site1-database.sql.gz").exists()
     assert (backups / "20260102_020000-site1-database.sql.gz").exists()  # kept intact on S3 error
@@ -54,7 +68,7 @@ def test_offsite_failure_keeps_local_and_is_not_reported(tmp_path) -> None:
 
 def test_prunes_local_and_offsite_when_healthy(tmp_path) -> None:
     bench = _bench(tmp_path)
-    backups = _write_local_runs(bench, "site1")
+    backups = _setup_site(bench, "site1")
     fake = _FakeOffsite(_RUNS)
 
     pruner = BackupPruner(bench, "site1")

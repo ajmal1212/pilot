@@ -3,6 +3,7 @@
 import re
 from pathlib import Path
 
+from pilot.config.site_backup_config import read_retention
 from pilot.core.backup_retention import BackupRetentionPolicy
 from pilot.integrations.s3.backups import OffsiteBackup
 
@@ -13,15 +14,21 @@ class BackupPruner:
     def __init__(self, bench, site: str) -> None:
         self.bench = bench
         self.site = site
-        self._backups_dir = bench.sites_path / site / "private" / "backups"
+        self._site_dir = bench.sites_path / site
+        self._backups_dir = self._site_dir / "private" / "backups"
 
     def prune(self) -> list[str]:
-        """Delete runs the policy rejects, returning the timestamps actually pruned."""
+        """Delete runs the site's retention policy rejects, returning the timestamps
+        actually pruned. With no per-site retention (automated backups off), keep all."""
+        config = read_retention(self._site_dir / "site_config.json")
+        if config is None:
+            return []
+
         offsite = self._offsite()
         offsite_runs = offsite.list_backups(self.site) if offsite else {}
         timestamps = sorted(set(self._local_timestamps()) | set(offsite_runs))
 
-        policy = BackupRetentionPolicy(self.bench.config.backup)
+        policy = BackupRetentionPolicy(config)
         return [ts for ts in policy.select_deletions(timestamps) if self._delete_run(offsite, offsite_runs, ts)]
 
     def _delete_run(self, offsite, offsite_runs: dict, timestamp: str) -> bool:
