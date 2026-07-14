@@ -92,6 +92,7 @@ class BackupSiteTask(BaseTask):
                 "backup",
                 {
                     "site": self.site,
+                    "event": "backup",
                     "timestamp": timestamp,
                     "finished_at": datetime.now(timezone.utc).isoformat(),
                     "status": status,
