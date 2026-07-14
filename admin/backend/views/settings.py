@@ -60,11 +60,6 @@ def _s3_payload(config: BenchConfig):
     }
 
 
-def _backup_payload(config: BenchConfig) -> dict:
-    b = config.backup
-    return {"scheme": b.scheme, **b.counts}
-
-
 def _s3_provider_options() -> list[dict]:
     from pilot.integrations.s3.base import PROVIDER_LABELS, SUPPORTED_REGIONS
 
@@ -101,8 +96,6 @@ class ConfigPatcher:
         self._apply_firewall()
         self._apply_admin()
         self._apply_monitor()
-        if error := self._apply_backup():
-            return error
         if error := self._apply_s3():
             return error
         if error := self._apply_production():
@@ -204,18 +197,6 @@ class ConfigPatcher:
         letsencrypt = self.data.get("letsencrypt") or {}
         if "email" in letsencrypt:
             self.config.letsencrypt.email = str(letsencrypt["email"]).strip()
-
-    def _apply_backup(self) -> str | None:
-        backup = self.data.get("backup") or {}
-        if "scheme" in backup:
-            self.config.backup.scheme = str(backup["scheme"]).strip()
-        for name in self.config.backup.counts:
-            if name in backup:
-                try:
-                    setattr(self.config.backup, name, int(backup[name]))
-                except (TypeError, ValueError):
-                    return f"backup.{name} must be a whole number."
-        return None
 
     def _apply_s3(self) -> str | None:
         s3 = self.data.get("s3") or {}
@@ -422,7 +403,6 @@ def _build_settings_response(config: BenchConfig) -> dict:
         "letsencrypt": {"email": config.letsencrypt.email},
         "s3": _s3_payload(config),
         "s3_providers": _s3_provider_options(),
-        "backup": _backup_payload(config),
         "monitor": {
             "system_log_path": str(config.monitor.system_log_path),
             "log_path": str(config.monitor.log_path) if config.monitor.log_path else "",
@@ -445,52 +425,28 @@ def get_settings():
     return jsonify(_build_settings_response(config))
 
 
-_DEFAULT_AUDIT_LIMIT = 200
-_AUDIT_SCAN_CAP = 2000  # newest entries scanned to build filters; bounds work per request
-
-
-def _audit_log(bench_root: Path):
-    from pilot.core.audit_log import AuditLog
-
-    return AuditLog(Bench(BenchTomlStore.for_bench(bench_root).read(), bench_root))
-
-
-@settings_bp.route("/audit/types")
-def audit_types():
-    """Event types present in the bench-wide audit log, with per-type counts."""
-    from collections import Counter
-
-    bench_root = Path(current_app.config["BENCH_ROOT"])
-    try:
-        counts = Counter(e.get("type") for e in _audit_log(bench_root).entries() if e.get("type"))
-    except Exception as error:
-        return jsonify({"error": str(error)}), 500
-    return jsonify({"types": [{"type": t, "count": c} for t, c in sorted(counts.items())]})
+_AUDIT_LOG_LIMIT = 500  # newest entries returned; the log has no dedicated UI, it's viewed as raw JSON
 
 
 @settings_bp.route("/audit/log")
 def audit_log():
-    """Audit entries of one type, newest first, optionally filtered by status/site.
-    Filter options and matches both come from the newest ``_AUDIT_SCAN_CAP`` entries,
-    so one bounded scan serves the whole request and the filters stay consistent with
-    what's shown."""
+    """The bench-wide audit log as JSON, newest first, for direct viewing in a
+    browser. Optional ``type``/``status``/``site``/``limit`` query params filter it."""
+    from pilot.core.audit_log import AuditLog
+
     bench_root = Path(current_app.config["BENCH_ROOT"])
-    entry_type = request.args.get("type") or None
-    status = request.args.get("status") or None
-    site = request.args.get("site") or None
-    limit = request.args.get("limit", _DEFAULT_AUDIT_LIMIT, type=int)
+    limit = request.args.get("limit", _AUDIT_LOG_LIMIT, type=int)
     try:
-        recent = _audit_log(bench_root).entries(entry_type=entry_type, limit=_AUDIT_SCAN_CAP)
+        log = AuditLog(Bench(BenchTomlStore.for_bench(bench_root).read(), bench_root))
+        entries = log.entries(
+            entry_type=request.args.get("type") or None,
+            site=request.args.get("site") or None,
+            status=request.args.get("status") or None,
+            limit=limit,
+        )
     except Exception as error:
         return jsonify({"error": str(error)}), 500
-    matched = [e for e in recent if (site is None or e.get("site") == site) and (status is None or e.get("status") == status)]
-    return jsonify(
-        {
-            "entries": matched[:limit],
-            "sites": sorted({e.get("site") for e in recent if e.get("site")}),
-            "statuses": sorted({e.get("status") for e in recent if e.get("status")}),
-        }
-    )
+    return jsonify(entries)
 
 
 @settings_bp.route("/my-ip")
