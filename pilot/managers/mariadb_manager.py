@@ -41,11 +41,6 @@ class MariaDBManager(UserOwnedDBManager):
 
     def is_provisioned(self) -> bool:
         if is_macos():
-            # No systemd --user unit exists here (Homebrew owns install/start,
-            # not us), so there's nothing of ours to check — a marker file we
-            # invented could drift from reality (e.g. get deleted) without the
-            # server itself changing. Ask the server directly instead: it's
-            # only "fresh" if it's both up and still passwordless.
             return self.is_running() and not self.is_unsecured()
         return super().is_provisioned()
 
