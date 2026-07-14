@@ -5,13 +5,30 @@
 # developer's own machine — it installs Homebrew, MariaDB, PostgreSQL and
 # Node for real.
 #
+# The working tree (including uncommitted changes) is committed into a
+# throwaway git repo on a hardcoded "main" branch and cloned from there, the
+# same way scripts/smoke_install.sh does — a checkout in CI is detached HEAD,
+# so `git rev-parse --abbrev-ref HEAD` would otherwise hand install.sh the
+# literal branch name "HEAD".
+#
 # Usage: scripts/smoke_install_macos.sh
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-CURRENT_BRANCH="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)"
-export PILOT_REPO_URL="file://$REPO_ROOT"
-export PILOT_BRANCH="$CURRENT_BRANCH"
+
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "$WORK_DIR"' EXIT
+
+mkdir "$WORK_DIR/src"
+tar -C "$REPO_ROOT" --exclude .git --exclude node_modules --exclude .admin-venv \
+    --exclude test-bench -cf - . | tar -C "$WORK_DIR/src" -xf -
+git -C "$WORK_DIR/src" init --quiet --initial-branch main
+git -C "$WORK_DIR/src" add --all
+git -C "$WORK_DIR/src" -c user.email=smoke@test -c user.name=smoke \
+    commit --quiet --message "smoke test snapshot"
+
+export PILOT_REPO_URL="file://$WORK_DIR/src"
+export PILOT_BRANCH="main"
 
 echo "=== macOS smoke test ==="
 sh "$REPO_ROOT/install.sh"
