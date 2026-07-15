@@ -4,7 +4,8 @@ The flow is deliberately split into two layers:
 
 * the **API layer** (a Personal Access Token) is used for administrative tasks
   the user does through the UI — validating the connection and listing repos;
-* the **transport layer** is, for now, token-embedded HTTPS clone URLs.
+* the **transport layer** passes an HTTP authorization header through Git's
+  environment config while keeping the remote URL free of credentials.
 
 The token is persisted (unencrypted, by request) in a ``.bench.git.info`` file
 at the bench root. Only GitHub is fully implemented; ``GitLabProvider`` is a
@@ -14,6 +15,7 @@ stub that maps out the same surface for a later phase.
 from __future__ import annotations
 
 import abc
+import base64
 import json
 import os
 import urllib.error
@@ -103,6 +105,7 @@ class GitProvider(abc.ABC):
 
     name: str = ""
     host: str = ""
+    git_username: str = ""
 
     def __init__(self, token: str = "") -> None:
         self.token = token
@@ -161,6 +164,7 @@ class GitHubProvider(GitProvider):
     name = "github"
     host = "github.com"
     api_base = "https://api.github.com"
+    git_username = "x-access-token"
 
     def _headers(self) -> dict:
         headers = {
@@ -239,6 +243,7 @@ class GitLabProvider(GitProvider):
 
     name = "gitlab"
     host = "gitlab.com"
+    git_username = "oauth2"
 
     def validate(self) -> dict:
         raise GitProviderError("GitLab support is not implemented yet.")
@@ -365,16 +370,24 @@ def resolve_app_name_from_repo(bench_root: Path, repo_url: str, branch: str = ""
 
 
 def authenticated_url_for(bench_root: Path, repo_url: str) -> str:
-    """Return a clone URL for ``repo_url``, token-embedded when applicable.
+    """Return the credential-free URL used for Git transport."""
+    return git_remote_for(bench_root, repo_url)[0]
 
-    Consults the bench's stored credential. If the repo's host matches the
-    connected provider and a token is on file, the token is embedded; otherwise
-    the original URL is returned unchanged (public repos clone fine without it).
-    """
+
+def git_remote_for(bench_root: Path, repo_url: str) -> tuple[str, dict | None]:
+    """Return a remote URL and optional Git auth environment."""
     record = GitCredentialStore(bench_root).load()
     if not record or not record.get("token"):
-        return repo_url
+        return repo_url, None
     provider = provider_for_repo(repo_url, record["token"])
     if provider is None or provider.name != record.get("provider"):
-        return repo_url
-    return provider.authenticated_clone_url(repo_url)
+        return repo_url, None
+
+    credentials = f"{provider.git_username}:{record['token']}".encode()
+    authorization = base64.b64encode(credentials).decode()
+    env = os.environ.copy()
+    index = int(env.get("GIT_CONFIG_COUNT", "0"))
+    env["GIT_CONFIG_COUNT"] = str(index + 1)
+    env[f"GIT_CONFIG_KEY_{index}"] = "http.extraHeader"
+    env[f"GIT_CONFIG_VALUE_{index}"] = f"Authorization: Basic {authorization}"
+    return normalize_to_https(repo_url), env

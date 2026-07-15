@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import pickle
@@ -297,6 +298,7 @@ def test_wrapper_loads_config_redactions_and_removes_secret_handoff(
     (tmp_path / "bench.toml").write_text(
         '[mariadb]\nroot_password = "database-password"\n'
     )
+    (tmp_path / ".bench.git.info").write_text(json.dumps({"token": "git-token"}))
     captured = {}
 
     def run_task(*args):
@@ -308,7 +310,13 @@ def test_wrapper_loads_config_redactions_and_removes_secret_handoff(
 
     wrapper_module.main()
 
-    assert set(captured["redactions"]) >= {"task-password", "database-password"}
+    expected_basic = base64.b64encode(b"x-access-token:git-token").decode()
+    assert set(captured["redactions"]) >= {
+        "task-password",
+        "database-password",
+        "git-token",
+        expected_basic,
+    }
     assert not (task_dir / "secrets.json").exists()
 
 

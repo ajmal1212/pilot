@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import getpass
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -21,7 +23,7 @@ class NewSiteCommand(Command):
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
         parser.add_argument("name", help="Site name (e.g. site2.localhost).")
-        parser.add_argument("--admin-password", default="admin", help="Frappe admin password.")
+        parser.add_argument("--admin-password-file", help="File containing the Administrator password")
         parser.add_argument("--apps", nargs="*", help="Apps to assign (defaults to framework app).")
 
     @classmethod
@@ -30,7 +32,13 @@ class NewSiteCommand(Command):
         if not app_names:
             framework = bench.config.framework_app.name
             app_names = [framework] if framework else []
-        return cls(bench, args.name, app_names, args.admin_password)
+        admin_password = os.environ.get("BENCH_SITE_ADMIN_PASSWORD")
+        if args.admin_password_file:
+            admin_password = Path(args.admin_password_file).read_text().strip()
+        admin_password = admin_password or getpass.getpass("Site Administrator password: ")
+        if not admin_password:
+            raise BenchError("Site Administrator password must not be empty.")
+        return cls(bench, args.name, app_names, admin_password)
 
     def __init__(self, bench: "Bench", name: str, apps: list[str], admin_password: str = "admin", db_type: str | None = None) -> None:
         self.bench = bench

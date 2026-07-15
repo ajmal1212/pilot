@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -44,13 +45,13 @@ def _query_via_db_cli(site_config: dict) -> list[str] | None:
     if not cli:
         return None
 
-    conn_args = [f"--user={db_name}", f"--password={db_password}"]
+    conn_args = [f"--user={db_name}"]
     if db_host in ("localhost", "127.0.0.1", ""):
         socket_path = next((s for s in _SOCKET_CANDIDATES if Path(s).exists()), None)
         if socket_path:
             conn_args.append(f"--socket={socket_path}")
         else:
-            conn_args += [f"--host=127.0.0.1", f"--port={db_port}"]
+            conn_args += ["--host=127.0.0.1", f"--port={db_port}"]
     else:
         conn_args += [f"--host={db_host}", f"--port={db_port}"]
 
@@ -65,6 +66,7 @@ def _query_via_db_cli(site_config: dict) -> list[str] | None:
             capture_output=True,
             text=True,
             timeout=5,
+            env={**os.environ, "MYSQL_PWD": db_password},
         )
         if result.returncode != 0:
             return None

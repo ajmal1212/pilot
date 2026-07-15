@@ -1,12 +1,51 @@
 """Tests for pilot.utils — write_toml serialiser."""
 from __future__ import annotations
 
+import json
+import stat
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
 import pytest
 
-from pilot.utils import host_owner, normalize_host, write_toml
+from pilot.utils import host_owner, normalize_host, run_command, write_toml
+
+
+def test_run_command_hides_password_flags_from_process_argv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    password = "process-secret-password"
+    captured = {}
+
+    def run(argv, **kwargs):
+        payload_path = Path(argv[2])
+        captured["argv"] = argv
+        captured["payload_path"] = payload_path
+        captured["payload"] = json.loads(payload_path.read_text())
+        captured["mode"] = stat.S_IMODE(payload_path.stat().st_mode)
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr("pilot.utils.subprocess.run", run)
+
+    run_command(
+        [
+            sys.executable,
+            "-m",
+            "frappe.utils.bench_helper",
+            "new-site",
+            "--admin-password",
+            password,
+        ],
+        cwd=tmp_path,
+    )
+
+    assert password not in "\0".join(captured["argv"])
+    assert captured["payload"]["args"][-1] == password
+    assert captured["mode"] == 0o600
+    assert not captured["payload_path"].exists()
 
 
 def _make_bench(benches: Path, name: str, *, admin_domain: str, sites: list[str] | None = None) -> Path:

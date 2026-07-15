@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -322,6 +323,39 @@ def test_new_command_skips_offset_with_live_admin_internal_port(tmp_path: Path, 
 # ── NewSiteCommand ────────────────────────────────────────────────────────────
 
 
+def test_new_site_reads_admin_password_from_file(
+    tmp_path: Path,
+) -> None:
+    from pilot.commands.new_site import NewSiteCommand
+
+    bench = make_bench(tmp_path)
+    password_path = tmp_path / "site-password"
+    password_path.write_text("file-password\n")
+    args = SimpleNamespace(
+        name="site1.localhost",
+        apps=[],
+        admin_password_file=str(password_path),
+    )
+
+    command = NewSiteCommand.from_args(args, bench)
+
+    assert command.admin_password == "file-password"
+
+
+def test_set_admin_password_reads_password_from_file(tmp_path: Path) -> None:
+    from pilot.commands.set_admin_password import SetAdminPasswordCommand
+
+    password_path = tmp_path / "admin-password"
+    password_path.write_text("file-password\n")
+
+    command = SetAdminPasswordCommand.from_args(
+        SimpleNamespace(password_file=str(password_path)),
+        make_bench(tmp_path),
+    )
+
+    assert command.password == "file-password"
+
+
 def test_new_site_raises_if_site_exists(tmp_path: Path) -> None:
     from pilot.commands.new_site import NewSiteCommand
 
@@ -428,7 +462,7 @@ def test_remove_app_removes_app_from_apps_txt(tmp_path: Path) -> None:
 
     RemoveAppCommand(bench, "myapp")._remove_from_apps_txt()
 
-    lines = [l for l in apps_txt.read_text().splitlines() if l.strip()]
+    lines = [line for line in apps_txt.read_text().splitlines() if line.strip()]
     assert "myapp" not in lines
     assert "frappe" in lines
     assert "erpnext" in lines
@@ -473,7 +507,11 @@ def test_remove_app_full_flow_no_sites(tmp_path: Path) -> None:
         cmd.run()
 
     assert not app_dir.exists()
-    remaining = [l for l in (bench.sites_path / "apps.txt").read_text().splitlines() if l.strip()]
+    remaining = [
+        line
+        for line in (bench.sites_path / "apps.txt").read_text().splitlines()
+        if line.strip()
+    ]
     assert "erpnext" not in remaining
 
 

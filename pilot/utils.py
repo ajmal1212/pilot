@@ -193,18 +193,42 @@ def get_yarn_bin() -> str:
     raise BenchError("yarn not found — run bench init to install it.")
 
 
+_SECRET_ARG_FLAGS = frozenset({"--admin-password", "--db-root-password"})
+
+
+def _secure_python_command(argv: list[str]) -> tuple[list[str], Path | None]:
+    if not any(arg in _SECRET_ARG_FLAGS for arg in argv):
+        return argv, None
+    if len(argv) < 3 or argv[1] != "-m":
+        raise BenchError("Secret command arguments require a Python module command.")
+
+    import json
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as payload_file:
+        json.dump({"module": argv[2], "args": argv[3:]}, payload_file)
+        payload_path = Path(payload_file.name)
+    secure_exec = Path(__file__).with_name("_secure_exec.py")
+    return [argv[0], str(secure_exec), str(payload_path)], payload_path
+
+
 def run_command(
     argv: list[str],
     cwd: Path | None = None,
     env: dict | None = None,
     stream_output: bool = False,
 ) -> subprocess.CompletedProcess:
-    result = subprocess.run(
-        argv,
-        cwd=cwd,
-        env=env,
-        capture_output=not stream_output,
-    )
+    process_argv, payload_path = _secure_python_command(argv)
+    try:
+        result = subprocess.run(
+            process_argv,
+            cwd=cwd,
+            env=env,
+            capture_output=not stream_output,
+        )
+    finally:
+        if payload_path:
+            payload_path.unlink(missing_ok=True)
     if result.returncode != 0:
         stderr = result.stderr.decode() if not stream_output and result.stderr else ""
         raise CommandError(

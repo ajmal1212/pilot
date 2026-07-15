@@ -6,6 +6,7 @@ Invoked as: python -m admin.backend.tasks.manager.wrapper <task-dir>
 This module uses only the standard library — no cli imports.
 """
 
+import base64
 import json
 import os
 import pickle
@@ -143,7 +144,19 @@ def _load_redactions(task_dir: Path, bench_root: Path) -> list[str]:
                 values.extend(_secret_values(tomllib.load(config_file)))
         except (OSError, tomllib.TOMLDecodeError):
             pass
-    return list(dict.fromkeys(values))
+    git_config_path = bench_root / ".bench.git.info"
+    if git_config_path.exists():
+        try:
+            values.extend(_secret_values(json.loads(git_config_path.read_text())))
+        except (OSError, ValueError):
+            pass
+    expanded = list(values)
+    for value in values:
+        expanded.append(base64.b64encode(value.encode()).decode())
+        for username in ("x-access-token", "oauth2"):
+            basic = base64.b64encode(f"{username}:{value}".encode()).decode()
+            expanded.append(basic)
+    return list(dict.fromkeys(expanded))
 
 
 def main() -> None:

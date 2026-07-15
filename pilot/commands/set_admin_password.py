@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pilot.commands.base import Command
@@ -13,15 +15,18 @@ if TYPE_CHECKING:
 
 class SetAdminPasswordCommand(Command):
     name = "set-admin-password"
-    help = "Set the admin panel password (prompts if --password is omitted)."
+    help = "Set the admin panel password securely."
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--password", help="New password; omit to be prompted securely.")
+        parser.add_argument("--password-file", help="File containing the new password")
 
     @classmethod
     def from_args(cls, args, bench):
-        return cls(bench, password=args.password)
+        password = os.environ.get("BENCH_ADMIN_PASSWORD")
+        if args.password_file:
+            password = Path(args.password_file).read_text().strip()
+        return cls(bench, password=password)
 
     def __init__(self, bench: "Bench", password: str | None = None) -> None:
         self.bench = bench
