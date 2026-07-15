@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import json
 import os
-import pickle
 import signal
 import stat
 import subprocess
@@ -15,6 +14,7 @@ import pytest
 
 import admin.backend.tasks.manager.task_runner as task_runner_module
 import admin.backend.tasks.manager.wrapper as wrapper_module
+import admin.backend.tasks.callbacks as callback_module
 from admin.backend.tasks.manager.task_reader import TaskReader
 from admin.backend.tasks.manager.task_runner import TaskRunner
 from admin.backend.tasks.manager.wrapper import callback_handler, run_with_syslog_output
@@ -24,19 +24,19 @@ from pilot.exceptions import TaskNotFoundError, TaskNotRunningError
 TASK_ID = "20260715-120000-aabbcc"
 
 
-def successful_callback(meta: dict) -> None:
+def successful_callback(meta: dict, args: dict) -> None:
     return None
 
 
-def write_success_marker(meta: dict) -> None:
+def write_success_marker(meta: dict, args: dict) -> None:
     (Path(meta["bench_root"]) / "success.marker").write_text("")
 
 
-def write_failure_marker(meta: dict) -> None:
+def write_failure_marker(meta: dict, args: dict) -> None:
     (Path(meta["bench_root"]) / "failure.marker").write_text("")
 
 
-def failing_callback(meta: dict) -> None:
+def failing_callback(meta: dict, args: dict) -> None:
     raise RuntimeError("callback error")
 
 
@@ -63,7 +63,7 @@ def test_run_persists_task_before_starting_wrapper(
     def start_process(argv: list[str], **kwargs):
         assert (task_dir / "meta.json").exists()
         assert (task_dir / "status").read_text() == "running"
-        assert (task_dir / "on_success.bin").exists()
+        assert (task_dir / "callbacks.json").exists()
         assert not (task_dir / "pid").exists()
         assert argv == [
             sys.executable,
@@ -81,11 +81,15 @@ def test_run_persists_task_before_starting_wrapper(
 
     monkeypatch.setattr(TaskRunner, "_generate_task_id", staticmethod(lambda: TASK_ID))
     monkeypatch.setattr(task_runner_module.subprocess, "Popen", start_process)
+    monkeypatch.setitem(callback_module._OPERATIONS, "test-success", successful_callback)
 
     task_id = TaskRunner(tmp_path).run(
         "build",
         {},
-        callbacks={"on_success": successful_callback, "on_failure": None},
+        callbacks={
+            "on_success": {"operation": "test-success", "args": {"marker": "success"}},
+            "on_failure": None,
+        },
     )
 
     meta = json.loads((task_dir / "meta.json").read_text())
@@ -107,7 +111,35 @@ def test_run_persists_task_before_starting_wrapper(
     assert meta["finished_at"] is None
     assert meta["exit_code"] is None
     assert (task_dir / "pid").read_text() == "4321"
-    assert pickle.loads((task_dir / "on_success.bin").read_bytes()) is successful_callback
+    assert json.loads((task_dir / "callbacks.json").read_text()) == {
+        "on_success": {"operation": "test-success", "args": {"marker": "success"}}
+    }
+
+
+def test_run_rejects_unknown_callback_operation(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="Unknown callback operation"):
+        TaskRunner(tmp_path).run(
+            "build",
+            {},
+            callbacks={
+                "on_success": {"operation": "import-anything", "args": {}},
+                "on_failure": None,
+            },
+        )
+
+
+def test_run_rejects_unknown_callback_trigger(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setitem(callback_module._OPERATIONS, "test-success", successful_callback)
+
+    with pytest.raises(ValueError, match="Unknown callback trigger"):
+        TaskRunner(tmp_path).run(
+            "build",
+            {},
+            callbacks={"always": {"operation": "test-success", "args": {}}},
+        )
 
 
 def test_run_hands_secret_to_job_without_persisting_it_publicly(
@@ -338,8 +370,16 @@ def test_wrapper_runs_matching_callback_and_finalizes_task(
     task_dir = tmp_path / "tasks" / TASK_ID
     task_dir.mkdir(parents=True)
     (task_dir / "meta.json").write_text(json.dumps(task_meta(tmp_path)))
-    (task_dir / "on_success.bin").write_bytes(pickle.dumps(write_success_marker))
-    (task_dir / "on_failure.bin").write_bytes(pickle.dumps(write_failure_marker))
+    (task_dir / "callbacks.json").write_text(
+        json.dumps(
+            {
+                "on_success": {"operation": "test-success", "args": {}},
+                "on_failure": {"operation": "test-failure", "args": {}},
+            }
+        )
+    )
+    monkeypatch.setitem(callback_module._OPERATIONS, "test-success", write_success_marker)
+    monkeypatch.setitem(callback_module._OPERATIONS, "test-failure", write_failure_marker)
     monkeypatch.setattr(wrapper_module, "run_with_syslog_output", lambda *args: exit_code)
     monkeypatch.setattr(sys, "argv", ["wrapper", str(task_dir)])
 
@@ -348,20 +388,54 @@ def test_wrapper_runs_matching_callback_and_finalizes_task(
     final_meta = json.loads((task_dir / "meta.json").read_text())
     assert (tmp_path / marker).exists()
     assert not (tmp_path / other_marker).exists()
-    assert not (task_dir / "on_success.bin").exists()
-    assert not (task_dir / "on_failure.bin").exists()
+    assert not (task_dir / "callbacks.json").exists()
     assert (task_dir / "status").read_text() == status
     assert final_meta["exit_code"] == exit_code
     assert final_meta["finished_at"] is not None
     assert "Callback successfully triggered" in (task_dir / "output.log").read_text()
 
 
-def test_callback_failure_is_logged_and_callback_is_removed(tmp_path: Path) -> None:
-    callback_path = tmp_path / "on_failure.bin"
+def test_callback_failure_is_logged_and_callback_is_removed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     output_path = tmp_path / "output.log"
-    callback_path.write_bytes(pickle.dumps(failing_callback))
+    monkeypatch.setitem(callback_module._OPERATIONS, "test-failing", failing_callback)
 
-    callback_handler(callback_path, output_path, task_meta(tmp_path))
+    callback_handler(
+        {"operation": "test-failing", "args": {}},
+        output_path,
+        task_meta(tmp_path),
+    )
 
-    assert not callback_path.exists()
     assert "Callback failed: callback error" in output_path.read_text()
+
+
+def test_callback_handler_rejects_tampered_operation_id(tmp_path: Path) -> None:
+    output_path = tmp_path / "output.log"
+
+    callback_handler(
+        {"operation": "os.system", "args": {"command": "touch escaped"}},
+        output_path,
+        task_meta(tmp_path),
+    )
+
+    assert "Unknown callback operation" in output_path.read_text()
+    assert not (tmp_path / "escaped").exists()
+
+
+def test_wrapper_deletes_legacy_pickle_without_loading_it(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    task_dir = tmp_path / "tasks" / TASK_ID
+    task_dir.mkdir(parents=True)
+    (task_dir / "meta.json").write_text(json.dumps(task_meta(tmp_path)))
+    legacy_path = task_dir / "on_success.bin"
+    legacy_path.write_bytes(b"not-even-a-valid-pickle")
+    monkeypatch.setattr(wrapper_module, "run_with_syslog_output", lambda *args: 0)
+    monkeypatch.setattr(sys, "argv", ["wrapper", str(task_dir)])
+
+    wrapper_module.main()
+
+    assert not legacy_path.exists()

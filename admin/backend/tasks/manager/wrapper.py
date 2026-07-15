@@ -3,19 +3,20 @@ Entry point for a forked child process that runs a bench command.
 
 Invoked as: python -m admin.backend.tasks.manager.wrapper <task-dir>
 
-This module uses only the standard library — no cli imports.
+This module uses only the standard library and the fixed callback registry.
 """
 
 import base64
 import json
 import os
-import pickle
 import socket
 import subprocess
 import sys
 import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
+
+from admin.backend.tasks.callbacks import run_callback
 
 _HOSTNAME = socket.gethostname()
 
@@ -93,19 +94,17 @@ def run_with_syslog_output(
 
 
 def callback_handler(
-    callback_bin_path: Path,
+    callback: dict,
     output_log: Path,
     meta: dict,
     redactions: list[str] | None = None,
 ) -> None:
-    callback = pickle.loads(callback_bin_path.read_bytes())
-    callback_bin_path.unlink()
     head, tail = _syslog_prefix_parts(meta["command"], os.getpid())
     ts = datetime.now(timezone.utc).isoformat(timespec="microseconds").encode()
     prefix = (head + ts + tail).decode()
     with open(output_log, "a") as log_file:
         try:
-            callback(meta)
+            run_callback(callback, meta)
             log_file.write(f"{prefix}Callback successfully triggered\n")
         except Exception as error:
             message = str(error)
@@ -162,8 +161,14 @@ def _load_redactions(task_dir: Path, bench_root: Path) -> list[str]:
 def main() -> None:
     task_dir = Path(sys.argv[1])
     meta = json.loads((task_dir / "meta.json").read_text())
-    on_success_bin = task_dir / "on_success.bin"
-    on_failure_bin = task_dir / "on_failure.bin"
+    callbacks_path = task_dir / "callbacks.json"
+    callbacks = {}
+    if callbacks_path.exists():
+        try:
+            callbacks = json.loads(callbacks_path.read_text())
+        except (OSError, ValueError):
+            invalid = {"operation": "invalid-callback-json", "args": {}}
+            callbacks = {"on_success": invalid, "on_failure": invalid}
 
     # frappe's bench CLI (env/bin/bench) loads apps.txt from the current
     # directory using sites_path=".", so cwd must be the sites/ subdirectory.
@@ -183,12 +188,15 @@ def main() -> None:
     finally:
         (task_dir / "secrets.json").unlink(missing_ok=True)
 
-    if exit_code == 0 and on_success_bin.exists():
-        callback_handler(on_success_bin, task_dir / "output.log", meta=meta, redactions=redactions)
-    elif exit_code != 0 and on_failure_bin.exists():
-        callback_handler(on_failure_bin, task_dir / "output.log", meta=meta, redactions=redactions)
+    selected = callbacks.get("on_success" if exit_code == 0 else "on_failure")
+    if selected:
+        callback_handler(selected, task_dir / "output.log", meta=meta, redactions=redactions)
 
-    for leftover in (on_success_bin, on_failure_bin):
+    for leftover in (
+        callbacks_path,
+        task_dir / "on_success.bin",
+        task_dir / "on_failure.bin",
+    ):
         if leftover.exists():
             leftover.unlink()
 

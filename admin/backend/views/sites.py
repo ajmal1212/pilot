@@ -10,7 +10,6 @@ from pathlib import Path
 from flask import Blueprint, current_app, jsonify, request, send_file
 
 from admin.backend.auth import require_scope
-from admin.backend.tasks.callbacks import new_site_failure_callback, ssl_setup_failure_callback
 from admin.backend.uploads import (
     UploadError,
     create_upload_directory,
@@ -164,7 +163,12 @@ def create():
         task_id = TaskRunner(bench_root).run(
             "new-site",
             task_args,
-            callbacks={"on_failure": new_site_failure_callback},
+            callbacks={
+                "on_failure": {
+                    "operation": "remove-failed-site",
+                    "args": {"site": name},
+                }
+            },
         )
     except Exception as e:
         return jsonify({"ok": False, "error": f"Could not start new-site: {e}"})
@@ -509,7 +513,12 @@ def enable_ssl(name: str):
         task_id = TaskRunner(bench_root).run(
             "setup-letsencrypt",
             {"site": name},
-            callbacks={"on_failure": ssl_setup_failure_callback},
+            callbacks={
+                "on_failure": {
+                    "operation": "disable-site-ssl",
+                    "args": {"site": name},
+                }
+            },
         )
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})

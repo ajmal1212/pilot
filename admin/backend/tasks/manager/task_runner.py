@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import pickle
 import secrets
 import signal
 import subprocess
@@ -11,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypedDict
 
+from admin.backend.tasks.callbacks import validate_callback
 from admin.backend.tasks.manager.task_args import (
     redact_task_args,
     reject_url_credentials,
@@ -48,9 +48,14 @@ _WHITELIST: dict[str, list[str]] = {
 }
 
 
-class TaskCallbacks(TypedDict):
-    on_success: callable | None
-    on_failure: callable | None
+class TaskCallback(TypedDict):
+    operation: str
+    args: dict
+
+
+class TaskCallbacks(TypedDict, total=False):
+    on_success: TaskCallback | None
+    on_failure: TaskCallback | None
 
 
 class TaskRunner:
@@ -58,6 +63,12 @@ class TaskRunner:
         self._bench_root = bench_root
 
     def run(self, command: str, args: dict, callbacks: TaskCallbacks | None = None) -> str:
+        callback_payload = {}
+        for trigger, spec in (callbacks or {}).items():
+            if trigger not in ("on_success", "on_failure"):
+                raise ValueError(f"Unknown callback trigger: {trigger!r}")
+            if spec is not None:
+                callback_payload[trigger] = validate_callback(spec)
         task_id = self._generate_task_id()
         task_dir = self._task_dir(task_id)
         task_dir.mkdir(parents=True)
@@ -83,11 +94,8 @@ class TaskRunner:
             with os.fdopen(fd, "w") as secret_file:
                 json.dump(secret_args, secret_file)
 
-        if callbacks:
-            if on_success := callbacks.get("on_success"):
-                (task_dir / "on_success.bin").write_bytes(pickle.dumps(on_success))
-            if on_failure := callbacks.get("on_failure"):
-                (task_dir / "on_failure.bin").write_bytes(pickle.dumps(on_failure))
+        if callback_payload:
+            (task_dir / "callbacks.json").write_text(json.dumps(callback_payload, indent=2))
 
         process_kwargs = {
             "start_new_session": True,
