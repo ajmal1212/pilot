@@ -17,8 +17,8 @@
       </div>
       <div class="flex items-center gap-2 shrink-0">
         <Button variant="subtle" size="sm" :loading="loading" icon="lucide-refresh-cw" @click="load" />
-        <Button v-if="task.status === 'running'" variant="subtle" size="sm" theme="red" icon-left="lucide-x"
-          @click="killTask">
+        <Button v-if="isTaskActive(task)" variant="subtle" size="sm" theme="red" icon-left="lucide-x"
+          @click="cancelTask">
           Cancel
         </Button>
       </div>
@@ -35,8 +35,9 @@
 
     <!-- Steps -->
     <div class="mt-4">
-      <TaskStream v-if="task.status === 'running'" :url="tasksApi.streamUrl(taskId)"
-        v-slot="{ rawLines: streamedLines, streaming }" @done="load">
+      <TaskStream v-if="isTaskActive(task)" :url="tasksApi.streamUrl(taskId)"
+        :empty-text="task.status === 'queued' ? 'Waiting for this task to start…' : 'No output yet…'"
+        v-slot="{ rawLines: streamedLines, streaming }" @status="updateStatus" @done="load">
         <TaskSteps :raw-lines="streamedLines" :streaming="streaming" :task-status="task.status" />
       </TaskStream>
       <TaskSteps v-else :raw-lines="rawLines" :task-status="task.status" />
@@ -54,7 +55,7 @@ import UpdatesAvailableButton from '@/components/UpdatesAvailableButton.vue'
 import { tasksApi } from '@/api/tasks'
 import { useBreadcrumbs } from '@/composables/useBreadcrumbs'
 import { useTaskDetail } from '@/composables/useTaskDetail'
-import { commandLabel, fmtDateTime, fmtDuration, siteLabel, statusConfig } from '@/utils/taskFormat'
+import { commandLabel, fmtDateTime, fmtDuration, isTaskActive, siteLabel, statusConfig } from '@/utils/taskFormat'
 
 const route = useRoute()
 const router = useRouter()
@@ -69,23 +70,33 @@ const actionError = ref('')
 
 const metadata = computed(() => {
   const items = [
+    { label: 'Submitted', value: fmtDateTime(task.value.queued_at) },
     { label: 'Started', value: fmtDateTime(task.value.started_at) },
     { label: 'Finished', value: task.value.finished_at ? fmtDateTime(task.value.finished_at) : '—' },
     { label: 'Duration', value: fmtDuration(task.value.duration_seconds) || '—' },
   ]
+  if (task.value.status === 'queued' && task.value.queue_position) {
+    items.unshift({ label: 'Queue position', value: `#${task.value.queue_position}` })
+  }
   const site = siteLabel(task.value)
   if (site !== 'Server-level') items.unshift({ label: 'Site', value: site })
   return items
 })
 
-async function killTask() {
+function updateStatus(event) {
+  if (!['queued', 'running'].includes(event.status)) return
+  task.value.status = event.status
+  task.value.queue_position = event.queue_position
+}
+
+async function cancelTask() {
   actionError.value = ''
   try {
-    const result = await tasksApi.kill(taskId)
-    if (!result.ok) actionError.value = result.error || 'Failed to kill task'
+    const result = await tasksApi.cancel(taskId)
+    if (!result.ok) actionError.value = result.error || 'Failed to cancel task'
     else load()
   } catch (caught) {
-    actionError.value = caught.message || 'Failed to kill task'
+    actionError.value = caught.message || 'Failed to cancel task'
   }
 }
 

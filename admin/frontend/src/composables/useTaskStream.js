@@ -34,7 +34,7 @@ export function useTaskStream({ guardHiddenTab = false } = {}) {
     }
   }
 
-  function start(url, { onDone, onLine, onError } = {}) {
+  function start(url, { onDone, onLine, onStatus, onError } = {}) {
     close()
     streaming.value = true
     let volatile = false
@@ -62,6 +62,8 @@ export function useTaskStream({ guardHiddenTab = false } = {}) {
         } else if (event.type === 'overwrite') {
           push(event.line, { overwrite: volatile })
           volatile = true
+        } else if (event.type === 'status') {
+          onStatus?.(event)
         } else if (event.type === 'done') {
           streaming.value = false
           close()

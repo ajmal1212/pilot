@@ -33,7 +33,7 @@ const props = defineProps({
   emptyText: { type: String, default: 'No output yet…' },
   maxHeight: { type: String, default: '65vh' },
 })
-const emit = defineEmits(['line', 'done', 'error'])
+const emit = defineEmits(['line', 'status', 'done', 'error'])
 
 const stream = useTaskStream({ guardHiddenTab: props.guardHiddenTab })
 const { terminal, lines, rawLines, streaming } = stream
@@ -55,6 +55,7 @@ function start(url = props.url) {
   }
   stream.start(url, {
     onLine: (raw) => emit('line', raw),
+    onStatus: (event) => emit('status', event),
     onDone: (success) => emit('done', success),
     onError: () => emit('error'),
   })

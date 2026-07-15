@@ -37,8 +37,8 @@
         <div class="flex-1 min-w-0">
           <span class="font-medium text-ink-gray-9 text-base truncate">{{ commandLabel(task.command) }}</span>
           <p class="mt-0.5 text-ink-gray-5 text-p-sm truncate">
-            {{ siteLabel(task) }} · {{ relativeTime(task.started_at) }}
-            <template v-if="fmtDuration(task.duration_seconds)"> · took {{ fmtDuration(task.duration_seconds)
+            {{ siteLabel(task) }} · {{ taskActivityLabel(task) }}
+            <template v-if="task.status !== 'queued' && fmtDuration(task.duration_seconds)"> · took {{ fmtDuration(task.duration_seconds)
             }}</template>
           </p>
         </div>
@@ -56,7 +56,7 @@ import { onMounted, ref } from 'vue'
 import { Button, ErrorMessage, LoadingText, TabButtons } from 'frappe-ui'
 import UpdatesAvailableButton from '@/components/UpdatesAvailableButton.vue'
 import { useTasks } from '@/composables/useTasks'
-import { commandLabel, fmtDuration, relativeTime, siteLabel, statusConfig } from '@/utils/taskFormat'
+import { commandLabel, fmtDuration, siteLabel, statusConfig, taskActivityLabel } from '@/utils/taskFormat'
 import { taskDetailRoute } from '@/utils/taskRoute'
 
 const { tasks, loading, error, load } = useTasks()
@@ -65,6 +65,7 @@ const statusFilter = ref('all')
 
 const filterOptions = [
   { label: 'All', value: 'all' },
+  { label: 'Queued', value: 'queued' },
   { label: 'Running', value: 'running' },
   { label: 'Failed', value: 'failed' },
   { label: 'Succeeded', value: 'success' },

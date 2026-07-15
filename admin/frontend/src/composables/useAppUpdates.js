@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { appsApi } from '@/api/apps'
 import { tasksApi } from '@/api/tasks'
+import { isTaskActive } from '@/utils/taskFormat'
 
 const updates = ref({})
 const checking = ref(false)
@@ -19,7 +20,7 @@ export function useAppUpdates() {
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
         const { task, output } = await tasksApi.detail(task_id)
 
-        if (task.status === 'running') continue
+        if (isTaskActive(task)) continue
         if (task.status === 'success' && output?.length) {
           updates.value = JSON.parse(output[output.length - 1])
         }
