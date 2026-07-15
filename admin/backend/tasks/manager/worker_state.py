@@ -8,6 +8,7 @@ from pathlib import Path
 
 from pilot.internal.atomic_file import atomic_write_private_text
 from pilot.secure_files import make_private_directory, open_private
+from admin.backend.tasks.manager.worker_lock import WorkerLock
 
 
 class WorkerStatus(StrEnum):
@@ -37,6 +38,10 @@ class WorkerStore:
         make_private_directory(self.tasks_root, parents=True)
         with open_private(self.lock_path, "a"):
             pass
+
+    def try_acquire(self) -> WorkerLock | None:
+        self.ensure_layout()
+        return WorkerLock.try_acquire(self.lock_path)
 
     def write_pid(self, pid: int | None) -> None:
         self.ensure_layout()
