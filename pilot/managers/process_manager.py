@@ -383,7 +383,24 @@ class ProcessManager:
         )
 
     def _admin_definition(self) -> ProcessDefinition:
-        return self._build_admin_definition("--no-timeout")
+        root = cli_root()
+        admin = AdminEnvManager(root)
+        return ProcessDefinition(
+            name="admin",
+            argv=[
+                str(admin.gunicorn),
+                "-c",
+                str(self.bench.config_path / "admin-gunicorn.conf.py"),
+                "admin.backend.wsgi:application",
+            ],
+            log_file=self.bench.logs_path / "admin.log",
+            env={
+                "BENCH_ADMIN_ROOT": str(self.bench.path),
+                "PYTHONPATH": str(root),
+                "MALLOC_ARENA_MAX": "2",
+            },
+            working_dir=root,
+        )
 
     def _watch_admin_definition(self) -> ProcessDefinition:
         return self._build_admin_definition("--dev")

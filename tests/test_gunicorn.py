@@ -131,6 +131,7 @@ def test_gunicorn_manager_generates_admin_config(tmp_path: Path) -> None:
     content = config_path.read_text()
     assert f'bind = "127.0.0.1:{bench.config.admin.internal_port}"' in content
     assert "workers = 1" in content
+    assert "threads = 4" in content
     assert 'worker_class = "gthread"' in content
     # No preload so create_app (and its idle watchdog) runs in the worker.
     assert "preload_app = False" in content
@@ -164,6 +165,21 @@ def test_web_definition_uses_gunicorn_in_production(tmp_path: Path) -> None:
     assert "frappe.app:application" in command_line
     assert "../config/gunicorn.conf.py" in command_line
     assert "frappe serve" not in command_line
+
+
+def test_admin_definition_uses_pinned_gunicorn_config(tmp_path: Path) -> None:
+    bench = make_bench(tmp_path)
+
+    process = ProcessManager(bench)._admin_definition()
+
+    assert process.argv[1:] == [
+        "-c",
+        str(bench.config_path / "admin-gunicorn.conf.py"),
+        "admin.backend.wsgi:application",
+    ]
+    assert Path(process.argv[0]).name == "gunicorn"
+    assert process.env["BENCH_ADMIN_ROOT"] == str(bench.path)
+    assert process.working_dir is not None
 
 
 def test_web_definition_uses_frappe_serve_in_dev(tmp_path: Path) -> None:
@@ -201,6 +217,7 @@ def test_supervisor_generate_config_writes_gunicorn_config(tmp_path: Path) -> No
         manager.write_config()
 
     assert (bench.config_path / "gunicorn.conf.py").exists()
+    assert (bench.config_path / "admin-gunicorn.conf.py").exists()
 
 
 def test_systemd_generate_config_writes_gunicorn_config(tmp_path: Path) -> None:
@@ -432,7 +449,7 @@ def test_systemd_web_service_has_long_timeout_in_companion_mode(tmp_path: Path) 
 
 
 def test_malloc_arena_max_in_units(tmp_path: Path) -> None:
-    from pilot.managers.process_managers.supervisor import SupervisorProcessManager, SupervisorRenderer
+    from pilot.managers.process_managers.supervisor import SupervisorRenderer
     from pilot.managers.process_managers.systemd import SystemdProcessManager, SystemdRenderer
 
     bench = make_bench(tmp_path, gunicorn=GunicornConfig())  # default arena 2

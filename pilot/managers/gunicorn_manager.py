@@ -46,7 +46,7 @@ class GunicornManager:
         self.admin_config_path.write_text(
             f'bind = "127.0.0.1:{cfg.internal_port}"\n'
             f"workers = 1\n"
-            f"threads = 8\n"
+            f"threads = 4\n"
             f'worker_class = "gthread"\n'
             f"timeout = 120\n"
             f"preload_app = False\n"

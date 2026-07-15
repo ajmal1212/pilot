@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import override
 
 from pilot.managers.admin_env_manager import AdminEnvManager
+from pilot.managers.gunicorn_manager import GunicornManager
 from pilot.loader import cli_root
 from pilot.managers.process_manager import ProcessDefinition
 from pilot.managers.process_managers.base import ManagedProcessManager, UnitGroup, ServiceRenderer
@@ -105,6 +106,7 @@ class SupervisorProcessManager(ManagedProcessManager):
         AdminEnvManager(cli_root()).ensure()
         self._ensure_redis_config()
         self._ensure_gunicorn_config()
+        GunicornManager(self.bench).generate_admin_config()
         self.supervisor_dir.mkdir(parents=True, exist_ok=True)
         renderer = SupervisorRenderer(self.bench.config.name, self.bench.logs_path)
         self.supervisor_conf_path.write_text(renderer.conf(self._prod_process_definitions(), self.supervisor_sock, self.supervisor_pid))
