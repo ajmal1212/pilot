@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { sitesApi } from '@/api/sites'
+import { openSiteLogin } from '@/utils/siteLogin'
 
 const cache = new Map()
 const BACKUPS_PAGE_SIZE = 20
@@ -105,9 +106,7 @@ export function useSite(name) {
   }
 
   async function login() {
-    const data = await sitesApi.login(name)
-    if (data.url) window.open(data.url, '_blank')
-    return data
+    return openSiteLogin(() => sitesApi.loginLink(name))
   }
 
   async function backup() {

@@ -23,7 +23,6 @@ SITE_SCOPED_ENDPOINTS = {
     "sites.install_app",
     "sites.list_backups",
     "sites.list_domains",
-    "sites.login_to_site",
     "sites.migrate_site",
     "sites.offsite_backup_urls",
     "sites.reinstall_site",
@@ -33,6 +32,7 @@ SITE_SCOPED_ENDPOINTS = {
     "sites.site_apps",
     "sites.uninstall_app",
     "sites.update_configuration",
+    "site-login.create_login_link",
 }
 
 
@@ -71,21 +71,21 @@ def test_admin_route_inventory_matches_baseline(tmp_path: Path) -> None:
         and not rule.rule.startswith(f"{API_V1_PREFIX}/")
     ]
 
-    assert len(routes) == 104
+    assert len(routes) == 105
     assert unversioned == []
-    assert len({(method, path) for method, path, _, _ in routes}) == 104
+    assert len({(method, path) for method, path, _, _ in routes}) == 105
     assert Counter(method for method, _, _, _ in routes) == {
         "DELETE": 9,
         "GET": 51,
         "PATCH": 2,
-        "POST": 41,
+        "POST": 42,
         "PUT": 1,
     }
     assert Counter(policy for _, _, _, policy in routes) == {
         "authenticated": 57,
         "authenticated+bench-management": 9,
         "authenticated+site-scope": 26,
-        "open": 5,
+        "open": 6,
         "setup-conditional": 7,
     }
     assert Counter(areas) == {
@@ -103,6 +103,7 @@ def test_admin_route_inventory_matches_baseline(tmp_path: Path) -> None:
         "processes": 4,
         "settings": 4,
         "setup": 7,
+        "site-login-handoffs": 1,
         "site-restores": 1,
         "sites": 29,
         "ssh-keys": 3,

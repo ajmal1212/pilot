@@ -148,6 +148,7 @@ import { useSites } from '@/composables/useSites'
 import { apiErrorMessage } from '@/api/client'
 import { sitesApi } from '@/api/sites'
 import { openTaskDetailPage } from '@/utils/taskRoute'
+import { openSiteLogin } from '@/utils/siteLogin'
 
 const router = useRouter()
 const { setBreadcrumbs } = useBreadcrumbs()
@@ -221,9 +222,7 @@ const listRows = computed(() =>
 )
 
 async function loginAsAdmin(site) {
-  const data = await sitesApi.login(site.name)
-  if (data.url) window.open(data.url, '_blank')
-  return data
+  return openSiteLogin(() => sitesApi.loginLink(site.name))
 }
 
 function openSite(site) {

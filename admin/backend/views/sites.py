@@ -5,7 +5,6 @@ import json
 import re
 import secrets
 import shutil
-import subprocess
 from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request, send_file
@@ -545,70 +544,6 @@ def force_uninstall_app(name: str):
         return _internal_error("Could not remove the application from the site.")
 
     return jsonify({"ok": True})
-
-
-def _get_site_sid(
-    bench_root: Path, site: str, user: str = "Administrator"
-) -> str | None:
-    import re
-
-    # bench binary lives at project root; bench_root is <project>/benches/<name>
-    bench_bin = bench_root.parent.parent / "bench"
-    bench_name = bench_root.name
-    benches_dir = bench_root.parent
-
-    result = subprocess.run(
-        [str(bench_bin), "-b", bench_name, "--site", site, "browse", "--user", user],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        cwd=str(benches_dir),
-    )
-    output = (result.stdout or "") + (result.stderr or "")
-    if m := re.search(r"sid=([a-zA-Z0-9]+)", output):
-        sid = m.group(1)
-        if sid and sid not in (user, "Guest"):
-            return sid
-    return None
-
-
-@sites_bp.route("/<name>/login", methods=["POST"])
-@require_scope(site_name)
-def login_to_site(name: str):
-    import json
-
-    bench_root = Path(current_app.config["BENCH_ROOT"])
-    config_path = site_config_path(bench_root, name)
-    if config_path is None:
-        return _site_not_found()
-
-    try:
-        sid = _get_site_sid(bench_root, name)
-    except Exception:
-        return _internal_error("Could not create a site login session.")
-    if not sid:
-        return _internal_error("Could not create a site login session.")
-
-    from pilot.config.toml_store import BenchTomlStore
-
-    try:
-        bench_config = BenchTomlStore.for_bench(bench_root).read()
-        http_port = bench_config.http_port
-        nginx_enabled = bench_config.production.enabled
-    except Exception:
-        http_port = 8000
-        nginx_enabled = False
-
-    if nginx_enabled:
-        try:
-            ssl = bool(json.loads(config_path.read_text()).get("ssl"))
-        except Exception:
-            ssl = False
-        url = f"{'https' if ssl else 'http'}://{name}/desk?sid={sid}"
-    else:
-        url = f"http://{name}:{http_port}/desk?sid={sid}"
-
-    return jsonify({"ok": True, "url": url})
 
 
 @sites_bp.post("/<name>/actions/enable-tls")

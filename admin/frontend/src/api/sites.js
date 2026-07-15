@@ -5,7 +5,7 @@ export const sitesApi = {
   detail: (name) => request.get(`sites/${encodeURIComponent(name)}`).json(),
   create: (payload) => request.post('sites', { json: payload }).json(),
   restore: (formData) => request.post('site-restores', { body: formData }).json(),
-  login: (name) => request.post(`sites/${encodeURIComponent(name)}/login`).json(),
+  loginLink: (name) => request.post(`sites/${encodeURIComponent(name)}/login-links`).json(),
   configuration: {
     get: (name) => request.get(`sites/${encodeURIComponent(name)}/configuration`).json(),
     update: (name, patch) => request.patch(`sites/${encodeURIComponent(name)}/configuration`, { json: patch }).json(),

@@ -28,6 +28,7 @@ from .views.git import git_bp
 from .views.logs import logs_bp
 from .views.processes import processes_bp
 from .views.settings import settings_bp
+from .views.site_login import site_login_bp
 from .views.setup import setup_bp
 from .views.sites import site_restores_bp, sites_bp
 from .views.ssh_keys import ssh_keys_bp
@@ -36,6 +37,7 @@ from .views.tasks import task_worker_bp, tasks_bp
 from .views.updates import updates_bp
 from pilot.config.bench_config import BenchConfig
 from pilot.config.toml_store import BenchTomlStore
+from admin.backend.site_login_handoff import SiteLoginHandoffStore
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
@@ -76,6 +78,7 @@ def create_app(bench_root: Path) -> Flask:
     app.config["SESSION_COOKIE_SECURE"] = _secure_cookie_setting(config_store)
 
     app.extensions["used_logins"] = UsedTokens()
+    app.extensions["site_login_handoffs"] = SiteLoginHandoffStore()
 
     def _load_config():
         return config_store.read()
@@ -150,6 +153,7 @@ def create_app(bench_root: Path) -> Flask:
     app.register_blueprint(bench_readiness_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(sites_bp, url_prefix=f"{API_V1_PREFIX}/sites")
     app.register_blueprint(site_restores_bp, url_prefix=API_V1_PREFIX)
+    app.register_blueprint(site_login_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(processes_bp, url_prefix=f"{API_V1_PREFIX}/processes")
     app.register_blueprint(logs_bp, url_prefix=f"{API_V1_PREFIX}/logs")
     app.register_blueprint(database_bp, url_prefix=f"{API_V1_PREFIX}/database")
