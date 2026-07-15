@@ -55,8 +55,13 @@ class DependencyDeclarationsCheck:
         declared_dependencies = (
             pyproject_data.get("tool", {}).get("bench", {}).get("frappe-dependencies", [])
         )
-        return (
-            list(declared_dependencies.keys())
-            if isinstance(declared_dependencies, dict)
-            else declared_dependencies
+
+        if isinstance(declared_dependencies, dict):
+            return list(declared_dependencies.keys())
+        if isinstance(declared_dependencies, list):
+            return declared_dependencies
+
+        raise AppValidationError(
+            f"'{app.config.name}' has an invalid [tool.bench.frappe-dependencies] in "
+            f"pyproject.toml: expected a table or list, got {type(declared_dependencies).__name__}."
         )
