@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from admin.backend.tasks.callbacks import run_callback
+from pilot.secure_files import open_private, write_private_text
 
 _HOSTNAME = socket.gethostname()
 
@@ -66,7 +67,7 @@ def run_with_syslog_output(
         log_file.write(ts)
         log_file.write(tail)
 
-    with open(log_path, "wb") as log_file:
+    with open_private(log_path, "wb") as log_file:
         buf = bytearray()
         while chunk := os.read(fd, 65536):
             start = 0
@@ -102,7 +103,7 @@ def callback_handler(
     head, tail = _syslog_prefix_parts(meta["command"], os.getpid())
     ts = datetime.now(timezone.utc).isoformat(timespec="microseconds").encode()
     prefix = (head + ts + tail).decode()
-    with open(output_log, "a") as log_file:
+    with open_private(output_log, "a") as log_file:
         try:
             run_callback(callback, meta)
             log_file.write(f"{prefix}Callback successfully triggered\n")
@@ -202,9 +203,9 @@ def main() -> None:
 
     meta["finished_at"] = datetime.now(timezone.utc).isoformat()
     meta["exit_code"] = exit_code
-    (task_dir / "meta.json").write_text(json.dumps(meta, indent=2))
+    write_private_text(task_dir / "meta.json", json.dumps(meta, indent=2))
     status = "success" if exit_code == 0 else "failed"
-    (task_dir / "status").write_text(status)
+    write_private_text(task_dir / "status", status)
 
 
 if __name__ == "__main__":

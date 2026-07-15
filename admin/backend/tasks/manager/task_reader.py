@@ -10,6 +10,7 @@ from pathlib import Path
 from admin.backend.tasks.manager.models import TaskInfo
 from admin.backend.tasks.manager.task_args import redact_task_args
 from pilot.exceptions import TaskNotFoundError
+from pilot.secure_files import open_private
 
 _TASK_ID_PATTERN = re.compile(r"^\d{8}-\d{6}-[a-f0-9]{6}$")
 _POLL_INTERVAL = 0.5
@@ -89,7 +90,7 @@ class TaskReader:
         task = self.read_task(task_id)
         output_path = task.output_path
 
-        output_path.touch()
+        open_private(output_path, "a").close()
         with open(output_path, "r", errors="replace", newline='') as log_file:
             # No seek: replay from the start so a fresh connection gets history too.
             # Raw current line, envelope and carriage returns and all. We only

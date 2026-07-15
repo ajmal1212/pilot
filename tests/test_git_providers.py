@@ -1,6 +1,7 @@
 """Tests for pilot.core.git_providers — credential storage and URL helpers."""
 from __future__ import annotations
 
+import stat
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -34,6 +35,16 @@ def test_credential_store_round_trip(tmp_path: Path) -> None:
     record = store.save("github", "ghp_token", username="octocat")
     assert record["username"] == "octocat"
     assert store.load() == record
+
+
+def test_credential_store_keeps_token_file_private(tmp_path: Path) -> None:
+    store = GitCredentialStore(tmp_path)
+    store.save("github", "ghp_token")
+    assert stat.S_IMODE(store.path.stat().st_mode) == 0o600
+
+    store.path.chmod(0o644)
+    store.mark_invalid()
+    assert stat.S_IMODE(store.path.stat().st_mode) == 0o600
 
 
 def test_credential_store_save_keeps_username_when_omitted(tmp_path: Path) -> None:

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from pilot.exceptions import BenchError, CommandError
+from pilot.secure_files import write_private_text
 
 if TYPE_CHECKING:
     from pilot.core.bench import BenchConfig
@@ -143,7 +144,7 @@ def write_toml(path: Path, data: dict) -> None:
                     out.write(f"{ek} = {_write_value(ev)}\n")
 
     _write_section(data)
-    path.write_text(out.getvalue())
+    write_private_text(path, out.getvalue())
 
 
 def installed_app_version(env_path: Path, name: str) -> str:

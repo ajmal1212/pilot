@@ -1,4 +1,5 @@
 import json
+import stat
 
 import pytest
 
@@ -13,6 +14,7 @@ def test_write_creates_and_read_roundtrips(tmp_path) -> None:
     config = read_retention(path)
     assert config.scheme == "fifo"
     assert config.keep_last == 3
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
 def test_write_preserves_other_keys(tmp_path) -> None:

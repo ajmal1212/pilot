@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from pilot.commands.base import Command
 from pilot.exceptions import BenchError
+from pilot.secure_files import write_private_text
 
 if TYPE_CHECKING:
     from pilot.core.bench import Bench
@@ -86,7 +87,7 @@ class RenameSiteCommand(Command):
             return
         if data.get("default_site") == self.old_name:
             data["default_site"] = self.new_name
-            path.write_text(json.dumps(data, indent=2) + "\n")
+            write_private_text(path, json.dumps(data, indent=2) + "\n")
 
     def _rename_in_bench_toml(self) -> None:
         from pilot.config.toml_store import BenchTomlStore

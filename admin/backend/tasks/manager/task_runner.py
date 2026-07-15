@@ -17,6 +17,7 @@ from admin.backend.tasks.manager.task_args import (
     task_secret_args,
 )
 from pilot.exceptions import TaskNotFoundError, TaskNotRunningError
+from pilot.secure_files import make_private_directory, open_private, write_private_text
 
 TASK_RETENTION_LIMIT = 100
 
@@ -71,7 +72,8 @@ class TaskRunner:
                 callback_payload[trigger] = validate_callback(spec)
         task_id = self._generate_task_id()
         task_dir = self._task_dir(task_id)
-        task_dir.mkdir(parents=True)
+        make_private_directory(task_dir.parent, parents=True)
+        make_private_directory(task_dir)
         command_argv = self._build_argv(command, args)
         secret_args = task_secret_args(command, args)
 
@@ -85,17 +87,16 @@ class TaskRunner:
             "exit_code": None,
             "bench_root": str(self._bench_root),
         }
-        (task_dir / "meta.json").write_text(json.dumps(meta, indent=2))
-        (task_dir / "status").write_text("running")
+        write_private_text(task_dir / "meta.json", json.dumps(meta, indent=2))
+        write_private_text(task_dir / "status", "running")
 
         secret_path = task_dir / "secrets.json"
         if secret_args:
-            fd = os.open(secret_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(fd, "w") as secret_file:
+            with open_private(secret_path, exclusive=True) as secret_file:
                 json.dump(secret_args, secret_file)
 
         if callback_payload:
-            (task_dir / "callbacks.json").write_text(json.dumps(callback_payload, indent=2))
+            write_private_text(task_dir / "callbacks.json", json.dumps(callback_payload, indent=2))
 
         process_kwargs = {
             "start_new_session": True,
@@ -109,7 +110,7 @@ class TaskRunner:
             [sys.executable, "-m", "admin.backend.tasks.manager.wrapper", str(task_dir)],
             **process_kwargs,
         )
-        (task_dir / "pid").write_text(str(process.pid))
+        write_private_text(task_dir / "pid", str(process.pid))
         self._purge_old_tasks()
         return task_id
 
@@ -129,7 +130,7 @@ class TaskRunner:
                 os.killpg(pid, signal.SIGTERM)
         except OSError:
             pass
-        (task_dir / "status").write_text("killed")
+        write_private_text(task_dir / "status", "killed")
 
     def _task_dir(self, task_id: str) -> Path:
         return self._bench_root / "tasks" / task_id

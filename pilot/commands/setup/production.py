@@ -6,6 +6,7 @@ import sys
 from typing import TYPE_CHECKING, Optional
 
 from pilot.commands.base import Command
+from pilot.secure_files import write_private_text
 from pilot.exceptions import BenchError
 from pilot.utils import host_owner
 
@@ -309,7 +310,7 @@ class SetupProductionCommand(Command):
         if common_config_path.exists():
             existing_data = json.loads(common_config_path.read_text())
         existing_data["dns_multitenant"] = 1
-        common_config_path.write_text(json.dumps(existing_data, indent=2))
+        write_private_text(common_config_path, json.dumps(existing_data, indent=2))
 
     def _setup_supervisor(self) -> None:
         import subprocess

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from pilot.commands.base import Command
 from pilot.exceptions import BenchError
+from pilot.secure_files import write_private_text
 
 if TYPE_CHECKING:
     from pilot.core.bench import Bench
@@ -101,7 +102,7 @@ class NewSiteCommand(Command):
         secret = ensure_jwt_secret(self.bench.path / "bench.toml")
         config["pilot_endpoint"] = admin_url(self.bench.config)
         config["pilot_auth_token"] = issue_site_token(secret, self.name, ttl=365 * 24 * 3600)
-        config_path.write_text(json.dumps(config, indent=1))
+        write_private_text(config_path, json.dumps(config, indent=1))
 
     def build_missing_assets(self):
         from pilot.managers.python_env_manager import PythonEnvManager
@@ -132,7 +133,7 @@ class NewSiteCommand(Command):
         config_path = self.bench.sites_path / self.name / "site_config.json"
         raw = json.loads(config_path.read_text()) if config_path.exists() else {}
         raw["ssl"] = True
-        config_path.write_text(json.dumps(raw, indent=1))
+        write_private_text(config_path, json.dumps(raw, indent=1))
 
         print("Obtaining SSL certificate...")
         sys.stdout.flush()

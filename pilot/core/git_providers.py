@@ -23,6 +23,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from pilot.secure_files import write_private_text
+
 CREDENTIALS_FILENAME = ".bench.git.info"
 
 # Per-provider Fine-Grained PAT generation links, pre-scoped where the provider
@@ -90,11 +92,7 @@ class GitCredentialStore:
         self.path.unlink(missing_ok=True)
 
     def _write(self, record: dict) -> None:
-        self.path.write_text(json.dumps(record, indent=2))
-        try:
-            os.chmod(self.path, 0o600)
-        except OSError:
-            pass
+        write_private_text(self.path, json.dumps(record, indent=2))
 
 
 # ── Providers ─────────────────────────────────────────────────────────────────

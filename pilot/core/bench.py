@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, List
 
 from pilot.config.bench_config import BenchConfig
+from pilot.secure_files import write_private_text
 from pilot.exceptions import BenchError
 
 if TYPE_CHECKING:
@@ -166,7 +167,7 @@ class Bench:
         config_path = self.sites_path / "common_site_config.json"
         config = json.loads(config_path.read_text())
         config["maintenance_mode"] = 1 if enabled else 0
-        config_path.write_text(json.dumps(config, indent=2))
+        write_private_text(config_path, json.dumps(config, indent=2))
 
     def sync_s3_credentials(self, s3_config: S3Config):
         config_path = self.sites_path / "common_site_config.json"
@@ -179,7 +180,7 @@ class Bench:
         config["s3_secret_key"] = s3_config.secret_key
         config["s3_provider"] = s3_config.provider
         config["s3_region"] = s3_config.region
-        config_path.write_text(json.dumps(config, indent=2) + "\n")
+        write_private_text(config_path, json.dumps(config, indent=2) + "\n")
 
     def write_common_site_config(self) -> None:
         r = self.config.redis
@@ -197,7 +198,7 @@ class Bench:
             "monitor": True,
         }
         config_path = self.sites_path / "common_site_config.json"
-        config_path.write_text(json.dumps(config, indent=2) + "\n")
+        write_private_text(config_path, json.dumps(config, indent=2) + "\n")
 
     def restart(self):
         """Restart bench in case we are running in production"""

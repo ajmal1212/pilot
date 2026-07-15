@@ -5,6 +5,7 @@ from pathlib import Path
 
 from pilot.config.bench_config import BenchConfig
 from pilot.config.toml_writer import bench_config_to_toml
+from pilot.secure_files import write_private_text
 from pilot.utils import write_toml
 
 
@@ -47,7 +48,7 @@ class BenchTomlStore:
         return BenchTomlBuilder.read_settings(self.path)
 
     def write(self, config: BenchConfig) -> None:
-        self.path.write_text(bench_config_to_toml(config))
+        write_private_text(self.path, bench_config_to_toml(config))
 
     def write_flat(self, name: str, settings: dict, port_offset: int = 0) -> None:
         """Serialise the wizard's flat-key settings dict to bench.toml.

@@ -1,3 +1,4 @@
+import stat
 from types import SimpleNamespace
 
 from pilot.core.audit_log import AuditLog
@@ -43,7 +44,9 @@ def test_appends_to_current_iso_week_file(tmp_path) -> None:
     AuditLog(bench).append("backup", {"site": "a"})
 
     year, week, _ = datetime.now(timezone.utc).isocalendar()
-    assert (bench.logs_path / f"audit_{year}_{week:02d}.jsonl").is_file()
+    path = bench.logs_path / f"audit_{year}_{week:02d}.jsonl"
+    assert path.is_file()
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
 def test_reads_newest_week_first_across_files(tmp_path) -> None:

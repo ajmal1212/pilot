@@ -8,6 +8,7 @@ from pathlib import Path
 from werkzeug.datastructures import FileStorage
 
 from pilot.archive import UnsafeArchiveError, validate_tar_archive
+from pilot.secure_files import make_private_directory
 
 MAX_DATABASE_UPLOAD_BYTES = 4 * 1024**3
 MAX_ARCHIVE_UPLOAD_BYTES = 8 * 1024**3
@@ -37,9 +38,10 @@ def create_upload_directory(bench_root: Path) -> Path:
     upload_root = upload_root.resolve()
     if not upload_root.is_relative_to(bench_root):
         raise UploadError("Upload directory resolves outside the bench.")
+    make_private_directory(upload_root)
 
     directory = upload_root / secrets.token_hex(16)
-    directory.mkdir(mode=0o700)
+    make_private_directory(directory)
     return directory.resolve()
 
 

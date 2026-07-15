@@ -9,6 +9,8 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request, send_file
 
+from pilot.secure_files import write_private_text
+
 from admin.backend.auth import require_scope
 from admin.backend.uploads import (
     UploadError,
@@ -507,7 +509,7 @@ def enable_ssl(name: str):
 
     current = json.loads(config_path.read_text())
     current["ssl"] = True
-    config_path.write_text(json.dumps(current, indent=1))
+    write_private_text(config_path, json.dumps(current, indent=1))
 
     try:
         task_id = TaskRunner(bench_root).run(
@@ -629,7 +631,7 @@ def update_config(name: str):
     preserved = {k: v for k, v in current.items() if k in PROTECTED_CONFIG_KEYS}
     merged = {**editable, **preserved}
 
-    config_path.write_text(json.dumps(merged, indent=1))
+    write_private_text(config_path, json.dumps(merged, indent=1))
     return jsonify({"ok": True})
 
 

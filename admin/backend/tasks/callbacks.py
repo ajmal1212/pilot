@@ -4,6 +4,8 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
+from pilot.secure_files import write_private_text
+
 CallbackOperation = Callable[[dict, dict], None]
 
 
@@ -39,7 +41,7 @@ def _disable_site_ssl(meta: dict, args: dict) -> None:
     config_path = Path(meta["bench_root"]) / "sites" / site_name / "site_config.json"
     config = json.loads(config_path.read_text())
     config["ssl"] = False
-    config_path.write_text(json.dumps(config, indent=1))
+    write_private_text(config_path, json.dumps(config, indent=1))
 
 
 _OPERATIONS: dict[str, CallbackOperation] = {

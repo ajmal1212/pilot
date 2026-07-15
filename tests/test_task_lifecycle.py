@@ -114,6 +114,10 @@ def test_run_persists_task_before_starting_wrapper(
     assert json.loads((task_dir / "callbacks.json").read_text()) == {
         "on_success": {"operation": "test-success", "args": {"marker": "success"}}
     }
+    assert stat.S_IMODE((tmp_path / "tasks").stat().st_mode) == 0o700
+    assert stat.S_IMODE(task_dir.stat().st_mode) == 0o700
+    for name in ("meta.json", "status", "callbacks.json", "pid"):
+        assert stat.S_IMODE((task_dir / name).stat().st_mode) == 0o600
 
 
 def test_run_rejects_unknown_callback_operation(tmp_path: Path) -> None:
@@ -314,6 +318,7 @@ def test_wrapper_output_is_readable_without_syslog_envelopes(tmp_path: Path) -> 
     (task_dir / "meta.json").write_text(json.dumps(meta))
     (task_dir / "status").write_text("success")
     assert exit_code == 0
+    assert stat.S_IMODE(output_path.stat().st_mode) == 0o600
     assert TaskReader(tmp_path).read_output(TASK_ID) == ["standard output", "standard error"]
 
 

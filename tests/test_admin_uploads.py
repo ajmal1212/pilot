@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import gzip
+import stat
 import tarfile
 from pathlib import Path
 from unittest.mock import patch
@@ -73,6 +74,9 @@ def test_database_upload_uses_generated_contained_name(tmp_path: Path) -> None:
     assert path.suffix == ".sql"
     assert path.read_bytes().startswith(b"-- backup")
     assert not (tmp_path.parent / "outside.sql").exists()
+    assert stat.S_IMODE((tmp_path / "tmp" / "uploads").stat().st_mode) == 0o700
+    assert stat.S_IMODE(directory.stat().st_mode) == 0o700
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
 def test_database_upload_accepts_gzipped_sql(tmp_path: Path) -> None:
@@ -89,11 +93,14 @@ def test_database_upload_accepts_gzipped_sql(tmp_path: Path) -> None:
 def test_upload_directory_must_resolve_inside_bench(tmp_path: Path) -> None:
     outside = tmp_path.parent / "outside-uploads"
     outside.mkdir()
+    original_mode = stat.S_IMODE(outside.stat().st_mode)
     (tmp_path / "tmp").mkdir()
     (tmp_path / "tmp" / "uploads").symlink_to(outside, target_is_directory=True)
 
     with pytest.raises(UploadError, match="outside the bench"):
         create_upload_directory(tmp_path)
+
+    assert stat.S_IMODE(outside.stat().st_mode) == original_mode
 
 
 def test_database_upload_rejects_oversized_file(tmp_path: Path) -> None:

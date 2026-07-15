@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import stat
 from pathlib import Path
 
 import pytest
@@ -66,6 +67,16 @@ def test_write_round_trips_config(tmp_path: Path) -> None:
     config.http_port = 8123
     store.write(config)
     assert store.read().http_port == 8123
+
+
+def test_write_keeps_bench_config_private(tmp_path: Path) -> None:
+    store = BenchTomlStore.for_bench(tmp_path)
+    store.write_flat("private-bench", {"admin_password": "secret"})
+    assert stat.S_IMODE(store.path.stat().st_mode) == 0o600
+
+    store.path.chmod(0o644)
+    store.write_raw(store.read_raw())
+    assert stat.S_IMODE(store.path.stat().st_mode) == 0o600
 
 
 def test_write_flat_serialises_settings(tmp_path: Path) -> None:
