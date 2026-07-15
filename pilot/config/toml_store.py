@@ -11,7 +11,9 @@ from pilot._internal.atomic_file import (
     replace_private_text_locked,
 )
 from pilot._internal.bench_toml import dumps_config, load_config
-from pilot._internal.toml_codec import dumps_toml, loads_toml, load_toml
+from pilot._internal.toml import loads as loads_toml
+from pilot._internal.toml import read as read_toml
+from pilot._internal.toml import write as write_toml
 from pilot.config.bench_config import BenchConfig
 
 
@@ -41,7 +43,7 @@ class BenchTomlStore:
 
     def read_raw(self) -> dict:
         """Parsed TOML as a plain dict, preserving every section as written."""
-        return load_toml(self.path)
+        return read_toml(self.path)
 
     def read_flat(self) -> dict:
         """Wizard's flat-key settings dict (parse-only)."""
@@ -66,11 +68,11 @@ class BenchTomlStore:
     def edit_raw(self) -> Iterator[dict]:
         """Lock, load, and commit one raw read-modify-write transaction."""
         with exclusive_file_lock(self.path):
-            data = load_toml(self.path)
+            data = read_toml(self.path)
             original = copy.deepcopy(data)
             yield data
             if data != original:
-                content = dumps_toml(data)
+                content = write_toml(data)
                 self._validate_serialized(content)
                 replace_private_text_locked(self.path, content)
 
@@ -87,13 +89,13 @@ class BenchTomlStore:
         config = BenchTomlBuilder(name, settings, port_offset=port_offset).build()
         with exclusive_file_lock(self.path):
             if self.path.exists():
-                config.production.enabled = load_toml(self.path).get("production", {}).get(
+                config.production.enabled = read_toml(self.path).get("production", {}).get(
                     "enabled", False
                 )
             replace_private_text_locked(self.path, self._serialized_config(config))
 
     def write_raw(self, data: dict) -> None:
-        content = dumps_toml(data)
+        content = write_toml(data)
         self._validate_serialized(content)
         atomic_write_private_text(self.path, content)
 

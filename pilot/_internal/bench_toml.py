@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pilot._internal.toml_codec import ConfigDict, TomlDataclassCodec
+from pilot._internal.toml import ConfigDict, TomlDataclassCodec
 from pilot.config.bench_config import BenchConfig
 
 
