@@ -182,7 +182,8 @@ def test_jwks_ec_bearer_token_authenticates(tmp_path: Path) -> None:
 def test_jwks_sid_login_with_jti_sets_cookie(tmp_path: Path) -> None:
     client = _client(tmp_path)
     resp = client.post("/api/v1/session", json={"sid": _mint(jti="login-1")})
-    assert resp.status_code == 200
+    assert resp.status_code == 201
+    assert resp.headers["Location"] == "/api/v1/session"
     assert client.get("/api/v1/benches/").status_code != 401
 
 
@@ -196,7 +197,7 @@ def test_jwks_sid_login_requires_jti(tmp_path: Path) -> None:
 def test_jwks_sid_login_is_single_use(tmp_path: Path) -> None:
     client = _client(tmp_path)
     sid = _mint(jti="login-2")
-    assert client.post("/api/v1/session", json={"sid": sid}).status_code == 200
+    assert client.post("/api/v1/session", json={"sid": sid}).status_code == 201
     assert client.post("/api/v1/session", json={"sid": sid}).status_code == 401
 
 

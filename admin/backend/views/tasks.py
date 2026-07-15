@@ -12,7 +12,7 @@ from flask import (
     url_for,
 )
 
-from admin.backend.api_contract import error_response
+from admin.backend.api_contract import accepted_response, error_response, no_content_response
 from admin.backend.tasks.manager.activity import TaskActivityReader
 from admin.backend.tasks.manager.events import sse_message
 from admin.backend.tasks.manager.task_args import task_requires_secrets
@@ -98,7 +98,7 @@ def cancel_task(task_id: str):
         return error_response("task_not_active", str(error), 409)
     except Exception:
         return error_response("task_cancellation_failed", "Could not cancel task.", 500)
-    return current_app.response_class(status=204)
+    return no_content_response()
 
 
 @tasks_bp.post("/<task_id>/actions/retry")
@@ -204,17 +204,17 @@ def stop_task_worker():
 
 def _accepted_task(task_id: str):
     task = _reader().read_task(task_id)
-    response = jsonify(task.as_dict())
-    response.status_code = 202
-    response.headers["Location"] = url_for("tasks.get_task", task_id=task_id)
-    return response
+    return accepted_response(
+        task.as_dict(),
+        url_for("tasks.get_task", task_id=task_id),
+    )
 
 
 def _accepted_worker():
-    response = jsonify(_worker_resource())
-    response.status_code = 202
-    response.headers["Location"] = url_for("task_worker.get_task_worker")
-    return response
+    return accepted_response(
+        _worker_resource(),
+        url_for("task_worker.get_task_worker"),
+    )
 
 
 def _worker_resource() -> dict:

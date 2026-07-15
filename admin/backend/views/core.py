@@ -3,9 +3,9 @@ from __future__ import annotations
 import hmac
 from pathlib import Path
 
-from flask import Blueprint, current_app, g, jsonify, request
+from flask import Blueprint, current_app, g, jsonify, request, url_for
 
-from admin.backend.api_contract import error_response
+from admin.backend.api_contract import created_response, error_response, no_content_response
 from admin.backend.auth import (
     allow_unauthenticated,
     authenticate_request,
@@ -106,7 +106,10 @@ def create_session():
 
     from pilot.commands.generate_session import ensure_jwt_secret, issue_token
 
-    response = jsonify({"authenticated": True, "scope": "bench"})
+    response = created_response(
+        {"authenticated": True, "scope": "bench"},
+        url_for("core.get_session"),
+    )
     token = issue_token(ensure_jwt_secret(config_store.path))
     set_session_cookie(
         response,
@@ -119,7 +122,7 @@ def create_session():
 @core_bp.delete("/session")
 @allow_unauthenticated
 def delete_session():
-    response = current_app.response_class(status=204)
+    response = no_content_response()
     response.delete_cookie("sid")
     return response
 

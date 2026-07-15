@@ -326,7 +326,7 @@ class TestProductionSSL:
         status, body = _request(
             ADMIN_DOMAIN, "/api/v1/session", method="POST", json_body={"password": ADMIN_PASSWORD}
         )
-        assert status == "200", f"/api/v1/session returned {status}: {body!r}"
+        assert status == "201", f"/api/v1/session returned {status}: {body!r}"
         assert json.loads(body).get("authenticated") is True, f"login failed: {body!r}"
 
     def test_plain_site_vhost_has_no_ssl(self, production: Path) -> None:

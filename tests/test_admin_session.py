@@ -240,7 +240,8 @@ def test_bootstrap_reports_allow_bench_management_when_disabled(tmp_path: Path) 
 def test_login_with_sid_sets_httponly_cookie(tmp_path: Path) -> None:
     client = _client(tmp_path)
     resp = client.post("/api/v1/session", json={"sid": issue_login_token("k3y")})
-    assert resp.status_code == 200
+    assert resp.status_code == 201
+    assert resp.headers["Location"] == "/api/v1/session"
     assert resp.get_json() == {"authenticated": True, "scope": "bench"}
     cookie = next(h for k, h in resp.headers if k == "Set-Cookie" and h.startswith("sid="))
     assert "HttpOnly" in cookie
@@ -331,7 +332,7 @@ def test_session_creation_requires_a_json_object(tmp_path: Path) -> None:
 def test_sid_is_single_use(tmp_path: Path) -> None:
     client = _client(tmp_path)
     sid = issue_login_token("k3y")
-    assert client.post("/api/v1/session", json={"sid": sid}).status_code == 200
+    assert client.post("/api/v1/session", json={"sid": sid}).status_code == 201
     assert client.post("/api/v1/session", json={"sid": sid}).status_code == 401
 
 
