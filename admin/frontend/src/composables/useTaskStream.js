@@ -43,28 +43,31 @@ export function useTaskStream({ guardHiddenTab = false } = {}) {
     function open() {
       source = new EventSource(url)
 
-      source.onmessage = (event) => {
+      source.onmessage = (message) => {
         retries = 0
-        if (volatile) {
-          rawLines.value.pop()
-          lines.value.pop()
-          volatile = false
+        let event
+        try {
+          event = JSON.parse(message.data)
+        } catch {
+          return
         }
-        push(event.data)
-        onLine?.(event.data)
+        if (event.type === 'line') {
+          if (volatile) {
+            rawLines.value.pop()
+            lines.value.pop()
+            volatile = false
+          }
+          push(event.line)
+          onLine?.(event.line)
+        } else if (event.type === 'overwrite') {
+          push(event.line, { overwrite: volatile })
+          volatile = true
+        } else if (event.type === 'done') {
+          streaming.value = false
+          close()
+          onDone?.(event.exit_code === 0)
+        }
       }
-
-      source.addEventListener('overwrite', (event) => {
-        retries = 0
-        push(event.data, { overwrite: volatile })
-        volatile = true
-      })
-
-      source.addEventListener('done', (event) => {
-        streaming.value = false
-        close()
-        onDone?.(parseInt(event.data) === 0)
-      })
 
       source.onerror = () => {
         close()

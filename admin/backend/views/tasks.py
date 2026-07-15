@@ -10,6 +10,7 @@ from flask import (
 )
 
 from admin.backend.tasks.manager.task_args import task_requires_secrets
+from admin.backend.tasks.manager.events import sse_message
 from admin.backend.tasks.manager.task_reader import TaskReader
 from admin.backend.tasks.manager.task_runner import TaskRunner
 from pilot.exceptions import TaskNotFoundError, TaskNotRunningError
@@ -73,15 +74,10 @@ def stream_task_output(task_id: str):
         skip = 0
 
     def generate():
-        for event_id, line in enumerate(reader.stream_output(task_id), start=1):
+        for event_id, event in enumerate(reader.stream_output(task_id), start=1):
             if event_id <= skip:
                 continue
-            if line.startswith("__DONE__:"):
-                yield f"id: {event_id}\nevent: done\ndata: {line[9:]}\n\n"
-            elif line.startswith("__CR__:"):
-                yield f"id: {event_id}\nevent: overwrite\ndata: {line[7:]}\n\n"
-            else:
-                yield f"id: {event_id}\ndata: {line}\n\n"
+            yield sse_message(event, event_id)
 
     return Response(
         stream_with_context(generate()),

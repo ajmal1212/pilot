@@ -280,6 +280,20 @@ def test_read_output_returns_all_lines_when_fewer_than_limit(tmp_path: Path) -> 
     assert result == ["alpha", "beta", "gamma"]
 
 
+def test_stream_output_yields_structured_events(tmp_path: Path) -> None:
+    task_id = "20260521-143022-aabbcc"
+    task_dir = _make_task_dir(tmp_path / "tasks", task_id)
+    (task_dir / "output.log").write_text("alpha\nbeta\n")
+
+    events = list(TaskReader(tmp_path).stream_output(task_id))
+
+    assert events == [
+        {"type": "line", "line": "alpha"},
+        {"type": "line", "line": "beta"},
+        {"type": "done", "exit_code": 0},
+    ]
+
+
 # ── _collapse_cr ────────────────────────────────────────────────────────────
 
 

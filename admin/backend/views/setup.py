@@ -6,6 +6,7 @@ from pathlib import Path
 from flask import Blueprint, Response, current_app, jsonify, request, stream_with_context
 
 from admin.backend.tasks.manager.task_reader import TaskReader
+from admin.backend.tasks.manager.events import sse_message
 from admin.backend.tasks.manager.task_runner import TaskRunner
 from pilot.config.bench_toml_builder import (
     FRAMEWORK_BRANCHES,
@@ -306,13 +307,8 @@ def stream_task(task_id: str):
     reader = TaskReader(bench_root)
 
     def generate():
-        for line in reader.stream_output(task_id):
-            if line.startswith("__DONE__:"):
-                yield f"event: done\ndata: {line[9:]}\n\n"
-            elif line.startswith("__CR__:"):
-                yield f"event: overwrite\ndata: {line[7:]}\n\n"
-            else:
-                yield f"data: {line}\n\n"
+        for event in reader.stream_output(task_id):
+            yield sse_message(event)
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream")
 

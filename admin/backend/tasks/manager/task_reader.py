@@ -9,6 +9,11 @@ from pathlib import Path
 
 from admin.backend.tasks.manager.models import TaskInfo
 from admin.backend.tasks.manager.task_args import redact_task_args
+from admin.backend.tasks.manager.events import (
+    TaskStreamEvent,
+    done_event,
+    output_event,
+)
 from pilot.exceptions import TaskNotFoundError
 from pilot.secure_files import open_private
 
@@ -86,7 +91,7 @@ class TaskReader:
             return all_lines
         return all_lines[-lines:]
 
-    def stream_output(self, task_id: str) -> Generator[str, None, None]:
+    def stream_output(self, task_id: str) -> Generator[TaskStreamEvent, None, None]:
         task = self.read_task(task_id)
         output_path = task.output_path
 
@@ -106,12 +111,12 @@ class TaskReader:
                 if chunk:
                     for ch in chunk:
                         if ch == '\n':
-                            yield _display_line(cur)  # commit
+                            yield output_event(_display_line(cur))
                             cur = ''
                         else:
                             cur += ch
                     if cur:
-                        yield f"__CR__:{_display_line(cur)}"  # partial: overwrite
+                        yield output_event(_display_line(cur), overwrite=True)
                     continue
 
                 status_path = self._bench_root / "tasks" / task_id / "status"
@@ -121,7 +126,7 @@ class TaskReader:
 
                 if effective != "running":
                     if cur:
-                        yield _display_line(cur)  # commit trailing partial line
+                        yield output_event(_display_line(cur))
 
                     meta_path = self._bench_root / "tasks" / task_id / "meta.json"
                     exit_code: int | None = None
@@ -129,7 +134,7 @@ class TaskReader:
                         import json
                         meta = json.loads(meta_path.read_text())
                         exit_code = meta.get("exit_code")
-                    yield f"__DONE__:{exit_code}"
+                    yield done_event(exit_code)
                     return
 
                 time.sleep(_POLL_INTERVAL)
