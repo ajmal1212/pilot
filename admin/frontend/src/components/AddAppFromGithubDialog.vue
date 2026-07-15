@@ -127,7 +127,7 @@ async function loadBranchesFor(url) {
   error.value = ''
   try {
     const d = await gitApi.branches(url)
-    if (d.ok) {
+    if (d.branches) {
       branches.value = d.branches
       branch.value = d.branches[0] || ''
       fetched.value = true
@@ -152,7 +152,7 @@ async function loadGitStatus() {
     reposLoading.value = true
     try {
       const d = await gitApi.repos()
-      if (d.ok) repos.value = d.repos
+      if (Array.isArray(d)) repos.value = d
     } finally {
       reposLoading.value = false
     }
@@ -176,7 +176,7 @@ async function resolveApp() {
   error.value = ''
   try {
     const d = await gitApi.resolve(repo.value.trim(), branch.value.trim())
-    if (d.ok) foundName.value = d.name
+    if (d.name) foundName.value = d.name
     else error.value = apiErrorMessage(d, 'Could not find a Frappe app in this repository.')
   } catch (e) {
     error.value = e.message

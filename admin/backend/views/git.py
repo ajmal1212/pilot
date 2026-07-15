@@ -4,7 +4,7 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request
 
-from ..api_contract import error_response
+from ..api_contract import error_response, no_content_response
 from pilot.core.git_providers import (
     TOKEN_HELP_URLS,
     GitAuthError,
@@ -44,12 +44,12 @@ def _status(record: dict | None) -> dict:
     }
 
 
-@git_bp.route("/integration", methods=["GET"])
+@git_bp.get("/connection")
 def get_integration():
     return jsonify(_status(_store().load()))
 
 
-@git_bp.route("/integration", methods=["POST"])
+@git_bp.put("/connection")
 def save_integration():
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
@@ -90,16 +90,16 @@ def save_integration():
             "git_provider_unavailable", "Could not connect to the git provider.", 500
         )
     record = _store().save(provider_name, token, username=username or account.get("login", ""), expires_at=expires_at)
-    return jsonify({"ok": True, "account": account, "status": _status(record)})
+    return jsonify(_status(record))
 
 
-@git_bp.route("/integration", methods=["DELETE"])
+@git_bp.delete("/connection")
 def delete_integration():
     _store().clear()
-    return jsonify({"ok": True})
+    return no_content_response()
 
 
-@git_bp.route("/repos", methods=["GET"])
+@git_bp.get("/repositories")
 def list_repos():
     store = _store()
     record = store.load()
@@ -119,10 +119,10 @@ def list_repos():
     except GitProviderError:
         return error_response("git_provider_unavailable", "Could not list repositories.", 500)
     store.mark_valid()
-    return jsonify({"ok": True, "repos": repos})
+    return jsonify(repos)
 
 
-@git_bp.route("/branches", methods=["GET"])
+@git_bp.get("/branches")
 def list_branches():
     repo_url = request.args.get("repo", "").strip()
     if not repo_url:
@@ -161,16 +161,24 @@ def list_branches():
     if default_branch in branches:
         branches = [default_branch, *(b for b in branches if b != default_branch)]
 
-    return jsonify({"ok": True, "branches": branches, "default_branch": default_branch})
+    return jsonify({"branches": branches, "default_branch": default_branch})
 
 
-@git_bp.route("/resolve", methods=["GET"])
+@git_bp.post("/repository-resolutions")
 def resolve_app():
     bench_root = Path(current_app.config["BENCH_ROOT"])
-    repo_url = request.args.get("repo", "").strip()
-    branch = request.args.get("branch", "").strip()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return error_response("malformed_request", "Expected a JSON object.", 400)
+    if any(
+        value is not None and not isinstance(value, str)
+        for value in (data.get("repo"), data.get("branch"))
+    ):
+        return error_response("invalid_repository", "Repository fields must be strings.", 422)
+    repo_url = (data.get("repo") or "").strip()
+    branch = (data.get("branch") or "").strip()
     if not repo_url:
-        return error_response("repository_required", "repo parameter is required.", 422)
+        return error_response("repository_required", "repo is required.", 422)
     if provider_for_repo(repo_url) is None:
         return error_response("invalid_repository", "Enter a supported repository URL.", 422)
     try:
@@ -192,4 +200,4 @@ def resolve_app():
         return error_response(
             "repository_unavailable", "Could not resolve the app repository.", 500
         )
-    return jsonify({"ok": True, **resolved})
+    return jsonify(resolved)

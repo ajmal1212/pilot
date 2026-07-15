@@ -76,10 +76,10 @@ def test_admin_route_inventory_matches_baseline(tmp_path: Path) -> None:
     assert len({(method, path) for method, path, _, _ in routes}) == 106
     assert Counter(method for method, _, _, _ in routes) == {
         "DELETE": 11,
-        "GET": 55,
+        "GET": 54,
         "PATCH": 4,
         "POST": 34,
-        "PUT": 2,
+        "PUT": 3,
     }
     assert Counter(policy for _, _, _, policy in routes) == {
         "authenticated": 58,
@@ -193,6 +193,14 @@ def test_admin_route_inventory_matches_baseline(tmp_path: Path) -> None:
         ("GET", "/api/v1/logs/<filename>/content"),
     } <= route_keys
     assert {
+        ("GET", "/api/v1/git/connection"),
+        ("PUT", "/api/v1/git/connection"),
+        ("DELETE", "/api/v1/git/connection"),
+        ("GET", "/api/v1/git/repositories"),
+        ("GET", "/api/v1/git/branches"),
+        ("POST", "/api/v1/git/repository-resolutions"),
+    } <= route_keys
+    assert {
         ("GET", "/api/v1/setup/configuration"),
         ("PUT", "/api/v1/setup/configuration"),
         ("GET", "/api/v1/setup/framework-branches"),
@@ -257,5 +265,8 @@ def test_admin_route_inventory_matches_baseline(tmp_path: Path) -> None:
             "/api/v1/logs/",
             "/api/v1/logs/<filename>/download",
             "/api/v1/logs/<filename>/stream",
+            "/api/v1/git/integration",
+            "/api/v1/git/repos",
+            "/api/v1/git/resolve",
         }
     }
