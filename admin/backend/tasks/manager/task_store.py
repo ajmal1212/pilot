@@ -87,6 +87,26 @@ class TaskStore:
         with self.locked():
             replace_private_text_locked(self._existing_task_dir(task_id) / "pid", str(pid))
 
+    def write_process(
+        self,
+        task_id: str,
+        pid: int,
+        process_record: Mapping[str, object],
+    ) -> None:
+        with self.locked():
+            task_dir = self._existing_task_dir(task_id)
+            replace_private_text_locked(
+                task_dir / "process.json",
+                json.dumps(process_record, indent=2),
+            )
+            replace_private_text_locked(task_dir / "pid", str(pid))
+
+    def read_process(self, task_id: str) -> dict | None:
+        path = self._existing_task_dir(task_id) / "process.json"
+        if not path.exists():
+            return None
+        return json.loads(path.read_text(encoding="utf-8"))
+
     def update_metadata(self, task_id: str, updates: Mapping[str, object]) -> dict:
         with self.locked():
             metadata = self.read_metadata(task_id)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import subprocess
 import threading
 from pathlib import Path
@@ -54,18 +53,13 @@ def test_worker_thread_runs_fifo_tasks_one_at_a_time(
                 completed.set()
             return 0
 
-    def start_process(argv, **kwargs):
-        task_id = Path(argv[-1]).name
+    def start_process(self, task_id: str):
         if task_id == second:
             assert events == [("start", first), ("wait", first)]
-        assert kwargs["start_new_session"] is True
-        assert kwargs["stdin"] is subprocess.DEVNULL
-        assert kwargs["stdout"] is subprocess.DEVNULL
-        assert kwargs["stderr"] is subprocess.DEVNULL
         events.append(("start", task_id))
         return Process(task_id, 4000 + len(events))
 
-    monkeypatch.setattr(worker_module.subprocess, "Popen", start_process)
+    monkeypatch.setattr(worker_module.TaskProcess, "start", start_process)
     worker = TaskWorker(tmp_path)
 
     worker.start()
@@ -86,17 +80,15 @@ def test_worker_thread_runs_fifo_tasks_one_at_a_time(
     assert WorkerStore(tmp_path).read_state().status == WorkerStatus.STOPPED
 
 
-def test_worker_passes_private_secrets_to_task_wrapper(
+def test_worker_delegates_claimed_task_to_task_process(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     store = TaskStore(tmp_path)
     task_id = "20260715-120000-111111"
     enqueue(store, task_id, 1)
-    secret_path = store.task_dir(task_id) / "secrets.json"
-    secret_path.write_text('{"admin_password":"secret"}')
     completed = threading.Event()
-    captured = {}
+    captured = []
 
     class Process:
         pid = 4321
@@ -106,11 +98,11 @@ def test_worker_passes_private_secrets_to_task_wrapper(
             completed.set()
             return 0
 
-    def start_process(argv, **kwargs):
-        captured.update(kwargs)
+    def start_process(self, requested_task_id: str):
+        captured.append(requested_task_id)
         return Process()
 
-    monkeypatch.setattr(worker_module.subprocess, "Popen", start_process)
+    monkeypatch.setattr(worker_module.TaskProcess, "start", start_process)
     worker = TaskWorker(tmp_path)
 
     worker.start()
@@ -118,10 +110,7 @@ def test_worker_passes_private_secrets_to_task_wrapper(
     worker.request_drain()
     worker.join(2)
 
-    assert captured["env"] == {
-        **os.environ,
-        "BENCH_TASK_SECRETS_FILE": str(secret_path),
-    }
+    assert captured == [task_id]
 
 
 def test_second_worker_thread_cannot_claim_work(
@@ -133,9 +122,9 @@ def test_second_worker_thread_cannot_claim_work(
     lock = WorkerStore(tmp_path).try_acquire()
     assert lock is not None
     monkeypatch.setattr(
-        worker_module.subprocess,
-        "Popen",
-        lambda *args, **kwargs: pytest.fail("task process was started"),
+        worker_module.TaskProcess,
+        "start",
+        lambda self, task_id: pytest.fail("task process was started"),
     )
     worker = TaskWorker(tmp_path)
 
@@ -185,7 +174,7 @@ def test_running_drain_finishes_current_task_and_leaves_next_queued(
             store.transition(current, TaskStatus.RUNNING, TaskStatus.SUCCESS)
             return 0
 
-    monkeypatch.setattr(worker_module.subprocess, "Popen", lambda *args, **kwargs: Process())
+    monkeypatch.setattr(worker_module.TaskProcess, "start", lambda self, task_id: Process())
     worker = TaskWorker(tmp_path)
     worker.start()
     assert started.wait(2)
@@ -220,7 +209,7 @@ def test_stopped_intent_survives_start_and_resumes_queued_work(
             completed.set()
             return 0
 
-    monkeypatch.setattr(worker_module.subprocess, "Popen", lambda *args, **kwargs: Process())
+    monkeypatch.setattr(worker_module.TaskProcess, "start", lambda self, task_id: Process())
     worker = TaskWorker(tmp_path)
     worker.start()
     wait_for_status(state, WorkerStatus.STOPPED)
@@ -255,13 +244,13 @@ def test_competing_worker_threads_execute_task_once(
             completed.set()
             return 0
 
-    def start_process(*args, **kwargs):
+    def start_process(self, requested_task_id: str):
         nonlocal starts
         with starts_lock:
             starts += 1
         return Process()
 
-    monkeypatch.setattr(worker_module.subprocess, "Popen", start_process)
+    monkeypatch.setattr(worker_module.TaskProcess, "start", start_process)
     workers = [TaskWorker(tmp_path), TaskWorker(tmp_path)]
 
     for worker in workers:
@@ -291,7 +280,7 @@ def test_enqueue_after_idle_scan_is_woken_without_lost_work(
             completed.set()
             return 0
 
-    monkeypatch.setattr(worker_module.subprocess, "Popen", lambda *args, **kwargs: Process())
+    monkeypatch.setattr(worker_module.TaskProcess, "start", lambda self, task_id: Process())
     worker = TaskWorker(tmp_path)
     worker.start()
     wait_for_status(WorkerStore(tmp_path), WorkerStatus.IDLE)

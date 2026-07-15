@@ -30,6 +30,17 @@ _HOSTNAME = socket.gethostname()
 _PRI = 14
 
 
+def _wait_until_ready() -> bool:
+    raw_fd = os.environ.pop("BENCH_TASK_READY_FD", None)
+    if raw_fd is None:
+        return True
+    descriptor = int(raw_fd)
+    try:
+        return os.read(descriptor, 1) == b"1"
+    finally:
+        os.close(descriptor)
+
+
 def _syslog_prefix_parts(tag: str, pid: int) -> tuple[bytes, bytes]:
     """Envelope split around the only field that changes per line (TIMESTAMP),
     so callers format just a timestamp instead of rebuilding the whole prefix."""
@@ -165,6 +176,8 @@ def _load_redactions(task_dir: Path, bench_root: Path) -> list[str]:
 
 
 def main() -> None:
+    if not _wait_until_ready():
+        return
     task_dir = Path(sys.argv[1])
     task_id = task_dir.name
     store = TaskStore(task_dir.parent.parent)

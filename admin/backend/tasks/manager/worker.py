@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 import threading
 from pathlib import Path
 
 from admin.backend.tasks.manager.task_queue import TaskQueue
+from admin.backend.tasks.manager.task_process import TaskProcess, TaskProcessStartError
 from admin.backend.tasks.manager.task_state import TERMINAL_TASK_STATUSES
 from admin.backend.tasks.manager.task_store import TaskStore
 from admin.backend.tasks.manager.worker_state import WorkerIntent, WorkerStatus, WorkerStore
@@ -18,6 +18,7 @@ class TaskWorker:
     def __init__(self, bench_root: Path) -> None:
         self._bench_root = Path(bench_root)
         self._queue = TaskQueue(self._bench_root)
+        self._processes = TaskProcess(self._bench_root)
         self._tasks = TaskStore(self._bench_root)
         self._worker = WorkerStore(self._bench_root)
         self._wake = threading.Event()
@@ -83,8 +84,10 @@ class TaskWorker:
             return False
 
         self._write_state(WorkerStatus.RUNNING, pid, task_id)
-        process = self._start_task(task_id)
-        self._tasks.write_pid(task_id, process.pid)
+        try:
+            process = self._processes.start(task_id)
+        except TaskProcessStartError:
+            return True
         self._wait_for_task(process, pid, task_id)
         if self._tasks.read_status(task_id) not in TERMINAL_TASK_STATUSES:
             raise RuntimeError(f"Task wrapper exited without finalizing {task_id}")
@@ -132,22 +135,3 @@ class TaskWorker:
             return
         self._worker.write_state(status, pid, task_id)
         self._last_state = state
-
-    def _start_task(self, task_id: str) -> subprocess.Popen:
-        task_dir = self._tasks.task_dir(task_id)
-        kwargs = {
-            "start_new_session": True,
-            "stdin": subprocess.DEVNULL,
-            "stdout": subprocess.DEVNULL,
-            "stderr": subprocess.DEVNULL,
-        }
-        secret_path = task_dir / "secrets.json"
-        if secret_path.exists():
-            kwargs["env"] = {
-                **os.environ,
-                "BENCH_TASK_SECRETS_FILE": str(secret_path),
-            }
-        return subprocess.Popen(
-            [sys.executable, "-m", "admin.backend.tasks.manager.wrapper", str(task_dir)],
-            **kwargs,
-        )
