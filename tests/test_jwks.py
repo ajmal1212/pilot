@@ -149,7 +149,7 @@ def _client(tmp_path: Path):
     from admin.backend.app import create_app
     from pilot.config.bench_config import BenchConfig
     from pilot.config.bench_toml_builder import BenchTomlBuilder
-    from pilot.config.toml_writer import bench_config_to_toml
+    from pilot.config.toml_store import BenchTomlStore
 
     bench_root = tmp_path / "benches" / "current"
     bench_root.mkdir(parents=True)
@@ -159,7 +159,7 @@ def _client(tmp_path: Path):
     config.admin.jwt_secret = "local-secret"
     config.admin.jwks_url = JWKS_URL
     config.admin.jwks_audience = AUDIENCE
-    toml_path.write_text(bench_config_to_toml(config))
+    BenchTomlStore(toml_path).write(config)
     (bench_root / "env" / "bin").mkdir(parents=True)
     (bench_root / "env" / "bin" / "python").touch()
     app = create_app(bench_root)

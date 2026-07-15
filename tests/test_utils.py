@@ -1,4 +1,4 @@
-"""Tests for pilot.utils — write_toml serialiser."""
+"""Tests for shared utilities and the raw bench TOML store interface."""
 from __future__ import annotations
 
 import json
@@ -10,7 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from pilot.utils import host_owner, normalize_host, run_command, write_toml
+from pilot.config.toml_store import BenchTomlStore
+from pilot.utils import host_owner, normalize_host, run_command
 
 
 def test_run_command_hides_password_flags_from_process_argv(
@@ -112,7 +113,7 @@ def test_normalize_host() -> None:
 
 def _roundtrip(tmp_path: Path, data: dict) -> dict:
     path = tmp_path / "out.toml"
-    write_toml(path, data)
+    BenchTomlStore(path).write_raw(data)
     with path.open("rb") as fh:
         return tomllib.load(fh)
 
@@ -182,7 +183,7 @@ def test_write_toml_file_is_valid_toml(tmp_path: Path) -> None:
         "redis": {"cache_port": 13000, "queue_port": 11000},
     }
     path = tmp_path / "bench.toml"
-    write_toml(path, data)
+    BenchTomlStore(path).write_raw(data)
     # If tomllib.load raises, the file is invalid TOML.
     with path.open("rb") as fh:
         tomllib.load(fh)

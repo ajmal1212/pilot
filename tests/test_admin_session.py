@@ -103,7 +103,7 @@ def test_command_requires_password(tmp_path) -> None:
 
 
 def _initialized_bench(bench_dir: Path, password: str, jwt_secret: str) -> None:
-    from pilot.config.toml_writer import bench_config_to_toml
+    from pilot.config.toml_store import BenchTomlStore
 
     bench_dir.mkdir(parents=True, exist_ok=True)
     toml_path = bench_dir / "bench.toml"
@@ -114,7 +114,7 @@ def _initialized_bench(bench_dir: Path, password: str, jwt_secret: str) -> None:
     )
     config = BenchConfig.from_file(toml_path)
     config.admin.jwt_secret = jwt_secret
-    toml_path.write_text(bench_config_to_toml(config))
+    BenchTomlStore(toml_path).write(config)
     python = bench_dir / "env" / "bin" / "python"
     python.parent.mkdir(parents=True, exist_ok=True)
     python.touch()
@@ -153,14 +153,14 @@ def test_status_reports_bench_db_type(tmp_path: Path) -> None:
 
 def test_status_reports_postgres_engine(tmp_path: Path) -> None:
     from admin.backend.app import create_app
-    from pilot.config.toml_writer import bench_config_to_toml
+    from pilot.config.toml_store import BenchTomlStore
 
     bench_root = tmp_path / "benches" / "pg"
     _initialized_bench(bench_root, "secret", "k3y")
     toml_path = bench_root / "bench.toml"
     config = BenchConfig.from_file(toml_path)
     config.db_type = "postgres"
-    toml_path.write_text(bench_config_to_toml(config))
+    BenchTomlStore(toml_path).write(config)
 
     app = create_app(bench_root)
     app.config["TESTING"] = True
@@ -174,14 +174,14 @@ def test_status_reports_allow_bench_management_default_true(tmp_path: Path) -> N
 
 def test_status_reports_allow_bench_management_when_disabled(tmp_path: Path) -> None:
     from admin.backend.app import create_app
-    from pilot.config.toml_writer import bench_config_to_toml
+    from pilot.config.toml_store import BenchTomlStore
 
     bench_root = tmp_path / "benches" / "current"
     _initialized_bench(bench_root, "secret", "k3y")
     toml_path = bench_root / "bench.toml"
     config = BenchConfig.from_file(toml_path)
     config.admin.allow_bench_management = False
-    toml_path.write_text(bench_config_to_toml(config))
+    BenchTomlStore(toml_path).write(config)
 
     app = create_app(bench_root)
     app.config["TESTING"] = True

@@ -1,4 +1,3 @@
-import io
 import shutil
 import subprocess
 from collections.abc import Iterator
@@ -6,7 +5,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from pilot.exceptions import BenchError, CommandError
-from pilot.secure_files import write_private_text
 
 if TYPE_CHECKING:
     from pilot.core.bench import BenchConfig
@@ -110,41 +108,6 @@ def host_owner(bench_path: Path, host: str) -> Optional[str]:
         if target in _bench_hosts(sibling, config):
             return config.name
     return None
-
-
-def write_toml(path: Path, data: dict) -> None:
-    """Minimal TOML serialiser for the simple structures in bench.toml."""
-    out = io.StringIO()
-
-    def _write_value(v):
-        if isinstance(v, bool):
-            return "true" if v else "false"
-        if isinstance(v, str):
-            return f'"{v}"'
-        if isinstance(v, list):
-            return "[" + ", ".join(_write_value(i) for i in v) + "]"
-        return str(v)
-
-    def _write_section(obj: dict, prefix: str = "") -> None:
-        scalars = {k: v for k, v in obj.items() if not isinstance(v, (dict, list)) or (isinstance(v, list) and not any(isinstance(i, dict) for i in v))}
-        dicts = {k: v for k, v in obj.items() if isinstance(v, dict)}
-        array_of_tables = {k: v for k, v in obj.items() if isinstance(v, list) and any(isinstance(i, dict) for i in v)}
-
-        for k, v in scalars.items():
-            out.write(f"{k} = {_write_value(v)}\n")
-
-        for k, v in dicts.items():
-            out.write(f"\n[{prefix}{k}]\n")
-            _write_section(v, prefix=f"{prefix}{k}.")
-
-        for k, entries in array_of_tables.items():
-            for entry in entries:
-                out.write(f"\n[[{prefix}{k}]]\n")
-                for ek, ev in entry.items():
-                    out.write(f"{ek} = {_write_value(ev)}\n")
-
-    _write_section(data)
-    write_private_text(path, out.getvalue())
 
 
 def installed_app_version(env_path: Path, name: str) -> str:

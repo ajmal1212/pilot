@@ -1,20 +1,18 @@
 from __future__ import annotations
 
-import tomllib
 from pathlib import Path
 
+from pilot._internal.bench_toml import dumps_config, load_config
+from pilot._internal.toml_codec import dumps_toml, load_toml
 from pilot.config.bench_config import BenchConfig
-from pilot.config.toml_writer import bench_config_to_toml
 from pilot.secure_files import write_private_text
-from pilot.utils import write_toml
 
 
 class BenchTomlStore:
     """Single entry point for reading and writing a bench's ``bench.toml``.
 
-    Wraps the parsing (``tomllib``/``BenchConfig``) and serialisation
-    (``bench_config_to_toml``/``write_toml``) primitives so that every caller
-    funnels through one object instead of touching the file directly.
+    Wraps internal parsing and serialization so every caller funnels through
+    one object instead of touching the file directly.
     """
 
     FILENAME = "bench.toml"
@@ -32,14 +30,11 @@ class BenchTomlStore:
 
     def read(self, validate: bool = True) -> BenchConfig:
         """Typed config. ``validate=False`` parses a half-configured file."""
-        if validate:
-            return BenchConfig.from_file(self.path)
-        return BenchConfig._from_dict(self.read_raw())
+        return load_config(self.path, validate=validate)
 
     def read_raw(self) -> dict:
         """Parsed TOML as a plain dict, preserving every section as written."""
-        with self.path.open("rb") as fh:
-            return tomllib.load(fh)
+        return load_toml(self.path)
 
     def read_flat(self) -> dict:
         """Wizard's flat-key settings dict (parse-only)."""
@@ -48,7 +43,7 @@ class BenchTomlStore:
         return BenchTomlBuilder.read_settings(self.path)
 
     def write(self, config: BenchConfig) -> None:
-        write_private_text(self.path, bench_config_to_toml(config))
+        write_private_text(self.path, dumps_config(config))
 
     def write_flat(self, name: str, settings: dict, port_offset: int = 0) -> None:
         """Serialise the wizard's flat-key settings dict to bench.toml.
@@ -66,4 +61,4 @@ class BenchTomlStore:
         self.write(config)
 
     def write_raw(self, data: dict) -> None:
-        write_toml(self.path, data)
+        write_private_text(self.path, dumps_toml(data))
