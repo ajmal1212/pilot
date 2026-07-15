@@ -12,7 +12,10 @@ from types import SimpleNamespace
 import pytest
 
 import admin.backend.tasks.manager.task_runner as task_runner_module
+import admin.backend.tasks.manager.wrapper as wrapper_module
+from admin.backend.tasks.manager.task_reader import TaskReader
 from admin.backend.tasks.manager.task_runner import TaskRunner
+from admin.backend.tasks.manager.wrapper import callback_handler, run_with_syslog_output
 from pilot.exceptions import TaskNotFoundError, TaskNotRunningError
 
 
@@ -21,6 +24,31 @@ TASK_ID = "20260715-120000-aabbcc"
 
 def successful_callback(meta: dict) -> None:
     return None
+
+
+def write_success_marker(meta: dict) -> None:
+    (Path(meta["bench_root"]) / "success.marker").write_text("")
+
+
+def write_failure_marker(meta: dict) -> None:
+    (Path(meta["bench_root"]) / "failure.marker").write_text("")
+
+
+def failing_callback(meta: dict) -> None:
+    raise RuntimeError("callback error")
+
+
+def task_meta(bench_root: Path) -> dict:
+    return {
+        "task_id": TASK_ID,
+        "command": "build",
+        "args": {},
+        "command_argv": [sys.executable, "-c", "print('done')"],
+        "started_at": "2026-07-15T12:00:00+00:00",
+        "finished_at": None,
+        "exit_code": None,
+        "bench_root": str(bench_root),
+    }
 
 
 def test_run_persists_task_before_starting_wrapper(
@@ -118,3 +146,71 @@ def test_kill_rejects_completed_task(tmp_path: Path) -> None:
 
     with pytest.raises(TaskNotRunningError, match="status=success"):
         TaskRunner(tmp_path).kill(TASK_ID)
+
+
+def test_wrapper_output_is_readable_without_syslog_envelopes(tmp_path: Path) -> None:
+    task_dir = tmp_path / "tasks" / TASK_ID
+    task_dir.mkdir(parents=True)
+    output_path = task_dir / "output.log"
+    command = [
+        sys.executable,
+        "-c",
+        "import sys; print('standard output', flush=True); print('standard error', file=sys.stderr, flush=True)",
+    ]
+
+    exit_code = run_with_syslog_output(command, str(tmp_path), "build", output_path)
+
+    meta = task_meta(tmp_path)
+    meta["exit_code"] = exit_code
+    meta["finished_at"] = "2026-07-15T12:00:01+00:00"
+    (task_dir / "meta.json").write_text(json.dumps(meta))
+    (task_dir / "status").write_text("success")
+    assert exit_code == 0
+    assert TaskReader(tmp_path).read_output(TASK_ID) == ["standard output", "standard error"]
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "status", "marker", "other_marker"),
+    [
+        (0, "success", "success.marker", "failure.marker"),
+        (1, "failed", "failure.marker", "success.marker"),
+    ],
+)
+def test_wrapper_runs_matching_callback_and_finalizes_task(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    exit_code: int,
+    status: str,
+    marker: str,
+    other_marker: str,
+) -> None:
+    task_dir = tmp_path / "tasks" / TASK_ID
+    task_dir.mkdir(parents=True)
+    (task_dir / "meta.json").write_text(json.dumps(task_meta(tmp_path)))
+    (task_dir / "on_success.bin").write_bytes(pickle.dumps(write_success_marker))
+    (task_dir / "on_failure.bin").write_bytes(pickle.dumps(write_failure_marker))
+    monkeypatch.setattr(wrapper_module, "run_with_syslog_output", lambda *args: exit_code)
+    monkeypatch.setattr(sys, "argv", ["wrapper", str(task_dir)])
+
+    wrapper_module.main()
+
+    final_meta = json.loads((task_dir / "meta.json").read_text())
+    assert (tmp_path / marker).exists()
+    assert not (tmp_path / other_marker).exists()
+    assert not (task_dir / "on_success.bin").exists()
+    assert not (task_dir / "on_failure.bin").exists()
+    assert (task_dir / "status").read_text() == status
+    assert final_meta["exit_code"] == exit_code
+    assert final_meta["finished_at"] is not None
+    assert "Callback successfully triggered" in (task_dir / "output.log").read_text()
+
+
+def test_callback_failure_is_logged_and_callback_is_removed(tmp_path: Path) -> None:
+    callback_path = tmp_path / "on_failure.bin"
+    output_path = tmp_path / "output.log"
+    callback_path.write_bytes(pickle.dumps(failing_callback))
+
+    callback_handler(callback_path, output_path, task_meta(tmp_path))
+
+    assert not callback_path.exists()
+    assert "Callback failed: callback error" in output_path.read_text()
