@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from pilot._internal.toml import write as write_toml
+from pilot.internal.toml import write as write_toml
 from pilot.utils import host_owner, normalize_host, run_command
 
 

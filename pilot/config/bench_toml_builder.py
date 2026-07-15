@@ -4,7 +4,7 @@ import copy
 import tomllib
 from pathlib import Path
 
-from pilot._internal.bench_toml import dumps_config
+from pilot.config.bench_toml import dumps_config
 from pilot.config.bench_config import BenchConfig
 from pilot.config.worker_config import WorkerConfig, WorkerGroup
 

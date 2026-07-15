@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from pilot._internal.toml import TomlDataclassCodec, loads, read, write
+from pilot.internal.toml import TomlDataclassCodec, loads, read, write
 
 
 @dataclass

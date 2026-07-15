@@ -5,15 +5,15 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
-from pilot._internal.atomic_file import (
+from pilot.internal.atomic_file import (
     atomic_write_private_text,
     exclusive_file_lock,
     replace_private_text_locked,
 )
-from pilot._internal.bench_toml import dumps_config, load_config
-from pilot._internal.toml import loads as loads_toml
-from pilot._internal.toml import read as read_toml
-from pilot._internal.toml import write as write_toml
+from pilot.config.bench_toml import dumps_config, load_config
+from pilot.internal.toml import loads as loads_toml
+from pilot.internal.toml import read as read_toml
+from pilot.internal.toml import write as write_toml
 from pilot.config.bench_config import BenchConfig
 
 

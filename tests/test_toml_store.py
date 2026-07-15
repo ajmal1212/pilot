@@ -110,7 +110,7 @@ def test_failed_atomic_replace_keeps_existing_config(
     def fail_replace(source, destination):
         raise OSError("replace failed")
 
-    monkeypatch.setattr("pilot._internal.atomic_file.os.replace", fail_replace)
+    monkeypatch.setattr("pilot.internal.atomic_file.os.replace", fail_replace)
 
     with pytest.raises(OSError, match="replace failed"):
         store.write(config)
@@ -133,9 +133,9 @@ def test_write_fsyncs_file_and_parent_directory(
         real_replace(source, destination)
 
     monkeypatch.setattr(
-        "pilot._internal.atomic_file.os.fsync", lambda descriptor: events.append("fsync")
+        "pilot.internal.atomic_file.os.fsync", lambda descriptor: events.append("fsync")
     )
-    monkeypatch.setattr("pilot._internal.atomic_file.os.replace", replace)
+    monkeypatch.setattr("pilot.internal.atomic_file.os.replace", replace)
 
     store.write(config)
 
@@ -186,7 +186,7 @@ def test_unchanged_transaction_does_not_replace_config(
     def fail_replace(source, destination):
         raise AssertionError("unchanged transaction replaced the file")
 
-    monkeypatch.setattr("pilot._internal.atomic_file.os.replace", fail_replace)
+    monkeypatch.setattr("pilot.internal.atomic_file.os.replace", fail_replace)
 
     with store.edit_raw():
         pass
