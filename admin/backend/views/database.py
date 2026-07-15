@@ -4,7 +4,7 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request
 
-from admin.backend.api_contract import error_response
+from admin.backend.api_contract import error_response, no_content_response
 from pilot.exceptions import DatabaseProcessNotActiveError
 
 from ..readers.bench_reader import BenchReader
@@ -25,7 +25,7 @@ def _get_mariadb_manager(bench_root):
     return MariaDBManager(config.mariadb)
 
 
-@database_bp.route("/binlogs")
+@database_bp.get("/binlogs")
 def binlogs():
     bench_root = current_app.config["BENCH_ROOT"]
     try:
@@ -37,7 +37,7 @@ def binlogs():
     return jsonify([{"log_name": bl.log_name, "file_size": bl.file_size} for bl in binary_logs])
 
 
-@database_bp.route("/binlogs/<log_name>")
+@database_bp.get("/binlogs/<log_name>")
 def binlog_detail(log_name: str):
     bench_root = current_app.config["BENCH_ROOT"]
     try:
@@ -72,8 +72,8 @@ def binlog_detail(log_name: str):
     )
 
 
-@database_bp.route("/processlist")
-def processlist():
+@database_bp.get("/processes")
+def list_processes():
     bench_root = current_app.config["BENCH_ROOT"]
     try:
         reader = _get_database_reader(bench_root)
@@ -102,7 +102,7 @@ def processlist():
     )
 
 
-@database_bp.route("/processlist/<int:process_id>", methods=["DELETE"])
+@database_bp.delete("/processes/<int:process_id>")
 def kill_process(process_id: int):
     bench_root = current_app.config["BENCH_ROOT"]
     try:
@@ -119,10 +119,10 @@ def kill_process(process_id: int):
             "Could not stop the database process.",
             500,
         )
-    return jsonify({"ok": True})
+    return no_content_response()
 
 
-@database_bp.route("/slow-queries")
+@database_bp.get("/slow-queries")
 def slow_queries():
     bench_root = current_app.config["BENCH_ROOT"]
     try:
@@ -157,11 +157,11 @@ def slow_queries():
     )
 
 
-# ── SQL playground ────────────────────────────────────────────────────────────
+# ── SQL query execution ───────────────────────────────────────────────────────
 
 
-@database_bp.route("/playground/sites")
-def playground_sites():
+@database_bp.get("/sites")
+def list_query_sites():
     import json
 
     bench_root: Path = current_app.config["BENCH_ROOT"]
@@ -182,8 +182,8 @@ def playground_sites():
     return jsonify(sites)
 
 
-@database_bp.route("/playground/schema")
-def playground_schema():
+@database_bp.get("/schema")
+def get_schema():
     bench_root: Path = current_app.config["BENCH_ROOT"]
     site = request.args.get("site", "")
     if not site:
@@ -197,8 +197,8 @@ def playground_schema():
         return error_response("schema_unavailable", "Could not read database schema.", 500)
 
 
-@database_bp.route("/playground/execute", methods=["POST"])
-def playground_execute():
+@database_bp.post("/queries")
+def execute_query():
     bench_root: Path = current_app.config["BENCH_ROOT"]
     data = request.get_json(silent=True)
     if not isinstance(data, dict):

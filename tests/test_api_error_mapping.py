@@ -94,9 +94,9 @@ def test_database_process_conflict_is_not_a_blanket_mapping(tmp_path: Path) -> N
     manager = Mock()
     with patch("admin.backend.views.database._get_mariadb_manager", return_value=manager):
         manager.kill_process.side_effect = DatabaseProcessNotActiveError()
-        inactive = client.delete("/api/v1/database/processlist/42")
+        inactive = client.delete("/api/v1/database/processes/42")
         manager.kill_process.side_effect = RuntimeError("secret connection detail")
-        unavailable = client.delete("/api/v1/database/processlist/42")
+        unavailable = client.delete("/api/v1/database/processes/42")
 
     assert inactive.status_code == 409
     assert inactive.get_json()["error"]["code"] == "database_process_not_active"
@@ -107,7 +107,7 @@ def test_database_process_conflict_is_not_a_blanket_mapping(tmp_path: Path) -> N
 
 def test_database_query_validates_types_before_execution(tmp_path: Path) -> None:
     response = _client(tmp_path / "bench").post(
-        "/api/v1/database/playground/execute",
+        "/api/v1/database/queries",
         json={"site": "site.test", "query": ["select 1"]},
     )
 
@@ -122,7 +122,7 @@ def test_database_runtime_errors_are_safe_server_failures(tmp_path: Path) -> Non
         side_effect=RuntimeError("secret connection detail"),
     ):
         response = client.post(
-            "/api/v1/database/playground/execute",
+            "/api/v1/database/queries",
             json={"site": "site.test", "query": "select 1"},
         )
 
