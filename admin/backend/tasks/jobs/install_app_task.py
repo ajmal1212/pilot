@@ -44,9 +44,10 @@ class InstallAppTask(BaseTask):
                 continue
 
         env = PythonEnvManager(self.bench)
-        for a in apps:
-            self._step(f"assets_{a.config.name}", f"Build assets for {a.config.name}")
-            env.build_assets_for_app(a)
+        for app in apps:
+            self._step(f"assets_{app.config.name}", f"Build assets for {app.config.name}")
+            env.build_assets_for_app(app)
+
         self._step("done")
 
 
