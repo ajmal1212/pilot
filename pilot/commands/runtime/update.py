@@ -83,7 +83,7 @@ class UpdateCommand(Command):
         self._step("done", "Done")
 
     def _warn_if_running(self) -> None:
-        from pilot.managers.process_manager import ProcessManager
+        from pilot.managers.processes.local import ProcessManager
 
         if not ProcessManager.for_bench(self.bench).is_running():
             return
@@ -97,7 +97,7 @@ class UpdateCommand(Command):
                 raise MigrateError("Aborted.")
 
     def _update_apps(self) -> None:
-        from pilot.core.marketplace import Marketplace
+        from pilot.integrations.marketplace import Marketplace
 
         marketplace_by_name = {entry["name"]: entry for entry in Marketplace.registry()}
 
@@ -134,7 +134,7 @@ class UpdateCommand(Command):
         return RevisionPin.from_marketplace_target(target)
 
     def _reinstall_apps(self) -> None:
-        from pilot.managers.python_env_manager import PythonEnvManager
+        from pilot.managers.python_environment import PythonEnvManager
 
         mgr = PythonEnvManager(self.bench)
         for app in self.bench.apps():
@@ -147,7 +147,7 @@ class UpdateCommand(Command):
                 raise MigrateError(f"Failed to install app {app}: {e}")
 
     def _rebuild_assets(self) -> None:
-        from pilot.managers.python_env_manager import PythonEnvManager
+        from pilot.managers.python_environment import PythonEnvManager
 
         mgr = PythonEnvManager(self.bench)
         for app in self.bench.apps():

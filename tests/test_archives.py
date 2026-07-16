@@ -137,7 +137,7 @@ def test_admin_frontend_download_rejects_unsafe_archive(
 def test_prebuilt_asset_download_rejects_unsafe_archive(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from pilot.managers.python_env_manager import PythonEnvManager
+    from pilot.managers.python_environment import PythonEnvManager
 
     archive = _archive(tmp_path / "assets.tar", [_file("../escape.txt")])
 

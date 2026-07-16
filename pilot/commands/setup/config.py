@@ -17,9 +17,9 @@ class UpdateConfigCommand(Command):
         self.bench = bench
 
     def run(self) -> None:
-        from pilot.managers.nginx_manager import NginxManager
-        from pilot.managers.process_manager import ProcessManager
-        from pilot.managers.redis_manager import RedisManager
+        from pilot.managers.nginx import NginxManager
+        from pilot.managers.processes.local import ProcessManager
+        from pilot.managers.redis import RedisManager
 
         print("Updating Redis configs...")
         RedisManager(self.bench.config.redis, self.bench).generate_configs()

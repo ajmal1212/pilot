@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pilot.managers.process_managers.supervisor import SupervisorProcessManager
-    from pilot.managers.process_managers.systemd import SystemdProcessManager
+    from pilot.managers.processes.supervisor import SupervisorProcessManager
+    from pilot.managers.processes.systemd import SystemdProcessManager
 
 
 @dataclass
@@ -144,8 +144,8 @@ class ProcessReader:
         config = BenchTomlStore.for_bench(self._bench_root).read()
         bench = Bench(config, self._bench_root)
 
-        from pilot.managers.process_managers.supervisor import SupervisorProcessManager
-        from pilot.managers.process_managers.systemd import SystemdProcessManager
+        from pilot.managers.processes.supervisor import SupervisorProcessManager
+        from pilot.managers.processes.systemd import SystemdProcessManager
 
         systemd = SystemdProcessManager(bench)
         supervisor = SupervisorProcessManager(bench)

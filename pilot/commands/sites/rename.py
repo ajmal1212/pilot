@@ -132,7 +132,7 @@ class RenameSiteCommand(Command):
     def _reload_nginx(self) -> None:
         if not self.bench.config.production.enabled:
             return
-        from pilot.managers.nginx_manager import NginxManager
+        from pilot.managers.nginx import NginxManager
 
         mgr = NginxManager(self.bench)
         if not mgr.is_installed():

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from pilot.archive import extract_tar_archive
 from pilot.exceptions import BenchError
-from pilot.platform import is_macos, which
+from pilot.managers.platform import is_macos, which
 from pilot.utils import get_yarn_bin, git_has_local_changes, run_command
 
 if TYPE_CHECKING:

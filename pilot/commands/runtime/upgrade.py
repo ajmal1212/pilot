@@ -20,7 +20,7 @@ class UpgradeCommand(Command):
         run_command(["git", "-C", str(root), "pull"], stream_output=True)
 
         print("Installing admin Python dependencies...")
-        from pilot.managers.admin_env_manager import AdminEnvManager
+        from pilot.managers.admin_environment import AdminEnvManager
 
         AdminEnvManager(root).install_python_deps()
 
@@ -36,7 +36,7 @@ class UpgradeCommand(Command):
         if not self.bench:
             return
         try:
-            from pilot.managers.process_manager import ProcessManager
+            from pilot.managers.processes.local import ProcessManager
 
             manager = ProcessManager.detect_running(self.bench)
             if type(manager) is ProcessManager:

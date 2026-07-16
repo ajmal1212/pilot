@@ -14,7 +14,7 @@ from pathlib import Path
 from pilot.config.host_toml_store import HostTomlStore
 from pilot.exceptions import BenchError
 from pilot.loader import cli_root
-from pilot.platform import is_linux
+from pilot.managers.platform import is_linux
 from pilot.utils import iter_sibling_benches, run_command
 
 if typing.TYPE_CHECKING:
@@ -90,7 +90,7 @@ class ConfigureMonitor:
         return ["systemctl", "--user", *args]
 
     def _render_unit(self) -> str:
-        from pilot.managers.admin_env_manager import AdminEnvManager
+        from pilot.managers.admin_environment import AdminEnvManager
 
         root = cli_root()
         return MONITOR_DAEMON_TEMPLATE.format(
@@ -150,7 +150,7 @@ class ToMonitor:
         self.admin_service_name = f"{self.bench.config.name}-admin"
 
     def systemd_processes(self):
-        from pilot.managers.process_managers.systemd import SystemdProcessManager
+        from pilot.managers.processes.systemd import SystemdProcessManager
 
         bench_process_manager = SystemdProcessManager(self.bench)
         systemd_dir = self.bench.config_path / "systemd"
@@ -178,7 +178,7 @@ class ToMonitor:
         return pids
 
     def supervisord_processes(self):
-        from pilot.managers.process_managers.supervisor import SupervisorProcessManager
+        from pilot.managers.processes.supervisor import SupervisorProcessManager
 
         pids = {}
         bench_process_manager = SupervisorProcessManager(self.bench)

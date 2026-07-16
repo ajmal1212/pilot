@@ -9,7 +9,7 @@ import os
 import subprocess
 from abc import ABC, abstractmethod
 
-from pilot.platform import Distro, _privileged, detect_distro, is_macos
+from pilot.managers.platform import Distro, _privileged, detect_distro, is_macos
 
 
 class SystemPackageManager(ABC):

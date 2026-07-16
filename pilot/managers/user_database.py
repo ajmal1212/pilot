@@ -4,8 +4,8 @@ import os
 import subprocess
 from pathlib import Path
 
-from pilot.package_managers import get_package_manager
-from pilot.platform import is_macos
+from pilot.managers.packages import get_package_manager
+from pilot.managers.platform import is_macos
 from pilot.utils import run_command
 
 

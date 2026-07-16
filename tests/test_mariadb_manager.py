@@ -7,10 +7,10 @@ import pytest
 
 from pilot.config.mariadb_config import MariaDBConfig
 from pilot.exceptions import DatabaseProcessNotActiveError
-from pilot.managers.mariadb_manager import MariaDBManager
+from pilot.managers.mariadb import MariaDBManager
 
-MODULE = "pilot.managers.mariadb_manager"
-BASE_MODULE = "pilot.managers.user_owned_db_manager"
+MODULE = "pilot.managers.mariadb"
+BASE_MODULE = "pilot.managers.user_database"
 
 
 def _manager(password: str = "root") -> MariaDBManager:

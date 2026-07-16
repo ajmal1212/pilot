@@ -15,7 +15,7 @@ class SetupNginxCommand(Command):
     group = "setup"
 
     def __init__(self, bench: "Bench") -> None:
-        from pilot.managers.nginx_manager import NginxManager
+        from pilot.managers.nginx import NginxManager
 
         self.bench = bench
         self.nginx_manager = NginxManager(bench)

@@ -5,17 +5,17 @@ import shlex
 import subprocess
 from pathlib import Path
 
-from pilot.managers.admin_env_manager import AdminEnvManager
-from pilot.managers.gunicorn_manager import GunicornManager
+from pilot.managers.admin_environment import AdminEnvManager
+from pilot.managers.gunicorn import GunicornManager
 from pilot.loader import cli_root
-from pilot.managers.process_manager import ProcessDefinition
-from pilot.managers.process_managers.base import (
+from pilot.managers.processes.local import ProcessDefinition
+from pilot.managers.processes.base import (
     ManagedProcessManager,
     UnitGroup,
     ServiceRenderer,
     override,
 )
-from pilot.platform import _privileged
+from pilot.managers.platform import _privileged
 from pilot.utils import run_command
 
 _ADMIN_IDLE_TIMEOUT = 60  # seconds of inactivity before socket-activated admin stops

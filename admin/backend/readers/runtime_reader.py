@@ -6,8 +6,8 @@ from pathlib import Path
 
 from pilot.config.bench_config import BenchConfig
 from pilot.exceptions import CommandError
-from pilot.managers.redis_manager import RedisManager
-from pilot.platform import which
+from pilot.managers.redis import RedisManager
+from pilot.managers.platform import which
 from pilot.utils import run_command
 
 

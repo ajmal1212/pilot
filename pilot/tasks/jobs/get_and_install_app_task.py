@@ -1,4 +1,4 @@
-from pilot.commands.get_app import GetAppCommand
+from pilot.commands.apps.download import GetAppCommand
 from pilot.core.site import Site, SiteConfig
 
 from .base_task import BaseTask
@@ -41,7 +41,7 @@ class GetAndInstallAppTask(BaseTask):
         return cmd
 
     def _install_on_sites(self, cmds: list[GetAppCommand]) -> None:
-        from pilot.managers.python_env_manager import PythonEnvManager
+        from pilot.managers.python_environment import PythonEnvManager
 
         for site in self.sites:
             safe_key = site.replace(".", "_").replace("-", "_")

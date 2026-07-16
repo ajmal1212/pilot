@@ -92,7 +92,7 @@ def _frappe_args(remaining: list[str]) -> list[str] | None:
 
 def _run_frappe(context: CliContext, frappe_args: list[str]) -> None:
     from pilot import loader
-    from pilot.commands.frappe_cmd import FrappeCommand
+    from pilot.commands.runtime.frappe import FrappeCommand
 
     with _error_boundary(context):
         FrappeCommand(loader.load_bench(context)).run_raw(["frappe", *frappe_args])

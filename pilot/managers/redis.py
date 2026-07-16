@@ -5,8 +5,8 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from pilot.config.redis_config import RedisConfig
-from pilot.package_managers import get_package_manager
-from pilot.platform import is_macos, which
+from pilot.managers.packages import get_package_manager
+from pilot.managers.platform import is_macos, which
 
 if TYPE_CHECKING:
     from pilot.core.bench import Bench

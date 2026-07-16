@@ -11,9 +11,9 @@ import pytest
 
 from pilot.tasks.manager.task_runner import TaskRunner
 from pilot.tasks.manager.worker import TaskWorker
-from pilot.managers.process_manager import ProcessDefinition
-from pilot.managers.process_managers.supervisor import SupervisorRenderer
-from pilot.managers.process_managers.systemd import SystemdRenderer
+from pilot.managers.processes.local import ProcessDefinition
+from pilot.managers.processes.supervisor import SupervisorRenderer
+from pilot.managers.processes.systemd import SystemdRenderer
 
 
 def wait_for_pid(path: Path) -> int:

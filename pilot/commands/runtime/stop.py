@@ -17,7 +17,7 @@ class StopCommand(Command):
         self.bench = bench
 
     def run(self) -> None:
-        from pilot.managers.process_manager import ProcessManager
+        from pilot.managers.processes.local import ProcessManager
 
         manager = ProcessManager.detect_running(self.bench)
         manager.stop()

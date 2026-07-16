@@ -629,7 +629,7 @@ Set `requires_bench = False` for commands that don't operate on a bench (e.g. `n
 
 ---
 
-## Platform detection (`pilot/platform.py`)
+## Platform detection (`pilot/managers/platform.py`)
 
 All OS-specific branching lives in one module. Every other module imports from here rather than calling `platform.system()` or `shutil.which()` inline.
 

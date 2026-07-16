@@ -78,7 +78,7 @@ def _directory_size(path: str) -> int:
 
 
 def _path_sizes(bench_root: Path, config: BenchConfig) -> list[dict]:
-    from pilot.managers.mariadb_manager import MariaDBManager
+    from pilot.managers.mariadb import MariaDBManager
 
     benches_dir = str(bench_root)
     mariadb_dir = str(MariaDBManager(config.mariadb).data_dir())
@@ -136,7 +136,7 @@ def get_monitor_history():
 
 @stats_bp.get("/system")
 def system_info():
-    from pilot.platform import kernel_version, os_version
+    from pilot.managers.platform import kernel_version, os_version
     from ..readers.runtime_reader import RuntimeVersionReader
 
     bench_root = Path(current_app.config["BENCH_ROOT"])

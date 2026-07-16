@@ -77,7 +77,7 @@ class NewSiteCommand(Command):
         creating the site so a provider failure leaves no orphan site."""
         if not self._via_wildcard:
             return
-        from pilot.core.domain_controller import DomainRouteProvider
+        from pilot.core.domains import DomainRouteProvider
 
         DomainRouteProvider(self.bench).register(self.name, self.name)
 
@@ -107,7 +107,7 @@ class NewSiteCommand(Command):
         write_private_text(config_path, json.dumps(config, indent=1))
 
     def build_missing_assets(self):
-        from pilot.managers.python_env_manager import PythonEnvManager
+        from pilot.managers.python_environment import PythonEnvManager
 
         manager = PythonEnvManager(self.bench)
         assets_dir = self.bench.sites_path / "assets"
@@ -117,15 +117,15 @@ class NewSiteCommand(Command):
                 manager.build_assets_for_app(app)
 
     def _should_enable_ssl(self) -> bool:
-        from pilot.managers.letsencrypt_manager import _is_public_domain, letsencrypt_active
+        from pilot.managers.letsencrypt import _is_public_domain, letsencrypt_active
 
         return letsencrypt_active(self.bench) and _is_public_domain(self.name)
 
     def _obtain_cert(self, site) -> None:
         import json
 
-        from pilot.managers.letsencrypt_manager import LetsEncryptManager
-        from pilot.managers.nginx_manager import NginxManager
+        from pilot.managers.letsencrypt import LetsEncryptManager
+        from pilot.managers.nginx import NginxManager
 
         if not self.bench.config.production.enabled:
             return
@@ -148,7 +148,7 @@ class NewSiteCommand(Command):
         nginx_mgr.reload()
 
     def _validate(self) -> None:
-        from pilot.core.domain_controller import DomainRouteProvider
+        from pilot.core.domains import DomainRouteProvider
         from pilot.utils import host_owner, matches_wildcard, normalize_host
 
         if (self.bench.sites_path / self.name / "site_config.json").exists():
@@ -205,7 +205,7 @@ class NewSiteCommand(Command):
     def _reload_nginx(self) -> None:
         if not self.bench.config.production.enabled:
             return
-        from pilot.managers.nginx_manager import NginxManager
+        from pilot.managers.nginx import NginxManager
 
         mgr = NginxManager(self.bench)
         if not mgr.is_installed():

@@ -249,15 +249,15 @@ def test_api_benches_create_routes_wizard_at_domain_when_production(tmp_path: Pa
     client = app.test_client()
     client.set_cookie("sid", issue_token(secret))
 
-    with patch("pilot.managers.process_managers.systemd.SystemdProcessManager.start_admin") as mock_admin, \
-         patch("pilot.managers.process_managers.systemd.SystemdProcessManager.apply_unit_action") as mock_apply, \
-         patch("pilot.managers.nginx_manager.NginxManager.generate_config") as mock_gen, \
-         patch("pilot.managers.nginx_manager.NginxManager.install_config"), \
-         patch("pilot.managers.nginx_manager.NginxManager.reload"), \
-         patch("pilot.managers.nginx_manager.NginxManager.admin_cert_exists", return_value=False), \
+    with patch("pilot.managers.processes.systemd.SystemdProcessManager.start_admin") as mock_admin, \
+         patch("pilot.managers.processes.systemd.SystemdProcessManager.apply_unit_action") as mock_apply, \
+         patch("pilot.managers.nginx.NginxManager.generate_config") as mock_gen, \
+         patch("pilot.managers.nginx.NginxManager.install_config"), \
+         patch("pilot.managers.nginx.NginxManager.reload"), \
+         patch("pilot.managers.nginx.NginxManager.admin_cert_exists", return_value=False), \
          patch("pilot.core.domains.DomainRouteProvider.register") as mock_register, \
          patch("pilot.core.domains.DomainRouteProvider.wildcard_domains", return_value=[]), \
-         patch("pilot.platform.has_passwordless_sudo", return_value=True), \
+         patch("pilot.managers.platform.has_passwordless_sudo", return_value=True), \
          patch("subprocess.Popen") as mock_popen:
         resp = client.post("/api/v1/benches", json=_new_payload("fresh"))
 
@@ -296,7 +296,7 @@ def test_api_benches_create_does_not_prompt_for_system_privileges(tmp_path: Path
 
     with (
         patch("admin.backend.views.benches.current_is_production", return_value=True),
-        patch("pilot.platform.has_passwordless_sudo", return_value=False),
+        patch("pilot.managers.platform.has_passwordless_sudo", return_value=False),
         patch("admin.backend.views.benches.NewCommand.run") as create,
         patch(
             "pilot.core.domains.DomainRouteProvider.wildcard_domains",
@@ -721,7 +721,7 @@ def test_api_benches_drop_runs_pilot(tmp_path: Path) -> None:
 
     with (
         patch("admin.backend.views.benches.DropBenchCommand.run") as drop,
-        patch("pilot.platform.has_passwordless_sudo", return_value=True),
+        patch("pilot.managers.platform.has_passwordless_sudo", return_value=True),
     ):
         resp = client.delete("/api/v1/benches/prod-bench")
 
@@ -736,7 +736,7 @@ def test_api_benches_drop_does_not_prompt_for_system_privileges(tmp_path: Path) 
     _write_prod_bench_toml(benches_dir / "prod-bench", "prod-bench")
 
     with (
-        patch("pilot.platform.has_passwordless_sudo", return_value=False),
+        patch("pilot.managers.platform.has_passwordless_sudo", return_value=False),
         patch("admin.backend.views.benches.DropBenchCommand.run") as drop,
     ):
         resp = client.delete("/api/v1/benches/prod-bench")

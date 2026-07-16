@@ -1,4 +1,4 @@
-from pilot.commands.new_site import NewSiteCommand
+from pilot.commands.sites.create import NewSiteCommand
 from .base_task import BaseTask
 from .marketplace_fetcher import MarketplaceFetcher
 

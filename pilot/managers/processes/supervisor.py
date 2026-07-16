@@ -5,11 +5,11 @@ import shlex
 import subprocess
 from pathlib import Path
 
-from pilot.managers.admin_env_manager import AdminEnvManager
-from pilot.managers.gunicorn_manager import GunicornManager
+from pilot.managers.admin_environment import AdminEnvManager
+from pilot.managers.gunicorn import GunicornManager
 from pilot.loader import cli_root
-from pilot.managers.process_manager import ProcessDefinition
-from pilot.managers.process_managers.base import (
+from pilot.managers.processes.local import ProcessDefinition
+from pilot.managers.processes.base import (
     ManagedProcessManager,
     UnitGroup,
     ServiceRenderer,

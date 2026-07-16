@@ -245,8 +245,8 @@ def _patch_managers(systemd_running: bool, supervisor_running: bool):
     return (
         patch("pilot.config.toml_store.BenchTomlStore.for_bench"),
         patch("pilot.core.bench.Bench"),
-        patch("pilot.managers.process_managers.systemd.SystemdProcessManager", return_value=mock_systemd),
-        patch("pilot.managers.process_managers.supervisor.SupervisorProcessManager", return_value=mock_supervisor),
+        patch("pilot.managers.processes.systemd.SystemdProcessManager", return_value=mock_systemd),
+        patch("pilot.managers.processes.supervisor.SupervisorProcessManager", return_value=mock_supervisor),
         mock_systemd,
         mock_supervisor,
     )

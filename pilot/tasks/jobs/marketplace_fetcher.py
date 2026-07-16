@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Callable
 
-from pilot.commands.get_app import GetAppCommand
-from pilot.core.marketplace import Marketplace
+from pilot.commands.apps.download import GetAppCommand
+from pilot.integrations.marketplace import Marketplace
 from pilot.exceptions import BenchError
 
 

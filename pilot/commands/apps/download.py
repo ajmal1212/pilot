@@ -82,7 +82,7 @@ class GetAppCommand(Command):
         self.app = App(AppConfig(name=name, repo=self.repo, branch=self.app.config.branch), self.bench)
 
     def _install(self) -> None:
-        from pilot.managers.python_env_manager import PythonEnvManager
+        from pilot.managers.python_environment import PythonEnvManager
 
         print(f"Installing {self.name}...")
         sys.stdout.flush()
@@ -99,7 +99,7 @@ class GetAppCommand(Command):
     def _validate(self) -> None:
         import shutil
 
-        from pilot.core.app_validator import Validator
+        from pilot.core.app_validation import Validator
         from pilot.exceptions import AppValidationError
 
         try:
@@ -110,7 +110,7 @@ class GetAppCommand(Command):
             raise
 
     def _build(self) -> None:
-        from pilot.managers.python_env_manager import PythonEnvManager
+        from pilot.managers.python_environment import PythonEnvManager
 
         print(f"\nSetting up assets for {self.name}...")
         sys.stdout.flush()

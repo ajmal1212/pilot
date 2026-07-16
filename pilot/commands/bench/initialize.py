@@ -61,7 +61,7 @@ class InitCommand(Command):
     # ── init steps ─────────────────────────────────────────────────────────
 
     def _do_run(self) -> None:
-        from pilot.managers.python_env_manager import PythonEnvManager
+        from pilot.managers.python_environment import PythonEnvManager
 
         python_env_manager = PythonEnvManager(self.bench)
 
@@ -127,12 +127,12 @@ class InitCommand(Command):
         BenchTomlStore.for_bench(self.bench.path).write(self.bench.config)
 
     def _configure_redis(self) -> None:
-        from pilot.managers.redis_manager import RedisManager
+        from pilot.managers.redis import RedisManager
 
         RedisManager(self.bench.config.redis, self.bench).generate_configs()
 
     def _generate_process_config(self) -> None:
-        from pilot.managers.process_manager import ProcessManager
+        from pilot.managers.processes.local import ProcessManager
 
         ProcessManager.for_bench(self.bench).write_config()
 
@@ -149,9 +149,9 @@ class InitCommand(Command):
             BuildAdminCommand().run()
 
     def _install_system_packages(self) -> None:
-        from pilot.managers.python_env_manager import PythonEnvManager
-        from pilot.managers.redis_manager import RedisManager
-        from pilot.package_managers import get_package_manager
+        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.redis import RedisManager
+        from pilot.managers.packages import get_package_manager
 
         pkg = get_package_manager()
 
@@ -186,7 +186,7 @@ class InitCommand(Command):
         # need libpq headers for psycopg. install.sh provisions them once for the
         # whole host, so bench init only ever verifies them.
         from pilot.exceptions import BenchError
-        from pilot.platform import is_linux
+        from pilot.managers.platform import is_linux
 
         if not is_linux():
             return
@@ -202,11 +202,11 @@ class InitCommand(Command):
             )
 
     def _postgres_manager(self):
-        from pilot.managers.postgres_manager import PostgresManager
+        from pilot.managers.postgres import PostgresManager
 
         return PostgresManager(self.bench.config.postgres)
 
     def _mariadb_manager(self):
-        from pilot.managers.mariadb_manager import MariaDBManager
+        from pilot.managers.mariadb import MariaDBManager
 
         return MariaDBManager(self.bench.config.mariadb)

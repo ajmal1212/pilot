@@ -26,8 +26,8 @@ class BuildCommand(Command):
         self.force = force
 
     def run(self) -> None:
-        from pilot.managers.process_manager import ProcessManager
-        from pilot.managers.python_env_manager import PythonEnvManager
+        from pilot.managers.processes.local import ProcessManager
+        from pilot.managers.python_environment import PythonEnvManager
 
         manager = PythonEnvManager(self.bench)
         if self.force:

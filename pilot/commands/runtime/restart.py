@@ -42,8 +42,8 @@ class RestartCommand(Command):
 
         from typing import cast
 
-        from pilot.managers.process_manager import ProcessManager
-        from pilot.managers.process_managers.base import ManagedProcessManager
+        from pilot.managers.processes.local import ProcessManager
+        from pilot.managers.processes.base import ManagedProcessManager
 
         # production.enabled is already confirmed above, so for_bench() always
         # returns a ManagedProcessManager subclass here, never the plain base.

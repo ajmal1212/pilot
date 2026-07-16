@@ -34,8 +34,8 @@ def test_remove_noop_when_not_enabled(tmp_path: Path, capsys) -> None:
 
 def test_remove_disables_keeps_domain(tmp_path: Path) -> None:
     bench = _make_bench(tmp_path, enabled=True, pm="systemd")
-    with patch("pilot.managers.process_managers.systemd.SystemdProcessManager") as Sys, \
-         patch("pilot.managers.nginx_manager.NginxManager") as Nginx:
+    with patch("pilot.managers.processes.systemd.SystemdProcessManager") as Sys, \
+         patch("pilot.managers.nginx.NginxManager") as Nginx:
         Sys.return_value = MagicMock()
         Nginx.return_value = MagicMock()
         RemoveProductionCommand(bench).run()

@@ -24,7 +24,7 @@ from pilot.core.bench import Bench
 from pilot.exceptions import BenchAlreadyExistsError, BenchError
 from pilot.internal.atomic_file import exclusive_file_lock
 from pilot.loader import cli_root
-from pilot.managers.process_manager import ProcessManager
+from pilot.managers.processes.local import ProcessManager
 
 from ..api_contract import created_response, error_response, no_content_response
 
@@ -264,7 +264,7 @@ def _delete_bench_locked(target_dir: Path, toml_path: Path, name: str):
             503,
         )
     if target_config.production.enabled:
-        from pilot.platform import has_passwordless_sudo
+        from pilot.managers.platform import has_passwordless_sudo
 
         if not has_passwordless_sudo():
             return error_response(
@@ -274,7 +274,7 @@ def _delete_bench_locked(target_dir: Path, toml_path: Path, name: str):
             )
 
     try:
-        from pilot.platform import noninteractive_privileges
+        from pilot.managers.platform import noninteractive_privileges
 
         with noninteractive_privileges():
             DropBenchCommand(
@@ -421,7 +421,7 @@ def _create_bench_locked(
 
     production_parent = current_is_production(bench_root)
     if production_parent:
-        from pilot.platform import has_passwordless_sudo
+        from pilot.managers.platform import has_passwordless_sudo
 
         if not has_passwordless_sudo():
             return error_response(
@@ -455,20 +455,20 @@ def _create_bench_locked(
 
     if production_parent:
         try:
-            from pilot.managers.nginx_manager import NginxManager
-            from pilot.platform import noninteractive_privileges
+            from pilot.managers.nginx import NginxManager
+            from pilot.managers.platform import noninteractive_privileges
 
             with noninteractive_privileges():
                 bench = Bench(BenchTomlStore.for_bench(new_dir).read(), new_dir)
                 DomainRouteProvider(bench).register(admin_domain, admin_domain)
-                from pilot.managers.process_managers.base import ManagedProcessManager
+                from pilot.managers.processes.base import ManagedProcessManager
 
                 configured_pm = bench.config.production.process_manager
                 PM: type[ManagedProcessManager]
                 if configured_pm == "systemd":
-                    from pilot.managers.process_managers.systemd import SystemdProcessManager as PM
+                    from pilot.managers.processes.systemd import SystemdProcessManager as PM
                 else:
-                    from pilot.managers.process_managers.supervisor import SupervisorProcessManager as PM
+                    from pilot.managers.processes.supervisor import SupervisorProcessManager as PM
                 pm = PM(bench)
                 pm.start_admin()
                 # Just enough to make the wizard reachable at its domain (over plain HTTP).

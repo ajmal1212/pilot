@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from admin.backend.readers.database_reader import DatabaseReader, _parse_slow_query_log
-from pilot.managers.mariadb_manager import MariaDBManager
+from pilot.managers.mariadb import MariaDBManager
 from pilot.config.mariadb_config import MariaDBConfig
 
 

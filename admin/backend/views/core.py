@@ -18,7 +18,7 @@ from admin.backend.views.setup import wizard_marker_path
 from pilot.config.bench_config import BenchConfig
 from pilot.config.toml_store import BenchTomlStore
 from pilot.internal.atomic_file import exclusive_file_lock
-from pilot.platform import native_process_manager
+from pilot.managers.platform import native_process_manager
 
 core_bp = Blueprint("core", __name__)
 

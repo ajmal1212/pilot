@@ -19,7 +19,7 @@ def port_open(port: int) -> bool:
 def workload_running(bench_dir: Path, toml_path: Path) -> bool | None:
     """Whether a production bench's workload is currently running, or None if unknown."""
     from pilot.core.bench import Bench
-    from pilot.managers.process_manager import ProcessManager
+    from pilot.managers.processes.local import ProcessManager
 
     try:
         bench = Bench(BenchTomlStore(toml_path).read(), bench_dir)
@@ -31,7 +31,7 @@ def workload_running(bench_dir: Path, toml_path: Path) -> bool | None:
 def admin_running(bench_dir: Path, toml_path: Path) -> bool | None:
     """Whether a production bench's admin control plane is up, or None if unknown."""
     from pilot.core.bench import Bench
-    from pilot.managers.process_manager import ProcessManager
+    from pilot.managers.processes.local import ProcessManager
 
     try:
         bench = Bench(BenchConfig.from_file(toml_path), bench_dir)
@@ -43,7 +43,7 @@ def admin_running(bench_dir: Path, toml_path: Path) -> bool | None:
 def admin_cert_exists(bench_dir: Path, toml_path: Path) -> bool:
     """Whether the admin domain's TLS cert is in place."""
     from pilot.core.bench import Bench
-    from pilot.managers.nginx_manager import NginxManager
+    from pilot.managers.nginx import NginxManager
 
     try:
         bench = Bench(BenchTomlStore(toml_path).read(), bench_dir)

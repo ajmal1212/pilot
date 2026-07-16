@@ -1,4 +1,4 @@
-from pilot.commands.uninstall_app import UninstallAppCommand
+from pilot.commands.apps.uninstall import UninstallAppCommand
 
 from .base_task import BaseTask
 

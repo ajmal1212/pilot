@@ -2,7 +2,7 @@ import subprocess
 import sys
 
 from pilot.config.toml_store import BenchTomlStore
-from pilot.managers.python_env_manager import PythonEnvManager
+from pilot.managers.python_environment import PythonEnvManager
 from .base_task import BaseTask
 
 

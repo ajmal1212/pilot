@@ -23,7 +23,7 @@ class RunCommand(Command):
         self.bench = bench
 
     def run(self) -> None:
-        from pilot.managers.process_manager import ProcessManager
+        from pilot.managers.processes.local import ProcessManager
 
         initialized = (self.bench.path / "env" / "bin" / "python").exists()
         process_manager = self.bench.config.production.process_manager
@@ -51,11 +51,11 @@ class RunCommand(Command):
         # process manager. Pick by the configured manager rather than via the
         # factory, which gates on production.enabled.
         if process_manager == "systemd":
-            from pilot.managers.process_managers.systemd import SystemdProcessManager
+            from pilot.managers.processes.systemd import SystemdProcessManager
 
             manager = SystemdProcessManager(self.bench)
         else:
-            from pilot.managers.process_managers.supervisor import SupervisorProcessManager
+            from pilot.managers.processes.supervisor import SupervisorProcessManager
 
             manager = SupervisorProcessManager(self.bench)
 
@@ -134,7 +134,7 @@ class RunCommand(Command):
     def _start_wizard(self) -> None:
         from pilot.commands.admin.start import download_admin_frontend
         from pilot.loader import cli_root
-        from pilot.managers.admin_env_manager import AdminEnvManager
+        from pilot.managers.admin_environment import AdminEnvManager
 
         root = cli_root()
         admin_mgr = AdminEnvManager(root)

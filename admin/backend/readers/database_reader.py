@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pilot.managers.mariadb_manager import MariaDBManager
+from pilot.managers.mariadb import MariaDBManager
 
 from .tail_read import read_tail_text
 

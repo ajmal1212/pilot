@@ -30,7 +30,7 @@ class InstallAppTask(BaseTask):
             sys.exit(result.returncode)
 
         self._step("assets", f"Build assets for {self.app}")
-        from pilot.managers.python_env_manager import PythonEnvManager
+        from pilot.managers.python_environment import PythonEnvManager
         PythonEnvManager(self.bench).build_assets_for_app(app)
         self._step("done")
 

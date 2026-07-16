@@ -14,7 +14,7 @@ database_bp = Blueprint("database", __name__)
 
 
 def _get_mariadb_manager(bench_root):
-    from pilot.managers.mariadb_manager import MariaDBManager
+    from pilot.managers.mariadb import MariaDBManager
 
     config = BenchReader(bench_root).config()
     if config.db_type != "mariadb":

@@ -1,6 +1,6 @@
 import sys
 
-from pilot.commands.update import UpdateCommand
+from pilot.commands.runtime.update import UpdateCommand
 from pilot.exceptions import MigrateError
 from .base_task import BaseTask
 

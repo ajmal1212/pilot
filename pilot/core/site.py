@@ -44,7 +44,7 @@ class Site:
         run_command(cmd, cwd=self.bench.sites_path, stream_output=True)
 
     def _mariadb_db_args(self) -> list[str]:
-        from pilot.managers.mariadb_manager import MariaDBManager
+        from pilot.managers.mariadb import MariaDBManager
 
         mariadb = self.bench.config.mariadb
         socket_path = MariaDBManager(mariadb)._detect_socket()

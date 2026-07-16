@@ -201,7 +201,7 @@ def test_new_command_postgres_port_ignores_live_scan_on_macos(tmp_path: Path, mo
     monkeypatch.setattr("builtins.input", lambda _: "")
     # 5432 reads as live, which would normally push the picker to 5433+.
     monkeypatch.setattr(NewCommand, "_port_is_live", staticmethod(lambda port: port == 5432))
-    with patch("pilot.platform.is_macos", return_value=True):
+    with patch("pilot.managers.platform.is_macos", return_value=True):
         NewCommand(tmp_path / "benches" / "pg", "pg", db_type="postgres").run()
 
     with open(tmp_path / "benches" / "pg" / "bench.toml", "rb") as f:
@@ -250,7 +250,7 @@ def test_new_command_mariadb_port_ignores_live_scan_on_macos(tmp_path: Path, mon
     monkeypatch.setattr("builtins.input", lambda _: "")
     # 3306 reads as live, which would normally push the picker to 3307+.
     monkeypatch.setattr(NewCommand, "_port_is_live", staticmethod(lambda port: port == 3306))
-    with patch("pilot.platform.is_macos", return_value=True):
+    with patch("pilot.managers.platform.is_macos", return_value=True):
         NewCommand(tmp_path / "benches" / "m", "m").run()
 
     with open(tmp_path / "benches" / "m" / "bench.toml", "rb") as f:
@@ -510,7 +510,7 @@ def test_remove_app_full_flow_no_sites(tmp_path: Path) -> None:
     (bench.sites_path / "apps.txt").write_text("frappe\nerpnext\n")
 
     cmd = RemoveAppCommand(bench, "erpnext", skip_confirm=True)
-    with patch("pilot.managers.python_env_manager.PythonEnvManager.uninstall_app"):
+    with patch("pilot.managers.python_environment.PythonEnvManager.uninstall_app"):
         cmd.run()
 
     assert not app_dir.exists()
@@ -620,7 +620,7 @@ def test_build_command_force_calls_frappe_build(tmp_path: Path) -> None:
     bench = make_bench(tmp_path)
     bench.create_directories()
 
-    with patch("pilot.managers.python_env_manager.PythonEnvManager.build_assets") as mock_build:
+    with patch("pilot.managers.python_environment.PythonEnvManager.build_assets") as mock_build:
         BuildCommand(bench, force=True).run()
         mock_build.assert_called_once()
 
@@ -631,7 +631,7 @@ def test_build_command_default_uses_prebuilt_per_app(tmp_path: Path) -> None:
     bench = make_bench(tmp_path)
     bench.create_directories()
 
-    with patch("pilot.managers.python_env_manager.PythonEnvManager.build_assets_for_app") as mock_build:
+    with patch("pilot.managers.python_environment.PythonEnvManager.build_assets_for_app") as mock_build:
         with patch.object(bench, "apps", return_value=[]):
             BuildCommand(bench).run()
             mock_build.assert_not_called()  # no apps → nothing called
@@ -650,7 +650,7 @@ def test_requirements_skips_app_without_python_setup_files(tmp_path: Path) -> No
     (app_dir / ".git").mkdir()
     # No pyproject.toml or setup.py
 
-    with patch("pilot.managers.python_env_manager.PythonEnvManager._ensure_uv", return_value="uv"), \
+    with patch("pilot.managers.python_environment.PythonEnvManager._ensure_uv", return_value="uv"), \
          patch("pilot.utils.run_command") as mock_rc:
         SetupRequirementsCommand(bench)._install_python()
         mock_rc.assert_not_called()
@@ -666,7 +666,7 @@ def test_requirements_installs_app_with_pyproject_toml(tmp_path: Path) -> None:
     (app_dir / ".git").mkdir()
     (app_dir / "pyproject.toml").write_text("[project]\nname = 'myapp'\n")
 
-    with patch("pilot.managers.python_env_manager.PythonEnvManager._ensure_uv", return_value="uv"), \
+    with patch("pilot.managers.python_environment.PythonEnvManager._ensure_uv", return_value="uv"), \
          patch("pilot.utils.run_command") as mock_rc:
         SetupRequirementsCommand(bench)._install_python()
         mock_rc.assert_called_once()
@@ -682,7 +682,7 @@ def test_requirements_installs_app_with_setup_py(tmp_path: Path) -> None:
     (app_dir / ".git").mkdir()
     (app_dir / "setup.py").write_text("from setuptools import setup; setup()\n")
 
-    with patch("pilot.managers.python_env_manager.PythonEnvManager._ensure_uv", return_value="uv"), \
+    with patch("pilot.managers.python_environment.PythonEnvManager._ensure_uv", return_value="uv"), \
          patch("pilot.utils.run_command") as mock_rc:
         SetupRequirementsCommand(bench)._install_python()
         mock_rc.assert_called_once()
@@ -729,7 +729,7 @@ def test_upgrade_command_installs_admin_python_deps() -> None:
     with patch("pilot.loader.cli_root", return_value=Path("/tmp/pilot")), \
          patch("pilot.utils.run_command") as mock_run_command, \
          patch("pilot.commands.admin.start.download_admin_frontend", return_value=True), \
-         patch("pilot.managers.admin_env_manager.AdminEnvManager") as mock_admin_env:
+         patch("pilot.managers.admin_environment.AdminEnvManager") as mock_admin_env:
         UpgradeCommand().run()
 
     mock_run_command.assert_called_once_with(["git", "-C", "/tmp/pilot", "pull"], stream_output=True)
@@ -758,7 +758,7 @@ def test_update_command_skips_confirm_when_bench_not_running(tmp_path: Path) -> 
     bench.create_directories()
     cmd = UpdateCommand(bench, skip_confirm=False)
 
-    with patch("pilot.managers.process_manager.ProcessManager.is_running", return_value=False):
+    with patch("pilot.managers.processes.local.ProcessManager.is_running", return_value=False):
         cmd._warn_if_running()  # no raise, no prompt
 
 
@@ -979,7 +979,7 @@ def test_restart_production_incomplete_prints_repair(tmp_path: Path, capsys: pyt
     bench = make_bench(tmp_path)
     bench.config.production.enabled = True
     bench.config.production.process_manager = "systemd"
-    with patch("pilot.managers.process_manager.ProcessManager.for_bench") as create:
+    with patch("pilot.managers.processes.local.ProcessManager.for_bench") as create:
         mgr = MagicMock()
         mgr.is_configured.return_value = False
         create.return_value = mgr
@@ -995,7 +995,7 @@ def test_restart_production_restarts_when_configured(tmp_path: Path) -> None:
     bench = make_bench(tmp_path)
     bench.config.production.enabled = True
     bench.config.production.process_manager = "supervisor"
-    with patch("pilot.managers.process_manager.ProcessManager.for_bench") as create:
+    with patch("pilot.managers.processes.local.ProcessManager.for_bench") as create:
         mgr = MagicMock()
         mgr.is_configured.return_value = True
         create.return_value = mgr
@@ -1027,7 +1027,7 @@ def test_ls_lists_benches_with_mode_and_address(tmp_path: Path, capsys: pytest.C
 
 def test_ls_state_admin_active_when_workload_down_but_admin_up(tmp_path: Path) -> None:
     from pilot.commands.bench.list import ListCommand
-    from pilot.managers.process_manager import ProcessManager
+    from pilot.managers.processes.local import ProcessManager
 
     bench = make_bench(tmp_path)
     with patch.object(ProcessManager, "for_bench") as create:
@@ -1061,7 +1061,7 @@ def test_start_dev_uninitialized_runs_wizard(tmp_path: Path) -> None:
     bench = make_bench(tmp_path)  # no process manager → dev
     with patch.object(RunCommand, "_start_wizard") as wizard, \
          patch.object(RunCommand, "_rebuild_config") as rebuild, \
-         patch("pilot.managers.process_manager.ProcessManager.stop"):
+         patch("pilot.managers.processes.local.ProcessManager.stop"):
         RunCommand(bench).run()
     wizard.assert_called_once()
     rebuild.assert_not_called()
@@ -1072,9 +1072,9 @@ def test_start_dev_initialized_stops_then_starts(tmp_path: Path) -> None:
 
     bench = make_bench(tmp_path)  # dev
     _mark_initialized(bench)
-    with patch("pilot.managers.process_manager.ProcessManager.stop") as stop, \
+    with patch("pilot.managers.processes.local.ProcessManager.stop") as stop, \
          patch.object(RunCommand, "_rebuild_config") as rebuild, \
-         patch("pilot.managers.process_manager.ProcessManager.start") as start:
+         patch("pilot.managers.processes.local.ProcessManager.start") as start:
         RunCommand(bench).run()
     stop.assert_called_once()
     rebuild.assert_called_once()
@@ -1087,10 +1087,10 @@ def test_start_dev_watch_admin_js_from_config_skips_static_admin_build(tmp_path:
     bench = make_bench(tmp_path)
     bench.config.watch_admin_js = True
     _mark_initialized(bench)
-    with patch("pilot.managers.process_manager.ProcessManager.stop"), \
+    with patch("pilot.managers.processes.local.ProcessManager.stop"), \
          patch.object(RunCommand, "_rebuild_config"), \
          patch.object(RunCommand, "_ensure_admin_dist") as ensure_admin_dist, \
-         patch("pilot.managers.process_manager.ProcessManager.start"):
+         patch("pilot.managers.processes.local.ProcessManager.start"):
         RunCommand(bench).run()
 
     ensure_admin_dist.assert_not_called()
@@ -1104,7 +1104,7 @@ def test_start_production_uninitialized_brings_up_admin(tmp_path: Path) -> None:
     bench = make_bench(tmp_path)
     bench.config.production.process_manager = "systemd"
     bench.config.admin.domain = "admin.example.com"
-    with patch("pilot.managers.process_managers.systemd.SystemdProcessManager.start_admin") as start_admin, \
+    with patch("pilot.managers.processes.systemd.SystemdProcessManager.start_admin") as start_admin, \
          patch.object(RunCommand, "_rebuild_config") as rebuild, \
          patch.object(RunCommand, "_start_wizard") as wizard:
         RunCommand(bench).run()
@@ -1119,9 +1119,9 @@ def test_start_production_initialized_starts_manager(tmp_path: Path) -> None:
     bench = make_bench(tmp_path)
     bench.config.production.process_manager = "systemd"
     _mark_initialized(bench)
-    with patch("pilot.managers.process_managers.systemd.SystemdProcessManager.is_configured", return_value=True), \
+    with patch("pilot.managers.processes.systemd.SystemdProcessManager.is_configured", return_value=True), \
          patch.object(RunCommand, "_rebuild_config") as rebuild, \
-         patch("pilot.managers.process_managers.systemd.SystemdProcessManager.start") as start:
+         patch("pilot.managers.processes.systemd.SystemdProcessManager.start") as start:
         RunCommand(bench).run()
     rebuild.assert_called_once()
     start.assert_called_once()

@@ -10,7 +10,7 @@ except ImportError:  # Python 3.11
     def override(func):
         return func
 
-from pilot.managers.process_manager import ProcessDefinition, ProcessManager
+from pilot.managers.processes.local import ProcessDefinition, ProcessManager
 
 
 class UnitGroup(Enum):

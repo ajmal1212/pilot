@@ -14,8 +14,8 @@ from typing import TYPE_CHECKING
 
 from pilot.exceptions import BenchError
 from pilot.loader import cli_root
-from pilot.managers.admin_env_manager import AdminEnvManager
-from pilot.managers.gunicorn_manager import GunicornManager
+from pilot.managers.admin_environment import AdminEnvManager
+from pilot.managers.gunicorn import GunicornManager
 
 if TYPE_CHECKING:
     from pilot.core.bench import Bench
@@ -72,10 +72,10 @@ class ProcessManager:
         if not prod.enabled:
             return ProcessManager(bench)
         if prod.process_manager == "systemd":
-            from pilot.managers.process_managers.systemd import SystemdProcessManager
+            from pilot.managers.processes.systemd import SystemdProcessManager
 
             return SystemdProcessManager(bench)
-        from pilot.managers.process_managers.supervisor import SupervisorProcessManager
+        from pilot.managers.processes.supervisor import SupervisorProcessManager
 
         return SupervisorProcessManager(bench)
 
@@ -83,8 +83,8 @@ class ProcessManager:
     def detect_running(cls, bench: "Bench") -> "ProcessManager":
         # Probe runtime state, not config presence, so a lingering config from a
         # switched manager can't mislead. Falls back to for_bench when none runs.
-        from pilot.managers.process_managers.supervisor import SupervisorProcessManager
-        from pilot.managers.process_managers.systemd import SystemdProcessManager
+        from pilot.managers.processes.supervisor import SupervisorProcessManager
+        from pilot.managers.processes.systemd import SystemdProcessManager
 
         for manager in (SystemdProcessManager(bench), SupervisorProcessManager(bench)):
             if manager.is_running():
@@ -110,7 +110,7 @@ class ProcessManager:
         GunicornManager(self.bench).generate_config()
 
     def _ensure_redis_config(self) -> None:
-        from pilot.managers.redis_manager import RedisManager
+        from pilot.managers.redis import RedisManager
 
         RedisManager(self.bench.config.redis, self.bench).generate_configs()
 
@@ -379,7 +379,7 @@ class ProcessManager:
         ]
 
     def _redis_definition(self, name: str, config_filename: str) -> ProcessDefinition:
-        from pilot.managers.redis_manager import redis_server_binary
+        from pilot.managers.redis import redis_server_binary
 
         return ProcessDefinition(
             name=name,

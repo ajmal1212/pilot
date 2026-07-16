@@ -10,7 +10,7 @@ from pilot.config.site_config import SiteConfig
 from pilot.core.bench import Bench
 from pilot.core.domains import DomainRouteProvider
 from pilot.exceptions import BenchError
-from pilot.managers.nginx_manager import NginxManager
+from pilot.managers.nginx import NginxManager
 
 
 _BENCH_DATA: dict = {

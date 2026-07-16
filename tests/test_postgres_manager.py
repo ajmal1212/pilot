@@ -6,10 +6,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from pilot.config.postgres_config import PostgresConfig
-from pilot.managers.postgres_manager import PostgresManager
+from pilot.managers.postgres import PostgresManager
 
-MODULE = "pilot.managers.postgres_manager"
-BASE_MODULE = "pilot.managers.user_owned_db_manager"
+MODULE = "pilot.managers.postgres"
+BASE_MODULE = "pilot.managers.user_database"
 
 
 def _mgr(**kwargs) -> PostgresManager:

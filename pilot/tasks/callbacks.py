@@ -50,10 +50,10 @@ def _drop_failed_site(bench_root: Path, site_name: str, site_path: Path) -> bool
     if not (site_path / "site_config.json").is_file():
         return True
     try:
-        from pilot.commands.drop_site import DropSiteCommand
+        from pilot.commands.sites.delete import DropSiteCommand
         from pilot.config.toml_store import BenchTomlStore
         from pilot.core.bench import Bench
-        from pilot.platform import noninteractive_privileges
+        from pilot.managers.platform import noninteractive_privileges
 
         config = BenchTomlStore.for_bench(bench_root).read()
         bench = Bench(config, bench_root)

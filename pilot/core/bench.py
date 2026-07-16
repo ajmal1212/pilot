@@ -207,7 +207,7 @@ class Bench:
         RestartCommand(self).run()
 
     def reload_workers(self, web_only: bool = False, raises: bool = False):
-        from pilot.managers.process_manager import ProcessManager
+        from pilot.managers.processes.local import ProcessManager
 
         try:
             ProcessManager.for_bench(self).reload_workers(web_only)

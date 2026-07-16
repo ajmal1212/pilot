@@ -21,7 +21,7 @@ from pilot.tasks.manager.task_state import TERMINAL_TASK_STATUSES, TaskStatus
 from pilot.tasks.manager.task_store import TaskStore
 from pilot.tasks.timing import CANCEL_GRACE_SECONDS, PROCESS_EXIT_POLL_SECONDS
 from pilot.exceptions import TaskNotFoundError, TaskNotRunningError
-from pilot.platform import NONINTERACTIVE_PRIVILEGES_ENV
+from pilot.managers.platform import NONINTERACTIVE_PRIVILEGES_ENV
 
 _READY_FD_ENV = "BENCH_TASK_READY_FD"
 _LAUNCH_ID_ENV = "BENCH_TASK_LAUNCH_ID"

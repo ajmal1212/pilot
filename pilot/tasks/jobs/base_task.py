@@ -9,7 +9,7 @@ from pathlib import Path
 from pilot.config.toml_store import BenchTomlStore
 from pilot.core.bench import Bench
 from pilot.exceptions import BenchError
-from pilot.platform import has_passwordless_sudo
+from pilot.managers.platform import has_passwordless_sudo
 
 
 def _apply_task_secrets(args: argparse.Namespace) -> None:

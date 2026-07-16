@@ -7,9 +7,9 @@ from pathlib import Path
 from string import Template
 from typing import TYPE_CHECKING
 
-from pilot.managers.gunicorn_manager import GunicornManager
-from pilot.package_managers import get_package_manager
-from pilot.platform import (
+from pilot.managers.gunicorn import GunicornManager
+from pilot.managers.packages import get_package_manager
+from pilot.managers.platform import (
     _privileged,
     default_nginx_config_dir,
     is_linux,
@@ -100,7 +100,7 @@ class NginxManager:
         """Edge-proxy IPs the domain provider (if any) puts in front of this bench.
         Looked up once; [] when no provider is installed, i.e. direct exposure."""
         if self._proxy_servers_cache is None:
-            from pilot.core.domain_controller import DomainRouteProvider
+            from pilot.core.domains import DomainRouteProvider
 
             self._proxy_servers_cache = DomainRouteProvider.proxy_servers()
         return self._proxy_servers_cache
@@ -681,7 +681,7 @@ class NginxManager:
         """True if a cert exists and, when the site has public domains, its SAN list
         covers every one — so a failed --expand can't serve a stale cert over HTTPS.
         Pure-.localhost sites have no public exposure, so cert existence is enough."""
-        from pilot.managers.letsencrypt_manager import cert_covers, public_domains
+        from pilot.managers.letsencrypt import cert_covers, public_domains
 
         if not self.cert_exists(site):
             return False

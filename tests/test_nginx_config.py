@@ -9,7 +9,7 @@ from pilot.config.bench_config import BenchConfig
 from pilot.config.site_config import SiteConfig
 from pilot.core.bench import Bench
 from pilot.exceptions import CommandError
-from pilot.managers.nginx_manager import NginxManager
+from pilot.managers.nginx import NginxManager
 
 
 _BASE_DATA: dict = {
@@ -511,7 +511,7 @@ def test_install_config_rolls_back_symlink_when_reload_fails(tmp_path: Path) -> 
     symlink_path = tmp_path / "test-bench.conf"
 
     with patch.object(manager, "reload", side_effect=CommandError("nginx -t failed", returncode=1)), \
-         patch("pilot.managers.nginx_manager.run_command") as mock_run:
+         patch("pilot.managers.nginx.run_command") as mock_run:
         with pytest.raises(CommandError):
             manager._reload_or_rollback(symlink_path)
 
@@ -532,7 +532,7 @@ def test_prune_dangling_symlinks_removes_only_broken_ones(tmp_path: Path) -> Non
     (nginx_dir / "dropped-bench.conf").symlink_to(tmp_path / "deleted-bench" / "include.conf")
     (nginx_dir / "00-bench-default.conf").write_text("server {}\n")
 
-    with patch("pilot.managers.nginx_manager.run_command") as mock_run:
+    with patch("pilot.managers.nginx.run_command") as mock_run:
         NginxManager._prune_dangling_symlinks(nginx_dir)
 
     mock_run.assert_called_once()

@@ -5,8 +5,8 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from pilot.config.mariadb_config import MariaDBConfig
-from pilot.managers.user_owned_db_manager import UserOwnedDBManager
-from pilot.platform import is_macos, which
+from pilot.managers.user_database import UserOwnedDBManager
+from pilot.managers.platform import is_macos, which
 from pilot.utils import run_command
 
 # One MariaDB server per bench user, shared by every bench they own — rootless,

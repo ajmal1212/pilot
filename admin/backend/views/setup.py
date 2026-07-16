@@ -22,8 +22,8 @@ from pilot.exceptions import TaskConflictError, TaskNotFoundError
 from pilot.internal.atomic_file import exclusive_file_lock, replace_private_text_locked
 
 if typing.TYPE_CHECKING:
-    from pilot.managers.mariadb_manager import MariaDBManager
-    from pilot.managers.postgres_manager import PostgresManager
+    from pilot.managers.mariadb import MariaDBManager
+    from pilot.managers.postgres import PostgresManager
 
 setup_bp = Blueprint("setup", __name__)
 
@@ -177,7 +177,7 @@ def _database_validation(bench_root: Path, data: dict):
         raise ValueError("host and admin_user are required for an existing server.")
 
     if engine == "mariadb":
-        from pilot.managers.mariadb_manager import MariaDBManager
+        from pilot.managers.mariadb import MariaDBManager
 
         config = _mariadb_config(
             bench_root,
@@ -190,7 +190,7 @@ def _database_validation(bench_root: Path, data: dict):
         return engine, MariaDBManager(config), password, existing
 
     from pilot.config.postgres_config import PostgresConfig
-    from pilot.managers.postgres_manager import PostgresManager
+    from pilot.managers.postgres import PostgresManager
 
     config = PostgresConfig(
         host=host,
@@ -413,7 +413,7 @@ _PASSWORD_KEYS = ("admin_password", "mariadb_password", "postgres_password")
 
 
 def _read_defaults(bench_root: Path) -> dict:
-    from pilot.platform import is_linux, native_process_manager
+    from pilot.managers.platform import is_linux, native_process_manager
 
     # This is a read endpoint the wizard polls before login — it must never echo
     # a DB password back, default or real, whether or not bench.toml has one set.

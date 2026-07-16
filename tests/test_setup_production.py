@@ -14,7 +14,7 @@ from pilot.commands.setup.production import SetupProductionCommand
 from pilot.config.bench_config import BenchConfig
 from pilot.core.bench import Bench
 from pilot.exceptions import BenchError
-from pilot.managers.letsencrypt_manager import needs_letsencrypt
+from pilot.managers.letsencrypt import needs_letsencrypt
 
 
 def _make_bench(tmp_path: Path, name: str = "prod", *, admin_domain: str = "prod-admin.localhost",

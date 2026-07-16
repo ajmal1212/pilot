@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 
 from pilot.commands.base import Command
 from pilot.exceptions import BenchError
-from pilot.platform import _privileged
 
 if TYPE_CHECKING:
     from pilot.core.bench import Bench
@@ -51,7 +50,7 @@ class DropBenchCommand(Command):
     def _release_admin_domain(self) -> None:
         """Release the admin domain that setup-production registered with the domain
         provider, so dropping the bench leaves no dead route at the edge."""
-        from pilot.core.domain_controller import DomainRouteProvider
+        from pilot.core.domains import DomainRouteProvider
 
         domain = self.bench.config.admin.domain
         if domain:
@@ -98,6 +97,8 @@ class DropBenchCommand(Command):
         a no-op, and safe to call unconditionally, for any bench that was
         never volume-backed.
         """
+        from pilot.managers.platform import _privileged
+
         try:
             is_mounted = target.is_mount()
         except OSError:

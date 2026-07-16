@@ -15,8 +15,8 @@ from pilot.config.redis_config import RedisConfig
 from pilot.config.worker_config import WorkerConfig, WorkerGroup
 from pilot.core.bench import Bench
 from pilot.exceptions import ConfigError
-from pilot.managers.gunicorn_manager import GunicornManager
-from pilot.managers.process_manager import ProcessManager
+from pilot.managers.gunicorn import GunicornManager
+from pilot.managers.processes.local import ProcessManager
 
 
 def make_bench(tmp_path: Path, gunicorn: GunicornConfig | None = None) -> Bench:
@@ -206,13 +206,13 @@ def test_generate_config_writes_gunicorn_config(tmp_path: Path) -> None:
 
 
 def test_supervisor_generate_config_writes_gunicorn_config(tmp_path: Path) -> None:
-    from pilot.managers.process_managers.supervisor import SupervisorProcessManager
+    from pilot.managers.processes.supervisor import SupervisorProcessManager
 
     bench = make_bench(tmp_path)
     bench.config_path.mkdir(parents=True, exist_ok=True)
     manager = SupervisorProcessManager(bench)
 
-    with patch("pilot.managers.admin_env_manager.AdminEnvManager"), \
+    with patch("pilot.managers.admin_environment.AdminEnvManager"), \
          patch.object(manager, "_prod_process_definitions", return_value=[]):
         manager.write_config()
 
@@ -221,13 +221,13 @@ def test_supervisor_generate_config_writes_gunicorn_config(tmp_path: Path) -> No
 
 
 def test_systemd_generate_config_writes_gunicorn_config(tmp_path: Path) -> None:
-    from pilot.managers.process_managers.systemd import SystemdProcessManager
+    from pilot.managers.processes.systemd import SystemdProcessManager
 
     bench = make_bench(tmp_path)
     bench.config_path.mkdir(parents=True, exist_ok=True)
     manager = SystemdProcessManager(bench)
 
-    with patch("pilot.managers.admin_env_manager.AdminEnvManager"), \
+    with patch("pilot.managers.admin_environment.AdminEnvManager"), \
          patch.object(manager, "_prod_process_definitions", return_value=[]):
         manager.write_config()
 
@@ -238,7 +238,7 @@ def test_systemd_generate_config_writes_gunicorn_config(tmp_path: Path) -> None:
 
 
 def test_nginx_upstream_uses_gunicorn_bind(tmp_path: Path) -> None:
-    from pilot.managers.nginx_manager import NginxManager
+    from pilot.managers.nginx import NginxManager
 
     config = BenchConfig._from_dict({
         "bench": {"name": "test-bench", "python": "3.14", "http_port": 9000},
@@ -419,7 +419,7 @@ def test_production_definitions_do_not_add_a_separate_task_worker(
 
 
 def test_supervisor_web_program_has_long_stopwaitsecs_in_companion_mode(tmp_path: Path) -> None:
-    from pilot.managers.process_managers.supervisor import SupervisorProcessManager, SupervisorRenderer
+    from pilot.managers.processes.supervisor import SupervisorProcessManager, SupervisorRenderer
 
     config = BenchConfig._from_dict({
         "bench": {"name": "test-bench", "python": "3.14"},
@@ -439,7 +439,7 @@ def test_supervisor_web_program_has_long_stopwaitsecs_in_companion_mode(tmp_path
 
 
 def test_systemd_web_service_has_long_timeout_in_companion_mode(tmp_path: Path) -> None:
-    from pilot.managers.process_managers.systemd import SystemdProcessManager, SystemdRenderer
+    from pilot.managers.processes.systemd import SystemdProcessManager, SystemdRenderer
 
     config = BenchConfig._from_dict({
         "bench": {"name": "test-bench", "python": "3.14"},
@@ -458,8 +458,8 @@ def test_systemd_web_service_has_long_timeout_in_companion_mode(tmp_path: Path) 
 
 
 def test_malloc_arena_max_in_units(tmp_path: Path) -> None:
-    from pilot.managers.process_managers.supervisor import SupervisorRenderer
-    from pilot.managers.process_managers.systemd import SystemdProcessManager, SystemdRenderer
+    from pilot.managers.processes.supervisor import SupervisorRenderer
+    from pilot.managers.processes.systemd import SystemdProcessManager, SystemdRenderer
 
     bench = make_bench(tmp_path, gunicorn=GunicornConfig())  # default arena 2
     systemd = SystemdProcessManager(bench)

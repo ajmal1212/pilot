@@ -13,7 +13,7 @@ from pilot.core.app import App, RevisionPin
 from pilot.core.bench import Bench
 from pilot.core.site import Site
 from pilot.exceptions import BenchError
-from pilot.managers.process_manager import ProcessManager
+from pilot.managers.processes.local import ProcessManager
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -463,7 +463,7 @@ def test_honcho_start_writes_per_process_pid_files(tmp_path: Path) -> None:
     def fake_popen(cmd, **kwargs):
         return fake_proc
 
-    with patch("pilot.managers.process_manager.subprocess.Popen", side_effect=fake_popen):
+    with patch("pilot.managers.processes.local.subprocess.Popen", side_effect=fake_popen):
         with patch.object(process_manager, "_stop_all"):
             for pd in process_manager._process_definitions():
                 proc = fake_popen(pd.argv)
@@ -514,7 +514,7 @@ def test_site_create_postgres_builds_db_args(tmp_path: Path, monkeypatch: pytest
 def test_site_create_mariadb_when_bench_is_mariadb(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     bench = make_bench(tmp_path)  # bench db_type defaults to mariadb
     captured = _capture_site_cmd(monkeypatch)
-    monkeypatch.setattr("pilot.managers.mariadb_manager.MariaDBManager._detect_socket", lambda self: "")
+    monkeypatch.setattr("pilot.managers.mariadb.MariaDBManager._detect_socket", lambda self: "")
 
     Site(SiteConfig(name="mdb.localhost", apps=["frappe"], admin_password="secret"), bench).create()
 

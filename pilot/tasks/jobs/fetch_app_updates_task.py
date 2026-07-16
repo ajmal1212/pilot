@@ -2,7 +2,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TYPE_CHECKING
 
-from pilot.core.marketplace import Marketplace
+from pilot.integrations.marketplace import Marketplace
 
 from .base_task import BaseTask
 

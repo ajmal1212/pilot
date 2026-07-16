@@ -83,7 +83,7 @@ class RemoveAppCommand(Command):
         apps_txt.write_text("\n".join(lines) + ("\n" if lines else ""))
 
     def _pip_uninstall(self) -> None:
-        from pilot.managers.python_env_manager import PythonEnvManager
+        from pilot.managers.python_environment import PythonEnvManager
 
         print(f"Removing '{self.app_name}' from Python environment...")
         sys.stdout.flush()

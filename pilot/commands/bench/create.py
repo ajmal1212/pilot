@@ -167,7 +167,7 @@ class NewCommand(Command):
         `brew services`.
         """
         from pilot.config.mariadb_config import MariaDBConfig
-        from pilot.platform import is_macos
+        from pilot.managers.platform import is_macos
 
         port = MariaDBConfig().port
         if is_macos():
@@ -204,7 +204,7 @@ class NewCommand(Command):
         `brew services`
         """
         from pilot.config.postgres_config import PostgresConfig
-        from pilot.platform import is_macos
+        from pilot.managers.platform import is_macos
 
         port = PostgresConfig().port
         if is_macos():

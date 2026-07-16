@@ -30,7 +30,7 @@ class DropSiteCommand:
         """Hostnames this site claimed at the provider — its own name (the route a
         wildcard create registers) plus its custom domains — captured before the
         drop removes the site config so nothing is left dangling at the edge."""
-        from pilot.core.domain_controller import DomainRouteProvider
+        from pilot.core.domains import DomainRouteProvider
 
         if not (self.bench.sites_path / self.name / "site_config.json").exists():
             return []
@@ -42,7 +42,7 @@ class DropSiteCommand:
         site is already gone so it must not turn a successful drop into an error."""
         if not domains:
             return
-        from pilot.core.domain_controller import DomainRouteProvider
+        from pilot.core.domains import DomainRouteProvider
 
         routes = DomainRouteProvider(self.bench)
         for domain in domains:
@@ -58,7 +58,7 @@ class DropSiteCommand:
     def _reload_nginx(self) -> None:
         if not self.bench.config.production.enabled:
             return
-        from pilot.managers.nginx_manager import NginxManager
+        from pilot.managers.nginx import NginxManager
         mgr = NginxManager(self.bench)
         if not mgr.is_installed():
             return

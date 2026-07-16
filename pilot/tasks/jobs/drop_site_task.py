@@ -1,4 +1,4 @@
-from pilot.commands.drop_site import DropSiteCommand
+from pilot.commands.sites.delete import DropSiteCommand
 from .base_task import BaseTask
 
 

@@ -14,8 +14,8 @@ from pilot.config.s3_config import S3Config
 from pilot.config.toml_store import BenchTomlStore
 from pilot.config.worker_config import WorkerGroup
 from pilot.core.bench import Bench
-from pilot.managers.redis_manager import RedisManager
-from pilot.platform import is_linux, native_process_manager
+from pilot.managers.redis import RedisManager
+from pilot.managers.platform import is_linux, native_process_manager
 
 settings_bp = Blueprint("settings", __name__)
 audit_bp = Blueprint("audit", __name__)
@@ -302,8 +302,8 @@ def _non_admin_supervisor_programs(conf: Path, bench_name: str) -> list[str]:
 
 def _regenerate_configs(bench_root: Path, config: BenchConfig) -> None:
     from pilot.core.bench import Bench
-    from pilot.managers.process_manager import ProcessManager
-    from pilot.managers.redis_manager import RedisManager
+    from pilot.managers.processes.local import ProcessManager
+    from pilot.managers.redis import RedisManager
 
     bench = Bench(config, bench_root)
     RedisManager(config.redis, bench).generate_configs()
@@ -315,7 +315,7 @@ def _regenerate_nginx(bench_root: Path, config: BenchConfig) -> None:
     of `setup production`, with no process-manager/workload restart. Applies the
     firewall allow/deny rules live."""
     from pilot.core.bench import Bench
-    from pilot.managers.nginx_manager import NginxManager
+    from pilot.managers.nginx import NginxManager
 
     bench = Bench(config, bench_root)
     manager = NginxManager(bench)
@@ -378,9 +378,9 @@ def _restart_systemd(manager) -> bool:
 
 def _do_restart(bench_root: Path, config: BenchConfig) -> bool:
     from pilot.core.bench import Bench
-    from pilot.managers.process_manager import ProcessManager
-    from pilot.managers.process_managers.supervisor import SupervisorProcessManager
-    from pilot.managers.process_managers.systemd import SystemdProcessManager
+    from pilot.managers.processes.local import ProcessManager
+    from pilot.managers.processes.supervisor import SupervisorProcessManager
+    from pilot.managers.processes.systemd import SystemdProcessManager
 
     bench = Bench(config, bench_root)
     manager = ProcessManager.detect_running(bench)

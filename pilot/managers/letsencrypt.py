@@ -4,8 +4,8 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pilot.package_managers import get_package_manager
-from pilot.platform import _privileged
+from pilot.managers.packages import get_package_manager
+from pilot.managers.platform import _privileged
 from pilot.utils import run_command
 
 if TYPE_CHECKING:
@@ -89,7 +89,7 @@ class LetsEncryptManager:
         run_command(_privileged(["mkdir", "-p", str(self.bench.config.letsencrypt.webroot_path)]))
 
     def obtain(self, site: "SiteConfig") -> None:
-        from pilot.managers.nginx_manager import NginxManager
+        from pilot.managers.nginx import NginxManager
 
         domains = public_domains(site)
         if not domains:
@@ -150,7 +150,7 @@ class LetsEncryptManager:
             print(f"Certificate issuance failed for: {', '.join(failed)}. These stay on HTTP.")
 
     def obtain_admin(self) -> None:
-        from pilot.managers.nginx_manager import NginxManager
+        from pilot.managers.nginx import NginxManager
 
         nginx_manager = NginxManager(self.bench)
         domain = self.bench.config.admin.domain
@@ -177,7 +177,7 @@ class LetsEncryptManager:
         return cert_covers(cert_file, domains)
 
     def _is_near_expiry(self, site: "SiteConfig") -> bool:
-        from pilot.managers.nginx_manager import NginxManager
+        from pilot.managers.nginx import NginxManager
 
         nginx_manager = NginxManager(self.bench)
         return self._is_near_expiry_cert(nginx_manager.cert_path(site))

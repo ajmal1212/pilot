@@ -1,4 +1,4 @@
-from pilot.commands.get_app import GetAppCommand
+from pilot.commands.apps.download import GetAppCommand
 from .base_task import BaseTask
 from .marketplace_fetcher import MarketplaceFetcher
 

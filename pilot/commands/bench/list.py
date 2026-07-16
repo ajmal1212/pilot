@@ -89,7 +89,7 @@ class ListCommand(Command):
         when only the (socket-activated) admin control plane is up — e.g. a bench
         provisioned but not yet set up — and 'stopped' otherwise. A dev bench is
         'running' iff its foreground admin is reachable."""
-        from pilot.managers.process_manager import ProcessManager
+        from pilot.managers.processes.local import ProcessManager
 
         try:
             if not production:

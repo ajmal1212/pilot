@@ -6,15 +6,16 @@ from unittest.mock import patch
 
 import pytest
 
-from pilot import package_managers, platform
-from pilot.package_managers import (
+from pilot.managers import packages as package_managers
+from pilot.managers import platform
+from pilot.managers.packages import (
     AptPackageManager,
     BrewPackageManager,
     DnfPackageManager,
     PacmanPackageManager,
     get_package_manager,
 )
-from pilot.platform import Distro
+from pilot.managers.platform import Distro
 
 
 def _write_os_release(tmp_path: Path, monkeypatch, content: str) -> None:
@@ -175,7 +176,7 @@ def test_install_uses_sudo_when_not_root(monkeypatch) -> None:
 
 
 def test_install_node_uses_brew_on_macos(monkeypatch) -> None:
-    from pilot.managers import python_env_manager as module
+    from pilot.managers import python_environment as module
 
     manager = module.PythonEnvManager(bench=None)
     commands: list[list[str]] = []
@@ -187,7 +188,7 @@ def test_install_node_uses_brew_on_macos(monkeypatch) -> None:
 
 def test_install_node_raises_on_other_linux(monkeypatch) -> None:
     from pilot.exceptions import BenchError
-    from pilot.managers import python_env_manager as module
+    from pilot.managers import python_environment as module
 
     manager = module.PythonEnvManager(bench=None)
     monkeypatch.setattr(module, "is_macos", lambda: False)

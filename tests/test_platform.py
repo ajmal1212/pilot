@@ -1,10 +1,10 @@
-"""Tests for pilot.platform helpers."""
+"""Tests for pilot.managers.platform helpers."""
 from __future__ import annotations
 
 import threading
 from pathlib import Path
 
-from pilot import platform
+from pilot.managers import platform
 
 
 def test_which_searches_sbin_when_path_is_minimal(tmp_path: Path, monkeypatch) -> None:

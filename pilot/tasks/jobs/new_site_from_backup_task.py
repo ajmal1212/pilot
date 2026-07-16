@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pilot.commands.restore_site_from_backup import NewSiteFromBackupCommand
+from pilot.commands.sites.restore import NewSiteFromBackupCommand
 
 from .base_task import BaseTask
 
