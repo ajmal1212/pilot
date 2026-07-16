@@ -1,6 +1,8 @@
 from pilot.commands.get_app import GetAppCommand
+from pilot.core.marketplace import Marketplace
+from pilot.exceptions import BenchError
+
 from .base_task import BaseTask
-from .marketplace_fetcher import MarketplaceFetcher
 
 
 class GetAppTask(BaseTask):
@@ -20,11 +22,20 @@ class GetAppTask(BaseTask):
 
     def run(self) -> None:
         if self.marketplace_app:
-            MarketplaceFetcher(self.bench, self._step).fetch(self.marketplace_app)
+            repo, branch = self._resolve_marketplace_app()
         else:
-            self._step("fetch", f"Fetch {self.repo}")
-            GetAppCommand(self.bench, self.repo, self.branch).run()
+            repo, branch = self.repo, self.branch
+        self._step("fetch", f"Fetch {self.marketplace_app or self.repo}")
+        GetAppCommand(self.bench, repo, branch, install_dependencies=bool(self.marketplace_app)).run()
         self._step("done")
+
+    def _resolve_marketplace_app(self) -> tuple[str, str]:
+        resolver = next(
+            (r for r in Marketplace(self.bench).read_all_apps() if r.app == self.marketplace_app), None
+        )
+        if not resolver:
+            raise BenchError(f"'{self.marketplace_app}' not found in marketplace.")
+        return resolver.repo, resolver.target
 
 
 if __name__ == "__main__":

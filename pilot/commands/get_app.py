@@ -73,6 +73,7 @@ class GetAppCommand(Command):
         self.skip_validations = skip_validations
         self.app = App(AppConfig(name=name, repo=repo, branch=branch), bench)
         self._cloned_this_run = False
+        self.installed_dependencies: list[App] = []
 
     def run(self) -> None:
         self._clone()
@@ -176,9 +177,11 @@ class GetAppCommand(Command):
             # dependency's own deps are already installed by earlier entries.
             # Only the app the user actually asked for gets validated — a
             # dependency just needs to be installed, not vetted on its own.
-            GetAppCommand(
+            dep_cmd = GetAppCommand(
                 self.bench, dep.repo, dep.target, install_dependencies=False, skip_validations=True
-            ).run()
+            )
+            dep_cmd.run()
+            self.installed_dependencies.append(dep_cmd.app)
 
     def _is_installed(self, name: str) -> bool:
         from pilot.exceptions import BenchError
