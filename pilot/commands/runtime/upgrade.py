@@ -10,7 +10,7 @@ class UpgradeCommand(Command):
     optional_bench = True  # used only to restart processes in production
 
     def run(self) -> None:
-        from pilot.commands.admin import download_admin_frontend
+        from pilot.commands.admin.start import download_admin_frontend
         from pilot.loader import cli_root
         from pilot.utils import run_command
 

@@ -95,7 +95,7 @@ class NewSiteCommand(Command):
         import json
 
         from pilot.admin_url import admin_url
-        from pilot.commands.generate_session import ensure_jwt_secret, issue_site_token
+        from pilot.commands.admin.generate_session import ensure_jwt_secret, issue_site_token
 
         config_path = self.bench.sites_path / self.name / "site_config.json"
         if not config_path.exists():

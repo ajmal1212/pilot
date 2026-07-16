@@ -41,7 +41,7 @@ def test_fetch_missing_apps_skips_apps_already_in_apps_txt(tmp_path: Path) -> No
     task = make_task(tmp_path, ["frappe"])
     (task.bench.sites_path / "apps.txt").write_text("frappe\n")
 
-    with patch("pilot.commands.get_app.GetAppCommand.run") as mock_run:
+    with patch("pilot.commands.apps.download.GetAppCommand.run") as mock_run:
         task._fetch_missing_apps()
 
     mock_run.assert_not_called()
@@ -55,7 +55,7 @@ def test_fetch_missing_apps_fetches_app_not_on_bench(tmp_path: Path) -> None:
     frappe_helpdesk._registry = {"helpdesk": [frappe_helpdesk]}
 
     with patch.object(Marketplace, "read_all_apps", return_value=[frappe_helpdesk]), \
-            patch("pilot.commands.get_app.GetAppCommand.run") as mock_run, \
+            patch("pilot.commands.apps.download.GetAppCommand.run") as mock_run, \
             patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"):
         task._fetch_missing_apps()
 
@@ -76,7 +76,7 @@ def test_fetch_missing_apps_resolves_dependencies_first(tmp_path: Path) -> None:
 
     with patch.object(Marketplace, "read_all_apps", return_value=[top]), \
             patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"), \
-            patch("pilot.commands.get_app.GetAppCommand.run", fake_run):
+            patch("pilot.commands.apps.download.GetAppCommand.run", fake_run):
         task._fetch_missing_apps()
 
     assert fetched == ["frappe_payments_dep", "payments"]

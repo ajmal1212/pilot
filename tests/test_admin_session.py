@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from pilot.commands.generate_session import (
+from pilot.commands.admin.generate_session import (
     decode_token,
     has_scope,
     issue_login_token,
@@ -68,7 +68,7 @@ def _load_bench(tmp_path: Path) -> Bench:
 
 
 def test_command_issues_verifiable_token_and_persists_secret(tmp_path, capsys) -> None:
-    from pilot.commands.generate_session import GenerateSessionCommand
+    from pilot.commands.admin.generate_session import GenerateSessionCommand
 
     GenerateSessionCommand(_bench(tmp_path)).run()
     token = capsys.readouterr().out.strip()
@@ -77,7 +77,7 @@ def test_command_issues_verifiable_token_and_persists_secret(tmp_path, capsys) -
 
 
 def test_command_reuses_existing_secret(tmp_path) -> None:
-    from pilot.commands.generate_session import GenerateSessionCommand
+    from pilot.commands.admin.generate_session import GenerateSessionCommand
 
     GenerateSessionCommand(_bench(tmp_path)).run()
     first = tomllib.loads((tmp_path / "bench.toml").read_text())["admin"]["jwt_secret"]
@@ -86,14 +86,14 @@ def test_command_reuses_existing_secret(tmp_path) -> None:
 
 
 def test_command_full_path_builds_url(tmp_path, capsys) -> None:
-    from pilot.commands.generate_session import GenerateSessionCommand
+    from pilot.commands.admin.generate_session import GenerateSessionCommand
 
     GenerateSessionCommand(_bench(tmp_path), full_path=True).run()
     assert capsys.readouterr().out.strip().startswith("http://")
 
 
 def test_command_requires_password(tmp_path) -> None:
-    from pilot.commands.generate_session import GenerateSessionCommand
+    from pilot.commands.admin.generate_session import GenerateSessionCommand
 
     with pytest.raises(BenchError):
         GenerateSessionCommand(_bench(tmp_path, password="")).run()

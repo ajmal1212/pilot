@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from pilot.commands.rename_site import RenameSiteCommand
+from pilot.commands.sites.rename import RenameSiteCommand
 from pilot.config.app_config import AppConfig
 from pilot.config.bench_config import BenchConfig
 from pilot.config.mariadb_config import MariaDBConfig

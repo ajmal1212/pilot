@@ -6,7 +6,7 @@ from pathlib import Path
 
 from pilot.tasks.manager.task_reader import TaskReader
 from pilot.tasks.manager.task_state import ACTIVE_TASK_STATUSES
-from pilot.commands.list_site_apps import _query_via_db_cli
+from pilot.commands.sites.list_apps import _query_via_db_cli
 
 # Commands that write site_config.json well before the site's DB is queryable.
 # While one of these is active for a site, a failed DB probe means

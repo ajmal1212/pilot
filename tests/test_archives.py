@@ -119,7 +119,7 @@ def test_extract_rejects_existing_symlink_parent(tmp_path: Path) -> None:
 def test_admin_frontend_download_rejects_unsafe_archive(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from pilot.commands.admin import download_admin_frontend
+    from pilot.commands.admin.start import download_admin_frontend
 
     archive = _archive(tmp_path / "admin.tar", [_file("../../escape.txt")])
 

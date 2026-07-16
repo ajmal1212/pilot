@@ -5,7 +5,7 @@ import sys
 from typing import TYPE_CHECKING
 
 from pilot.commands.base import Command
-from pilot.commands.remove_app import RemoveAppCommand
+from pilot.commands.apps.remove import RemoveAppCommand
 from pilot.exceptions import BenchError
 
 if TYPE_CHECKING:

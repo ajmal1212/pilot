@@ -29,7 +29,7 @@ class NewSiteFromBackupCommand:
         self.private_files = private_files
 
     def run(self) -> None:
-        from pilot.commands.new_site import NewSiteCommand
+        from pilot.commands.sites.create import NewSiteCommand
         from pilot.config.site_config import SiteConfig
         from pilot.core.site import Site
 

@@ -366,7 +366,7 @@ class SetupProductionCommand(Command):
             )
 
     def _build_admin_for_production(self) -> None:
-        from pilot.commands.admin import BuildAdminCommand
+        from pilot.commands.admin.start import BuildAdminCommand
 
         BuildAdminCommand().run()
 

@@ -44,7 +44,7 @@ def test_fetch_reports_step_and_runs_get_app() -> None:
 
     with patch.object(Marketplace, "read_all_apps", return_value=[helpdesk]), \
             patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"), \
-            patch("pilot.commands.get_app.GetAppCommand.run") as mock_run:
+            patch("pilot.commands.apps.download.GetAppCommand.run") as mock_run:
         cmds = fetcher.fetch("helpdesk")
 
     step.assert_called_once_with("fetch", "Fetch helpdesk")
@@ -66,7 +66,7 @@ def test_fetch_resolves_dependencies_before_the_app_itself() -> None:
 
     with patch.object(Marketplace, "read_all_apps", return_value=[top]), \
             patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"), \
-            patch("pilot.commands.get_app.GetAppCommand.run", fake_run):
+            patch("pilot.commands.apps.download.GetAppCommand.run", fake_run):
         fetcher.fetch("payments")
 
     assert fetched == ["frappe_payments_dep", "payments"]

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pilot.commands.init import InitCommand
+from pilot.commands.bench.initialize import InitCommand
 from pilot.exceptions import BenchError
 
 

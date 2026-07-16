@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 
-from pilot.commands.drop_site import DropSiteCommand
+from pilot.commands.sites.delete import DropSiteCommand
 from pilot.config.bench_config import BenchConfig
 from pilot.config.toml_store import BenchTomlStore
 from pilot.core.bench import Bench

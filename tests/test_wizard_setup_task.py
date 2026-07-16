@@ -15,7 +15,7 @@ def _make_task(process_manager: str) -> WizardSetupTask:
 def test_run_skips_production_setup_for_plain_dev_bench() -> None:
     task = _make_task("")
 
-    with patch("pilot.commands.init.InitCommand.run") as mock_init, \
+    with patch("pilot.commands.bench.initialize.InitCommand.run") as mock_init, \
          patch("pilot.commands.setup.production.SetupProductionCommand.run") as mock_setup:
         task.run()
 
@@ -34,7 +34,7 @@ def test_run_finishes_production_setup_when_process_manager_chosen() -> None:
     a cert can't issue yet, so a DNS hiccup must not roll back the rest."""
     task = _make_task("systemd")
 
-    with patch("pilot.commands.init.InitCommand.run") as mock_init, \
+    with patch("pilot.commands.bench.initialize.InitCommand.run") as mock_init, \
          patch("pilot.commands.setup.production.SetupProductionCommand") as mock_cls:
         task.run()
 

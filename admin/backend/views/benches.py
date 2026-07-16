@@ -17,8 +17,8 @@ from admin.backend.bench_helpers import (
     wizard_responds,
     workload_running,
 )
-from pilot.commands.drop_bench import DropBenchCommand
-from pilot.commands.new import NewCommand
+from pilot.commands.bench.delete import DropBenchCommand
+from pilot.commands.bench.create import NewCommand
 from pilot.config.toml_store import BenchTomlStore
 from pilot.core.bench import Bench
 from pilot.exceptions import BenchAlreadyExistsError, BenchError

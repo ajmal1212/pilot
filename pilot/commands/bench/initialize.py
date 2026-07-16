@@ -141,7 +141,7 @@ class InitCommand(Command):
         print(f"[{self._step_counter}/{self._total_steps}] {description}...", flush=True)
 
     def _download_admin_frontend(self) -> None:
-        from pilot.commands.admin import BuildAdminCommand, download_admin_frontend
+        from pilot.commands.admin.start import BuildAdminCommand, download_admin_frontend
         from pilot.loader import cli_root
 
         if not download_admin_frontend(cli_root()):

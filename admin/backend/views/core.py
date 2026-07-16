@@ -120,7 +120,7 @@ def create_session():
     if error is not None:
         return error
 
-    from pilot.commands.generate_session import ensure_jwt_secret, issue_token
+    from pilot.commands.admin.generate_session import ensure_jwt_secret, issue_token
 
     response = created_response(
         {"authenticated": True, "scope": "bench"},

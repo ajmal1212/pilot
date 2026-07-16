@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from pilot.commands.list_site_apps import _query_via_db_cli
+from pilot.commands.sites.list_apps import _query_via_db_cli
 
 
 def test_database_password_uses_environment_instead_of_argv(
@@ -12,15 +12,15 @@ def test_database_password_uses_environment_instead_of_argv(
 ) -> None:
     password = "database-process-secret"
     captured = {}
-    monkeypatch.setattr("pilot.commands.list_site_apps.shutil.which", lambda name: "/usr/bin/mariadb")
-    monkeypatch.setattr("pilot.commands.list_site_apps.Path.exists", lambda path: False)
+    monkeypatch.setattr("pilot.commands.sites.list_apps.shutil.which", lambda name: "/usr/bin/mariadb")
+    monkeypatch.setattr("pilot.commands.sites.list_apps.Path.exists", lambda path: False)
 
     def run(argv, **kwargs):
         captured["argv"] = argv
         captured["env"] = kwargs["env"]
         return SimpleNamespace(returncode=0, stdout="frappe\n")
 
-    monkeypatch.setattr("pilot.commands.list_site_apps.subprocess.run", run)
+    monkeypatch.setattr("pilot.commands.sites.list_apps.subprocess.run", run)
 
     result = _query_via_db_cli(
         {

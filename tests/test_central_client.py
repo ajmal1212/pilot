@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from pilot.commands.set_central_config import SetCentralConfigCommand
+from pilot.commands.admin.set_central_config import SetCentralConfigCommand
 from pilot.config.app_config import AppConfig
 from pilot.config.bench_config import BenchConfig
 from pilot.config.mariadb_config import MariaDBConfig

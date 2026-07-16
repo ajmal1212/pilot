@@ -72,7 +72,7 @@ class RunCommand(Command):
 
         self._rebuild_config(manager)
         if not manager.is_configured():
-            from pilot.commands.restart import _incomplete_message
+            from pilot.commands.runtime.restart import _incomplete_message
 
             print(_incomplete_message(self.bench))
             return
@@ -87,7 +87,7 @@ class RunCommand(Command):
         # when dist is missing or the frontend source changed since the last build,
         # so `bench start` reflects local UI edits without a manual `build-admin`.
         # A non-source install (no admin/frontend) just downloads the prebuilt copy.
-        from pilot.commands.admin import BuildAdminCommand, download_admin_frontend
+        from pilot.commands.admin.start import BuildAdminCommand, download_admin_frontend
         from pilot.loader import cli_root
 
         root = cli_root()
@@ -132,7 +132,7 @@ class RunCommand(Command):
         return False
 
     def _start_wizard(self) -> None:
-        from pilot.commands.admin import download_admin_frontend
+        from pilot.commands.admin.start import download_admin_frontend
         from pilot.loader import cli_root
         from pilot.managers.admin_env_manager import AdminEnvManager
 
