@@ -20,11 +20,11 @@ from admin.backend.tasks.manager.events import (
     output_event,
     status_event,
 )
+from admin.backend.timing import TASK_POLL_SECONDS
 from pilot.exceptions import TaskNotFoundError
 from pilot.secure_files import open_private
 
 _TASK_ID_PATTERN = re.compile(r"^\d{8}-\d{6}-[a-f0-9]{6}$")
-_POLL_INTERVAL = 0.5
 
 # Matches the RFC 5424 envelope the wrapper stamps onto output.log:
 # <PRI>VERSION TIMESTAMP HOST APP-NAME PROCID MSGID STRUCTURED-DATA MESSAGE
@@ -156,7 +156,7 @@ class TaskReader:
                     yield done_event(task.status.value, task.exit_code, failure)
                     return
 
-                time.sleep(_POLL_INTERVAL)
+                time.sleep(TASK_POLL_SECONDS)
 
 def _read_task_dir(
     reader: TaskReader,

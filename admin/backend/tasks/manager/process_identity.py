@@ -7,11 +7,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from admin.backend.timing import CAPTURE_POLL_SECONDS, CAPTURE_TIMEOUT_SECONDS
+
 _BOOT_ID_PATH = Path("/proc/sys/kernel/random/boot_id")
 _PROC_ROOT = Path("/proc")
 _LAUNCH_ID_ENV = "BENCH_TASK_LAUNCH_ID"
-_CAPTURE_TIMEOUT_SECONDS = 1.0
-_CAPTURE_POLL_SECONDS = 0.01
 
 
 class ProcessOwnership(StrEnum):
@@ -75,14 +75,14 @@ class ProcessInspector:
         expected_argv: list[str],
         launch_id: str,
     ) -> ProcessIdentity:
-        deadline = time.monotonic() + _CAPTURE_TIMEOUT_SECONDS
+        deadline = time.monotonic() + CAPTURE_TIMEOUT_SECONDS
         while True:
             try:
                 return self._capture_once(pid, expected_argv, launch_id)
             except RuntimeError:
                 if time.monotonic() >= deadline:
                     raise
-                time.sleep(_CAPTURE_POLL_SECONDS)
+                time.sleep(CAPTURE_POLL_SECONDS)
 
     def _capture_once(
         self,

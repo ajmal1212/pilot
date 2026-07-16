@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from admin.backend.timing import MAX_STREAM_LINES
+
 from .tail_read import read_tail_text
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[mKJHfABCDGsu]")
@@ -20,9 +22,6 @@ class LogFileInfo:
     last_modified: datetime
     process_name: str
     line_count: int
-
-
-_MAX_STREAM_LINES = 5000
 
 
 class LogReader:
@@ -71,7 +70,7 @@ class LogReader:
 
         with open(log_path, "r", errors="replace") as file_handle:
             file_handle.seek(0, 2)  # seek to end
-            while yielded < _MAX_STREAM_LINES:
+            while yielded < MAX_STREAM_LINES:
                 line = file_handle.readline()
                 if line:
                     yield _ANSI_RE.sub("", line.rstrip("\n"))

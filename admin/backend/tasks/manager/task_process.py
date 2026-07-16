@@ -19,13 +19,12 @@ from admin.backend.tasks.manager.process_identity import (
 )
 from admin.backend.tasks.manager.task_state import TERMINAL_TASK_STATUSES, TaskStatus
 from admin.backend.tasks.manager.task_store import TaskStore
+from admin.backend.timing import CANCEL_GRACE_SECONDS, PROCESS_EXIT_POLL_SECONDS
 from pilot.exceptions import TaskNotFoundError, TaskNotRunningError
 from pilot.platform import NONINTERACTIVE_PRIVILEGES_ENV
 
 _READY_FD_ENV = "BENCH_TASK_READY_FD"
 _LAUNCH_ID_ENV = "BENCH_TASK_LAUNCH_ID"
-_CANCEL_GRACE_SECONDS = 3.0
-_PROCESS_POLL_SECONDS = 0.05
 
 
 class TaskProcessStartError(RuntimeError):
@@ -168,7 +167,7 @@ class TaskProcess:
             if status not in TERMINAL_TASK_STATUSES:
                 raise TaskNotRunningError(f"Task state changed during cancellation: {task_id}")
 
-        grace = _CANCEL_GRACE_SECONDS if grace_seconds is None else grace_seconds
+        grace = CANCEL_GRACE_SECONDS if grace_seconds is None else grace_seconds
         self._wait_for_exit(record, grace)
 
     def _environment(self, task_dir: Path, launch_id: str, read_fd: int) -> dict[str, str]:
@@ -222,7 +221,7 @@ class TaskProcess:
                 return
             if ownership == ProcessOwnership.UNKNOWN:
                 return
-            time.sleep(_PROCESS_POLL_SECONDS)
+            time.sleep(PROCESS_EXIT_POLL_SECONDS)
 
         outcome = self._signal(record, signal.SIGKILL)
         if outcome in {ProcessOwnership.DEAD, ProcessOwnership.STALE}:
@@ -239,7 +238,7 @@ class TaskProcess:
                 return
             if ownership == ProcessOwnership.UNKNOWN:
                 return
-            time.sleep(_PROCESS_POLL_SECONDS)
+            time.sleep(PROCESS_EXIT_POLL_SECONDS)
 
     def _run_stored_callback(self, task_id: str, trigger: str) -> None:
         try:
