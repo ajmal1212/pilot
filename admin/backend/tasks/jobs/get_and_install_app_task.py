@@ -30,7 +30,10 @@ class GetAndInstallAppTask(BaseTask):
     def run(self) -> None:
         cmd = self._fetch()
         # Frappe's site install-app cascades installing declared dependencies
+        # onto the site itself, but never builds their assets — that's a
+        # separate, bench-wide step this task still owns.
         self._install_on_sites(cmd.app)
+        self._build_assets(cmd.app, cmd.installed_dependencies)
         self._step("done")
 
     def _fetch(self) -> GetAppCommand:
@@ -53,15 +56,18 @@ class GetAndInstallAppTask(BaseTask):
         return cmd
 
     def _install_on_sites(self, app: App) -> None:
-        from pilot.managers.python_env_manager import PythonEnvManager
-
         for site in self.sites:
             safe_key = site.replace(".", "_").replace("-", "_")
             self._step(f"install_{safe_key}_{app.config.name}", f"Install {app.config.name} on {site}")
             Site(SiteConfig(name=site, apps=[]), self.bench).install_app(app)
 
-        self._step("build", f"Build assets for {app.config.name}")
-        PythonEnvManager(self.bench).build_assets_for_app(app)
+    def _build_assets(self, app: App, dependencies: list[App]) -> None:
+        from pilot.managers.python_env_manager import PythonEnvManager
+
+        env = PythonEnvManager(self.bench)
+        for a in [app, *dependencies]:
+            self._step(f"build_{a.config.name}", f"Build assets for {a.config.name}")
+            env.build_assets_for_app(a)
 
 
 if __name__ == "__main__":
