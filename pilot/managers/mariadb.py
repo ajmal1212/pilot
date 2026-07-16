@@ -211,25 +211,6 @@ class MariaDBManager(UserOwnedDBManager):
         escaped = value.replace("\\", "\\\\").replace("'", "\\'")
         return f"'{escaped}'"
 
-    def kill_process(self, process_id: int) -> None:
-        import pymysql
-
-        from pilot.exceptions import DatabaseProcessNotActiveError
-
-        connection = self.connect()
-        try:
-            with connection.cursor() as cursor:
-                try:
-                    cursor.execute("KILL %s", (process_id,))
-                except pymysql.err.OperationalError as error:
-                    if error.args and error.args[0] == 1094:
-                        raise DatabaseProcessNotActiveError(
-                            f"Database process {process_id} is not active."
-                        ) from error
-                    raise
-        finally:
-            connection.close()
-
     @contextmanager
     def snapshot_lock(self):
         connection = self.connect()

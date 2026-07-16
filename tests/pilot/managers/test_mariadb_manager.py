@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import subprocess
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from pilot.config.mariadb_config import MariaDBConfig
-from pilot.exceptions import DatabaseProcessNotActiveError
 from pilot.managers.mariadb import MariaDBManager
 
 MODULE = "pilot.managers.mariadb"
@@ -124,21 +123,6 @@ def test_sql_quote_escapes_single_quote() -> None:
 
 def test_sql_quote_escapes_backslash() -> None:
     assert MariaDBManager._sql_quote("a\\b") == "'a\\\\b'"
-
-
-def test_kill_process_types_an_unknown_thread_error() -> None:
-    import pymysql
-
-    manager = _manager()
-    connection = MagicMock()
-    cursor = connection.cursor.return_value.__enter__.return_value
-    cursor.execute.side_effect = pymysql.err.OperationalError(1094, "Unknown thread")
-
-    with patch.object(manager, "connect", return_value=connection):
-        with pytest.raises(DatabaseProcessNotActiveError):
-            manager.kill_process(42)
-
-    connection.close.assert_called_once()
 
 
 # ── secure_installation ───────────────────────────────────────────────────────

@@ -32,8 +32,8 @@ from admin.backend.uploads import (
 from ...security.validation import validate_app_name, validate_cron_expression, validate_site_name
 from pilot.tasks.manager.task_runner import TaskCallback, TaskRunner
 
-from ...readers.apps import AppReader
-from ...readers.sites import SiteInfo, SiteReader
+from ...providers.apps import AppProvider
+from ...providers.sites import SiteInfo, SiteProvider
 
 
 def site_name(kwargs: dict) -> str:
@@ -84,7 +84,7 @@ _SENSITIVE_CONFIG_KEY_PARTS = (
 def list_sites():
     bench_root = current_app.config["BENCH_ROOT"]
     try:
-        sites = SiteReader(bench_root).read_all()
+        sites = SiteProvider(bench_root).get_all()
     except Exception:
         return _internal_error("Could not read sites.")
 
@@ -101,13 +101,13 @@ def detail(name: str):
     if not site_exists(bench_root, name):
         return _site_not_found()
     try:
-        site = SiteReader(bench_root).read_one(name)
+        site = SiteProvider(bench_root).get_one(name)
     except Exception:
         return _internal_error("Could not read site.")
 
     # Installable = apps that are cloned but not yet installed on this site
     try:
-        all_apps = [a.name for a in AppReader(bench_root).read_all()]
+        all_apps = [a.name for a in AppProvider(bench_root).get_all()]
         installable = [a for a in all_apps if a not in site.installed_apps]
     except Exception:
         installable = []
@@ -143,15 +143,15 @@ def site_apps(name: str):
     if not site_exists(bench_root, name):
         return _site_not_found()
     try:
-        site = SiteReader(bench_root).read_one(name)
+        site = SiteProvider(bench_root).get_one(name)
     except Exception:
         return _internal_error("Could not read site apps.")
 
-    reader = AppReader(bench_root)
+    provider = AppProvider(bench_root)
     result = []
     for app_name in site.installed_apps:
         try:
-            info = reader.read_one(app_name)
+            info = provider.get_app(app_name)
             result.append(
                 {
                     "name": app_name,
@@ -755,12 +755,12 @@ _DEFAULT_BACKUPS_PAGE_SIZE = 20
 @sites_bp.get("/<name>/backups")
 @require_scope(site_name)
 def list_backups(name: str):
-    from ...readers.backups import BackupReader
+    from ...providers.backups import BackupProvider
 
     bench_root = Path(current_app.config["BENCH_ROOT"])
     limit = request.args.get("limit", _DEFAULT_BACKUPS_PAGE_SIZE, type=int)
     try:
-        sets = BackupReader(bench_root, name).read_all(limit=limit)
+        sets = BackupProvider(bench_root, name).get_all(limit=limit)
     except Exception:
         return _internal_error("Could not read site backups.")
     return jsonify([_backup_set_resource(s) for s in sets])
@@ -769,11 +769,11 @@ def list_backups(name: str):
 @sites_bp.get("/<name>/backups/<timestamp>")
 @require_scope(site_name)
 def get_backup(name: str, timestamp: str):
-    from ...readers.backups import BackupReader
+    from ...providers.backups import BackupProvider
 
     bench_root = Path(current_app.config["BENCH_ROOT"])
     try:
-        sets = BackupReader(bench_root, name).read_all()
+        sets = BackupProvider(bench_root, name).get_all()
     except Exception:
         return _internal_error("Could not read site backups.")
     match = next((s for s in sets if s.timestamp == timestamp), None)

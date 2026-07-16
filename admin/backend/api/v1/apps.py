@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import subprocess
 from dataclasses import asdict
 from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request
 
 from ...api.responses import error_response
-from ...readers.apps import AppReader
+from ...providers.apps import AppProvider
 from ...security.validation import validate_app_name, validate_repo_url
+from pilot.internal.git import GitRepo
 from pilot.tasks.manager.task_runner import TaskRunner
 from admin.backend.task_response import accepted_task_response
 
@@ -20,7 +20,7 @@ marketplace_bp = Blueprint("marketplace", __name__)
 def index():
     bench_root = current_app.config["BENCH_ROOT"]
     try:
-        apps = AppReader(bench_root).read_all()
+        apps = AppProvider(bench_root).get_all()
     except Exception:
         return error_response("apps_unavailable", "Could not read installed apps.", 500)
     return jsonify([asdict(a) for a in apps])
@@ -94,7 +94,7 @@ def detail(name: str):
     if not (bench_root / "apps" / name / ".git").exists():
         return error_response("app_not_found", f"App '{name}' not found in bench.", 404)
     try:
-        app = AppReader(bench_root).read_one(name)
+        app = AppProvider(bench_root).get_app(name)
     except Exception:
         return error_response("apps_unavailable", "Could not read the app.", 500)
     return jsonify(asdict(app))
@@ -118,16 +118,11 @@ def update(name: str):
     if not (app_path / ".git").exists():
         return error_response("app_not_found", f"App '{name}' not found.", 404)
 
-    result = subprocess.run(
-        ["git", "-C", str(app_path), "remote", "set-url", "origin", repo],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
+    if not GitRepo(app_path).set_remote_url(repo):
         return error_response("upstream_update_failed", "Could not update the app upstream.", 500)
 
     try:
-        app = AppReader(bench_root).read_one(name)
+        app = AppProvider(bench_root).get_app(name)
     except Exception:
         return error_response("apps_unavailable", "Could not read the app.", 500)
     return jsonify(asdict(app))

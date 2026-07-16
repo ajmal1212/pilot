@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, List
 
@@ -218,18 +217,12 @@ class Bench:
 
     @staticmethod
     def _git_remote(path: Path) -> str:
-        result = subprocess.run(
-            ["git", "-C", str(path), "remote", "get-url", "origin"],
-            capture_output=True,
-            text=True,
-        )
-        return result.stdout.strip() if result.returncode == 0 else ""
+        from pilot.internal.git import GitRepo
+
+        return GitRepo(path).remote_url
 
     @staticmethod
     def _git_branch(path: Path) -> str:
-        result = subprocess.run(
-            ["git", "-C", str(path), "branch", "--show-current"],
-            capture_output=True,
-            text=True,
-        )
-        return result.stdout.strip() if result.returncode == 0 else ""
+        from pilot.internal.git import GitRepo
+
+        return GitRepo(path).branch

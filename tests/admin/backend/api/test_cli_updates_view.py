@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from pilot.config.bench_toml_builder import BenchTomlBuilder
 
@@ -23,36 +23,41 @@ def _client(bench_root: Path, password: str = "secret"):
     return client
 
 
+def _mock_repo(behind: int) -> Mock:
+    repo = Mock()
+    repo.branch = "main"
+    repo.count.return_value = behind
+    repo.commit_subject.return_value = "a commit"
+    repo.last_fetched = None
+    return repo
+
+
 def test_cli_updates_reads_without_fetching(tmp_path: Path) -> None:
     bench_root = tmp_path / "benches" / "current"
     client = _client(bench_root)
+    repo = _mock_repo(behind=2)
 
     with patch("admin.backend.api.v1.updates.cli_root", return_value=Path("/cli")), \
-         patch("admin.backend.api.v1.updates._current_branch", return_value="main"), \
-         patch("admin.backend.api.v1.updates._git_fetch") as git_fetch, \
-         patch("admin.backend.api.v1.updates._count", return_value=2), \
-         patch("admin.backend.api.v1.updates._log_subject", return_value="a commit"):
+         patch("admin.backend.api.v1.updates.GitRepo", return_value=repo):
         response = client.get("/api/v1/cli-updates")
 
     body = response.get_json()
     assert response.status_code == 200
     assert body["commits_behind"] == 2
     assert body["update_available"] is True
-    git_fetch.assert_not_called()
+    repo.fetch.assert_not_called()
 
 
 def test_cli_update_checks_fetches_first(tmp_path: Path) -> None:
     bench_root = tmp_path / "benches" / "current"
     client = _client(bench_root)
+    repo = _mock_repo(behind=0)
 
     with patch("admin.backend.api.v1.updates.cli_root", return_value=Path("/cli")), \
-         patch("admin.backend.api.v1.updates._current_branch", return_value="main"), \
-         patch("admin.backend.api.v1.updates._git_fetch") as git_fetch, \
-         patch("admin.backend.api.v1.updates._count", return_value=0), \
-         patch("admin.backend.api.v1.updates._log_subject", return_value="a commit"):
+         patch("admin.backend.api.v1.updates.GitRepo", return_value=repo):
         response = client.post("/api/v1/cli-update-checks")
 
     body = response.get_json()
     assert response.status_code == 200
     assert body["update_available"] is False
-    git_fetch.assert_called_once_with(Path("/cli"), "main")
+    repo.fetch.assert_called_once_with("main", timeout=60)

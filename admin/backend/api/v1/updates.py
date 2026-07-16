@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify
 
+from pilot.internal.git import GitRepo
 from pilot.loader import cli_root
 
 from ...api.responses import error_response
@@ -41,74 +41,25 @@ def _app_updates(*, fetch: bool) -> list[dict]:
     for app in bench.apps():
         if not app.is_cloned:
             continue
+        repo = GitRepo(app.path)
+        branch = app.config.branch or repo.branch
         if fetch:
-            _git_fetch(app.path, app.config.branch)
-        apps_info.append(_app_info(app))
+            repo.fetch(branch, timeout=60)
+        apps_info.append(_app_info(app.config.name, branch, repo))
     return apps_info
 
 
-def _git_fetch(path: Path, branch: str) -> None:
-    try:
-        cmd = ["git", "-C", str(path), "fetch", "origin"]
-        if branch:
-            cmd.append(branch)
-        subprocess.run(cmd, capture_output=True, timeout=60)
-    except Exception:
-        pass
-
-
-def _app_info(app) -> dict:
-    path = app.path
-    branch = app.config.branch or _current_branch(path)
+def _app_info(name: str, branch: str, repo: GitRepo) -> dict:
     remote_ref = f"origin/{branch}"
-
-    behind = _count(path, f"HEAD..{remote_ref}")
-    ahead = _count(path, f"{remote_ref}..HEAD")
-    remote_commit = _log_subject(path, remote_ref)
-    local_commit = _log_subject(path, "HEAD")
-
-    fetch_head = path / ".git" / "FETCH_HEAD"
-    last_fetched = fetch_head.stat().st_mtime if fetch_head.exists() else None
-
     return {
-        "name": app.config.name,
+        "name": name,
         "branch": branch,
-        "commits_behind": behind,
-        "commits_ahead": ahead,
-        "remote_commit": remote_commit,
-        "local_commit": local_commit,
-        "last_fetched": last_fetched,
+        "commits_behind": repo.count(f"HEAD..{remote_ref}"),
+        "commits_ahead": repo.count(f"{remote_ref}..HEAD"),
+        "remote_commit": repo.commit_subject(remote_ref),
+        "local_commit": repo.commit_subject("HEAD"),
+        "last_fetched": repo.last_fetched,
     }
-
-
-def _current_branch(path: Path) -> str:
-    r = subprocess.run(
-        ["git", "-C", str(path), "rev-parse", "--abbrev-ref", "HEAD"],
-        capture_output=True,
-        text=True,
-    )
-    return r.stdout.strip()
-
-
-def _count(path: Path, range_: str) -> int:
-    r = subprocess.run(
-        ["git", "-C", str(path), "rev-list", "--count", range_],
-        capture_output=True,
-        text=True,
-    )
-    try:
-        return int(r.stdout.strip())
-    except ValueError:
-        return 0
-
-
-def _log_subject(path: Path, ref: str) -> str:
-    r = subprocess.run(
-        ["git", "-C", str(path), "log", "-1", "--format=%s", ref],
-        capture_output=True,
-        text=True,
-    )
-    return r.stdout.strip()
 
 
 @updates_bp.get("/cli-updates")
@@ -128,24 +79,17 @@ def check_cli_update():
 
 
 def _cli_update(*, fetch: bool) -> dict:
-    root = cli_root()
-    branch = _current_branch(root)
+    repo = GitRepo(cli_root())
+    branch = repo.branch
     if fetch:
-        _git_fetch(root, branch)
+        repo.fetch(branch, timeout=60)
 
-    remote_ref = f"origin/{branch}"
-    behind = _count(root, f"HEAD..{remote_ref}")
-    remote_commit = _log_subject(root, remote_ref)
-    local_commit = _log_subject(root, "HEAD")
-
-    fetch_head = root / ".git" / "FETCH_HEAD"
-    last_fetched = fetch_head.stat().st_mtime if fetch_head.exists() else None
-
+    behind = repo.count(f"HEAD..origin/{branch}")
     return {
         "branch": branch,
         "commits_behind": behind,
         "update_available": behind > 0,
-        "local_commit": local_commit,
-        "remote_commit": remote_commit,
-        "last_fetched": last_fetched,
+        "local_commit": repo.commit_subject("HEAD"),
+        "remote_commit": repo.commit_subject(f"origin/{branch}"),
+        "last_fetched": repo.last_fetched,
     }

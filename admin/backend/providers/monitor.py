@@ -9,19 +9,16 @@ MAX_POINTS = 400
 DISK_SERIES = "Root Disk"
 
 
-class MonitorHistoryReader:
-    """Renders time-series from the monitor log files for a selected window.
-
-    System metrics live in a shared log; application metrics in a per-bench log.
-    Each file is JSON Lines: one record per line, each carrying a `time` field.
-    """
+class MonitorProvider:
+    """Time-series for a window from the monitor logs: system metrics in a
+    shared JSON-Lines log, application metrics in a per-bench one."""
 
     def __init__(self, bench_root: Path, window: str) -> None:
         self._bench_root = bench_root
         self._window = window if window in WINDOW_SECONDS else "1h"
         self._cutoff = datetime.now(timezone.utc) - timedelta(seconds=WINDOW_SECONDS[self._window])
 
-    def read(self) -> dict:
+    def get_history(self) -> dict:
         from pilot.config.monitor_config import MonitorConfig
         from pilot.config.toml_store import BenchTomlStore
 
@@ -32,28 +29,28 @@ class MonitorHistoryReader:
             "window_seconds": WINDOW_SECONDS[self._window],
             # Absolute epoch ms so the browser windows correctly regardless of its timezone.
             "now": int(datetime.now(timezone.utc).timestamp() * 1000),
-            "system": self._system(config.monitor.system_log_path),
-            "application": self._application(app_log, config.name),
+            "system": self.get_system_metrics(config.monitor.system_log_path),
+            "application": self.get_application_metrics(app_log, config.name),
         }
 
-    def _system(self, path: Path) -> dict:
-        rows = self._read_window(path)
+    def get_system_metrics(self, path: Path) -> dict:
+        rows = self.get_records_in_window(path)
         return {
-            "earliest": self._earliest(path),
-            "points": [self._system_point(when, metrics) for when, metrics in rows],
-            "storage": self._latest_storage(rows),
-            "memory_total_mb": self._latest_memory_total(rows),
+            "earliest": self.get_earliest(path),
+            "points": [self.build_system_point(when, metrics) for when, metrics in rows],
+            "storage": self.get_latest_storage(rows),
+            "memory_total_mb": self.get_latest_memory_total(rows),
         }
 
     @staticmethod
-    def _latest_memory_total(rows: list) -> float | None:
+    def get_latest_memory_total(rows: list) -> float | None:
         for _, metrics in reversed(rows):
             total = (metrics.get("memory") or {}).get("total_mb")
             if total is not None:
                 return total
         return None
 
-    def _system_point(self, when: datetime, metrics: dict) -> dict:
+    def build_system_point(self, when: datetime, metrics: dict) -> dict:
         storage = metrics.get("storage") or {}
         disk = storage.get("disk")
         load = metrics["load_avg"]
@@ -62,7 +59,7 @@ class MonitorHistoryReader:
         network = metrics.get("network") or {}
         disk_io = metrics.get("disk_io") or {}
         point = {
-            "time": self._ms(when),
+            "time": self.to_epoch_ms(when),
             "Busy User": cpu.get("user"),
             "Busy System": cpu.get("system"),
             "Busy IOWait": cpu.get("iowait"),
@@ -83,70 +80,69 @@ class MonitorHistoryReader:
         }
         return point
 
-    @classmethod
-    def _latest_storage(cls, rows: list) -> dict | None:
+    @staticmethod
+    def get_latest_storage(rows: list) -> dict | None:
         for _, metrics in reversed(rows):
-            storage = metrics.get("storage")
-            if storage and storage.get("disk"):
-                return {"disk": cls._slim(storage["disk"])}
+            disk = (metrics.get("storage") or {}).get("disk")
+            if disk:
+                return {"disk": {"used_mb": disk.get("used_mb"), "total_mb": disk.get("total_mb"), "percent": disk.get("percent")}}
         return None
 
-    @staticmethod
-    def _slim(entry: dict) -> dict:
-        return {"used_mb": entry.get("used_mb"), "total_mb": entry.get("total_mb"), "percent": entry.get("percent")}
-
-    def _application(self, path: Path, bench_name: str) -> dict:
-        rows = self._read_window(path)
+    def get_application_metrics(self, path: Path, bench_name: str) -> dict:
+        rows = self.get_records_in_window(path)
         return {
-            "earliest": self._earliest(path),
-            "services": self._service_names(rows, bench_name),
-            "cpu": [self._service_row(when, metrics, bench_name, "cpu_percent") for when, metrics in rows],
-            "memory": [self._service_row(when, metrics, bench_name, "memory_rss_mb") for when, metrics in rows],
+            "earliest": self.get_earliest(path),
+            "services": self.get_service_names(rows, bench_name),
+            "cpu": [self.build_service_row(when, metrics, bench_name, "cpu_percent") for when, metrics in rows],
+            "memory": [self.build_service_row(when, metrics, bench_name, "memory_rss_mb") for when, metrics in rows],
         }
 
-    def _read_window(self, path: Path) -> list[tuple[datetime, dict]]:
-        # Records are appended in time order, so read newest-first and stop at the
-        # first one older than the window — we never read past the cutoff.
+    def get_records_in_window(self, path: Path) -> list[tuple[datetime, dict]]:
+        # Records are appended in time order, so read newest-first and stop at
+        # the first one older than the window, never past the cutoff.
         rows = []
-        for record in self._iter_records_reversed(path):
-            when = self._parse_time(record["time"])
+        for record in self._get_records_reversed(path):
+            when = self._get_time(record["time"])
             if when < self._cutoff:
                 break
             rows.append((when, record))
         rows.reverse()
-        return self._downsample(rows)
+
+        if len(rows) <= MAX_POINTS:
+            return rows
+        step = len(rows) // MAX_POINTS + 1
+        return rows[::step]
 
     @staticmethod
-    def _parse_time(value: str) -> datetime:
-        """Older log lines carry a naive server-local time; astimezone() on a
-        naive datetime converts local time to UTC, so both formats normalize."""
+    def _get_time(value: str) -> datetime:
+        """Older lines carry naive server-local time; astimezone() normalizes it to UTC."""
         when = datetime.fromisoformat(value)
         return when if when.tzinfo else when.astimezone(timezone.utc)
 
-    def _service_names(self, rows: list, bench_name: str) -> list[str]:
+    def get_service_names(self, rows: list, bench_name: str) -> list[str]:
         names: list[str] = []
         for _, metrics in rows:
             for process in metrics.get("processes", []):
-                short = self._short(process["service"], bench_name)
+                short = self.get_short_name(process["service"], bench_name)
                 if short not in names:
                     names.append(short)
         return sorted(names)
 
-    def _service_row(self, when: datetime, metrics: dict, bench_name: str, key: str) -> dict:
-        row = {"time": self._ms(when)}
+    def build_service_row(self, when: datetime, metrics: dict, bench_name: str, key: str) -> dict:
+        row = {"time": self.to_epoch_ms(when)}
         for process in metrics.get("processes", []):
             if not process.get("missing"):
-                row[self._short(process["service"], bench_name)] = process.get(key, 0)
+                row[self.get_short_name(process["service"], bench_name)] = process.get(key, 0)
         return row
 
     @staticmethod
-    def _short(service: str, bench_name: str) -> str:
+    def get_short_name(service: str, bench_name: str) -> str:
         return service.removeprefix(f"{bench_name}-").removesuffix(".service")
 
     @staticmethod
-    def _iter_records_reversed(path: Path, block_size: int = 65536):
-        """Yield records newest-first, reading the file in blocks from the end so a
-        short window never touches the whole file."""
+    def _get_records_reversed(path: Path, block_size: int = 65536):
+        """Yields records newest-first, in blocks from the end, so a short window
+        never touches the whole file."""
         if not path.exists():
             return
         with path.open("rb") as handle:
@@ -166,20 +162,13 @@ class MonitorHistoryReader:
                 yield json.loads(remainder)
 
     @classmethod
-    def _earliest(cls, path: Path) -> int | None:
+    def get_earliest(cls, path: Path) -> int | None:
         if not path.exists():
             return None
         with path.open() as handle:
             first = handle.readline()
-        return cls._ms(cls._parse_time(json.loads(first)["time"])) if first.strip() else None
+        return cls.to_epoch_ms(cls._get_time(json.loads(first)["time"])) if first.strip() else None
 
     @staticmethod
-    def _downsample(rows: list) -> list:
-        if len(rows) <= MAX_POINTS:
-            return rows
-        step = len(rows) // MAX_POINTS + 1
-        return rows[::step]
-
-    @staticmethod
-    def _ms(when: datetime) -> int:
+    def to_epoch_ms(when: datetime) -> int:
         return int(when.timestamp() * 1000)

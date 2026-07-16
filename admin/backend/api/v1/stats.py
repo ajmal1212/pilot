@@ -120,12 +120,12 @@ def get_monitor_status():
 
 @stats_bp.get("/monitor/history")
 def get_monitor_history():
-    from ...readers.monitoring import MonitorHistoryReader
+    from ...providers.monitor import MonitorProvider
 
     bench_root = Path(current_app.config["BENCH_ROOT"])
     window = request.args.get("window", "1h")
     try:
-        return jsonify(MonitorHistoryReader(bench_root, window).read())
+        return jsonify(MonitorProvider(bench_root, window).get_history())
     except Exception:
         return error_response(
             "monitor_history_unavailable",
@@ -137,7 +137,7 @@ def get_monitor_history():
 @stats_bp.get("/system")
 def system_info():
     from pilot.managers.platform import kernel_version, os_version
-    from ...readers.runtime import RuntimeVersionReader
+    from ...providers.os import OSProvider
 
     bench_root = Path(current_app.config["BENCH_ROOT"])
     config = BenchTomlStore.for_bench(bench_root).read()
@@ -151,7 +151,7 @@ def system_info():
             "swap_total": swap.total,
             "kernel_version": kernel_version(),
             "os_version": os_version(),
-            "runtime": RuntimeVersionReader(bench_root, config).read(),
+            "runtime": OSProvider(bench_root, config).get_versions(),
         }
     )
 

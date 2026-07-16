@@ -17,7 +17,6 @@ from pilot.core.ssh_keys import (
 from pilot.exceptions import (
     BenchError,
     ConfigError,
-    DatabaseProcessNotActiveError,
     DomainConflictError,
     DomainProviderError,
 )
@@ -84,22 +83,6 @@ def test_ssh_key_remove_errors_have_distinct_statuses(
 
     assert response.status_code == status
     assert response.get_json()["error"]["code"] == code
-
-
-def test_database_process_conflict_is_not_a_blanket_mapping(tmp_path: Path) -> None:
-    client = _client(tmp_path / "bench")
-    manager = Mock()
-    with patch("admin.backend.api.v1.databases._get_mariadb_manager", return_value=manager):
-        manager.kill_process.side_effect = DatabaseProcessNotActiveError()
-        inactive = client.delete("/api/v1/database/processes/42")
-        manager.kill_process.side_effect = RuntimeError("secret connection detail")
-        unavailable = client.delete("/api/v1/database/processes/42")
-
-    assert inactive.status_code == 409
-    assert inactive.get_json()["error"]["code"] == "database_process_not_active"
-    assert unavailable.status_code == 500
-    assert unavailable.get_json()["error"]["code"] == "database_process_kill_failed"
-    assert b"secret connection detail" not in unavailable.data
 
 
 def test_database_query_validates_types_before_execution(tmp_path: Path) -> None:

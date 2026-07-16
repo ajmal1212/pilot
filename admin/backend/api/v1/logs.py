@@ -5,7 +5,7 @@ import json
 from flask import Blueprint, Response, current_app, jsonify, request, stream_with_context
 
 from admin.backend.api.responses import error_response
-from ...readers.logs import LogReader
+from ...providers.logs import LogProvider
 
 logs_bp = Blueprint("logs", __name__)
 
@@ -16,7 +16,7 @@ _MAX_LINES = 5000
 def index():
     bench_root = current_app.config["BENCH_ROOT"]
     try:
-        log_files = LogReader(bench_root).list_logs()
+        log_files = LogProvider(bench_root).get_all()
     except Exception:
         return error_response("logs_unavailable", "Could not read logs.", 500)
 
@@ -44,8 +44,8 @@ def viewer(filename: str):
     lines_param = min(lines_param, _MAX_LINES)
 
     try:
-        reader = LogReader(bench_root)
-        lines = reader.read_tail(filename, lines_param)
+        provider = LogProvider(bench_root)
+        lines = provider.tail_file(filename, lines_param)
         if search:
             search_lower = search.lower()
             lines = [line for line in lines if search_lower in line.lower()]
@@ -66,8 +66,8 @@ def viewer(filename: str):
 def download_log(filename: str):
     bench_root = current_app.config["BENCH_ROOT"]
     try:
-        reader = LogReader(bench_root)
-        log_path = reader.file_path(filename)
+        provider = LogProvider(bench_root)
+        log_path = provider.get_file_path(filename)
     except ValueError:
         return error_response("invalid_log", "Invalid log filename.", 422)
 
@@ -84,11 +84,11 @@ def download_log(filename: str):
 @logs_bp.get("/<filename>/events")
 def stream_log(filename: str):
     bench_root = current_app.config["BENCH_ROOT"]
-    reader = LogReader(bench_root)
+    provider = LogProvider(bench_root)
 
     def generate():
         try:
-            for line in reader.stream_tail(filename):
+            for line in provider.follow_file(filename):
                 yield f"data: {json.dumps({'line': line})}\n\n"
         except ValueError as error:
             yield f"data: {json.dumps({'error': str(error)})}\n\n"

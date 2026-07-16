@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from admin.backend.readers.tail_read import read_tail_text
+from admin.backend.utils import read_tail_text
 
 
 def test_returns_full_content_when_file_smaller_than_block(tmp_path: Path) -> None:

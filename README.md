@@ -371,7 +371,7 @@ The built-in admin UI runs on port 8002 (configurable via `[admin] port`).
 | Processes | Live process list with CPU %, memory (MB), uptime, and log links; Start/Stop/Restart in production mode |
 | Logs | Tail and search log files with live streaming |
 | Tasks | Multi-step task view with collapsible output per step; task history |
-| Database | MariaDB process list, slow queries, binary log viewer |
+| Database | SQL playground — run read-only or write queries against a site's database |
 | Settings | Tabbed — Bench ports, MariaDB (read-only), Redis ports, Workers, Nginx, HTTPS toggle (`admin.tls` + Let's Encrypt), Production process manager; saves to `bench.toml` and restarts affected processes automatically |
 | Updates | Check for pilot updates and apply in one click |
 

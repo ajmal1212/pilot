@@ -10,7 +10,7 @@ from pathlib import Path
 
 from admin.backend.timing import MAX_STREAM_LINES
 
-from .tail_read import read_tail_text
+from ..utils import read_tail_text
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[mKJHfABCDGsu]")
 
@@ -24,46 +24,40 @@ class LogFileInfo:
     line_count: int
 
 
-class LogReader:
+class LogProvider:
     def __init__(self, bench_root: Path) -> None:
         self._bench_root = bench_root
 
-    def list_logs(self) -> list[LogFileInfo]:
+    def get_all(self) -> list[LogFileInfo]:
         logs_dir = self._bench_root / "logs"
         if not logs_dir.exists():
             return []
-        return [self._build_info(p) for p in sorted(logs_dir.glob("*.log"))]
 
-    @staticmethod
-    def _build_info(path: Path) -> LogFileInfo:
-        stat = path.stat()
-        return LogFileInfo(
-            filename=path.name,
-            size_bytes=stat.st_size,
-            last_modified=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
-            process_name=path.stem,
-            line_count=LogReader._count_lines(path),
-        )
+        infos = []
+        for path in sorted(logs_dir.glob("*.log")):
+            stat = path.stat()
+            infos.append(LogFileInfo(
+                filename=path.name,
+                size_bytes=stat.st_size,
+                last_modified=datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc),
+                process_name=path.stem,
+                line_count=self.count_lines(path),
+            ))
+        return infos
 
-    @staticmethod
-    def _count_lines(path: Path) -> int:
-        try:
-            output = subprocess.check_output(["wc", "-l", str(path)])
-            return int(output.split()[0])
-        except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
-            return 0
-
-    def read_tail(self, filename: str, lines: int = 200) -> list[str]:
+    def tail_file(self, filename: str, lines: int = 200) -> list[str]:
         log_path = self._validated_path(filename)
         if not log_path.exists():
             raise FileNotFoundError(f"Log file not found: {filename}")
+
         tail = read_tail_text(log_path, max(lines, 0)).splitlines()
         return [_ANSI_RE.sub("", line) for line in tail[-lines:]] if lines > 0 else []
 
-    def file_path(self, filename: str) -> Path:
+    def get_file_path(self, filename: str) -> Path:
         return self._validated_path(filename)
 
-    def stream_tail(self, filename: str) -> Generator[str, None, None]:
+    def follow_file(self, filename: str) -> Generator[str, None, None]:
+        """Yield new lines as they're written, like `tail -f`."""
         log_path = self._validated_path(filename)
         log_path.touch()
         yielded = 0
@@ -78,11 +72,23 @@ class LogReader:
                 else:
                     time.sleep(0.2)
 
+    @staticmethod
+    def count_lines(path: Path) -> int:
+        try:
+            output = subprocess.check_output(["wc", "-l", str(path)])
+            return int(output.split()[0])
+        except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
+            return 0
+
     def _validated_path(self, filename: str) -> Path:
+        """Resolves filename inside logs/, rejecting separators/traversal so
+        callers can't escape the log dir."""
         if "/" in filename or "\\" in filename:
             raise ValueError(f"Invalid filename: {filename!r}")
+
         logs_dir = (self._bench_root / "logs").resolve()
         resolved = (self._bench_root / "logs" / filename).resolve()
         if resolved.parent != logs_dir:
             raise ValueError(f"Path traversal detected in filename: {filename!r}")
+
         return resolved

@@ -66,7 +66,6 @@ admin/
     │   └── v1/                   # Flask blueprints, one per API area
     │       ├── core.py               # health, bootstrap, session
     │       ├── setup.py               # first-run setup wizard API
-    │       ├── dashboard.py           # composed dashboard read
     │       ├── apps.py, git.py        # installed apps, marketplace, git connection
     │       ├── benches.py             # multi-bench management
     │       ├── sites.py, site_login.py # sites, domains, backups, login handoff
@@ -76,17 +75,15 @@ admin/
     │       ├── settings.py             # bench.toml read/patch, audit log, client IP
     │       └── ssh_keys.py, stats.py, updates.py
     │
-    └── readers/                 # Stateless filesystem/DB readers, one per resource
-        ├── benches.py           # BenchReader — bench.toml summary
-        ├── apps.py              # AppReader — cloned apps + git/pip state
-        ├── sites.py             # SiteReader — sites + site_config.json
-        ├── processes.py         # ProcessReader — process status/PID/resource use
-        ├── logs.py              # LogReader — log listing, tail, streaming
-        ├── databases.py         # DatabaseReader — binlogs, processlist, slow queries
-        ├── backups.py           # BackupReader — on-disk and offsite backup sets
-        ├── monitoring.py        # MonitorHistoryReader — monitor log history
-        ├── runtime.py           # RuntimeVersionReader — CLI/frappe version info
-        └── tail_read.py         # read_tail_text() — shared tailing helper for logs.py
+    ├── utils.py                 # read_tail_text(), format_duration() — shared helpers
+    └── providers/                # Stateless filesystem/DB providers, one per resource
+        ├── apps.py              # AppProvider — cloned apps + git/pip state
+        ├── sites.py             # SiteProvider — sites + site_config.json
+        ├── processes.py         # ProcessProvider — process status/PID/resource use
+        ├── logs.py              # LogProvider — log listing, tail, streaming
+        ├── backups.py           # BackupProvider — on-disk and offsite backup sets
+        ├── monitor.py           # MonitorProvider — monitor log history
+        └── os.py                # OSProvider — CLI/frappe/runtime version info, host-level facts
 
 pilot/tasks/                     # The task engine itself (Flask-free) — see docs/tasks.md
 ├── manager/                     # Task infrastructure
@@ -259,12 +256,6 @@ Available before `bench.toml`/the admin password exist (`SETUP_CONDITIONAL`); be
 | POST | `/setup/actions/start` | Requires `Idempotency-Key`; kicks off `bench init` as a task (`wizard-setup`), 202 with the task |
 | POST | `/setup/actions/finish` | Body `{"task_id": "..."}`; verifies the setup task succeeded and the bench is fully initialized, then 204. In the standalone wizard process this also schedules the wizard server's own shutdown |
 
-### Dashboard
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/dashboard` | Composed read: bench summary, apps, sites, processes, 5 most recent tasks, plus `running_count`/`cloned_count`/`online_count` |
-
 ### Apps, marketplace, updates
 
 | Method | Path | Purpose |
@@ -380,16 +371,9 @@ Start/stop/restart deliberately exclude the admin's own supervisor program, so t
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/database/binlogs` | `SHOW BINARY LOGS` — name + file size, MariaDB only |
-| GET | `/database/binlogs/{log_name}` | `SHOW BINLOG EVENTS`, paginated by `?limit=&offset=` (default 200/0) |
-| GET | `/database/processes` | `SHOW FULL PROCESSLIST` rows (the query itself filtered out) |
-| DELETE | `/database/processes/{pid}` | Kill a database connection/query; 409 `database_process_not_active` if already gone |
-| GET | `/database/slow-queries` | Parsed slow query log, newest first, `?limit=N` (default 50, max 500) |
 | GET | `/database/sites` | Sites with a configured database, for the query tool's site picker |
 | GET | `/database/schema` | `?site=` required; that site's table/column schema |
 | POST | `/database/queries` | Body `{"site", "query", "read_only"?: true}`; runs the query against that site's database and returns `{"columns", "rows", "row_count", "duration_ms", "truncated", "affected_rows"}` |
-
-Binlog/processlist/slow-query routes return 409 `unsupported_database_engine` on a non-MariaDB bench.
 
 ### Git
 

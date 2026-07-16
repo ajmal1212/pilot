@@ -8,9 +8,8 @@ from pilot.tasks.manager.task_reader import TaskReader
 from pilot.tasks.manager.task_state import ACTIVE_TASK_STATUSES
 from pilot.commands.sites.list_apps import _query_via_db_cli
 
-# Commands that write site_config.json well before the site's DB is queryable.
-# While one of these is active for a site, a failed DB probe means
-# "not ready yet", not "broken".
+# These write site_config.json well before the DB is queryable, so a failed
+# DB probe during one means "not ready yet", not "broken".
 _PROVISIONING_COMMANDS = {"new-site", "new-site-from-backup", "reinstall-site"}
 _PROVISIONING_ARG_KEYS = ("name", "site")
 
@@ -28,17 +27,18 @@ class SiteInfo:
     provisioning: bool = False
 
 
-class SiteReader:
+class SiteProvider:
     def __init__(self, bench_root: Path) -> None:
         self._bench_root = bench_root
 
-    def read_all(self) -> list[SiteInfo]:
+    def get_all(self) -> list[SiteInfo]:
         sites_path = self._bench_root / "sites"
         if sites_path.is_symlink() or not sites_path.is_dir():
             return []
-        provisioning = self._provisioning_site_names()
+
+        provisioning = self.provisioning_site_names
         return [
-            self._read_site(d.name, provisioning)
+            self.get_site(d.name, provisioning)
             for d in sorted(sites_path.iterdir())
             if not d.is_symlink()
             and d.is_dir()
@@ -46,13 +46,13 @@ class SiteReader:
             and (d / "site_config.json").is_file()
         ]
 
-    def read_one(self, site_name: str) -> SiteInfo:
-        return self._read_site(site_name, self._provisioning_site_names())
+    def get_one(self, site_name: str) -> SiteInfo:
+        return self.get_site(site_name, self.provisioning_site_names)
 
-    def _provisioning_site_names(self) -> set[str]:
-        """Sites with an active new-site/new-site-from-backup/reinstall-site task.
-        Reading the task registry is a handful of small local file
-        reads, cheap next to the DB probe it lets us skip."""
+    @property
+    def provisioning_site_names(self) -> set[str]:
+        """Sites with an active provisioning task — cheap local file reads,
+        versus the DB probe they let us skip."""
         try:
             tasks = TaskReader(self._bench_root).list_tasks()
         except Exception:
@@ -70,14 +70,16 @@ class SiteReader:
                     names.add(name)
         return names
 
-    def _read_site(self, site_name: str, provisioning: set[str]) -> SiteInfo:
+    def get_site(self, site_name: str, provisioning: set[str]) -> SiteInfo:
         raw_sites_path = self._bench_root / "sites"
         if raw_sites_path.is_symlink():
             raise ValueError("Sites path must stay within the bench.")
+
         sites_path = raw_sites_path.resolve()
         site_path = sites_path / site_name
         if site_path.is_symlink() or site_path.resolve(strict=False).parent != sites_path:
             raise ValueError("Site path must stay within the bench.")
+
         site_config_path = site_path / "site_config.json"
         exists = not site_config_path.is_symlink() and site_config_path.is_file()
         site_config: dict = {}
@@ -107,7 +109,6 @@ class SiteReader:
             exists=exists,
             db_name=site_config.get("db_name", ""),
             db_host=site_config.get("db_host") or "localhost",
-            # frappe omits db_type for older MariaDB sites; default accordingly.
             db_type=site_config.get("db_type") or "mariadb",
             installed_apps=installed_apps,
             site_config=site_config,

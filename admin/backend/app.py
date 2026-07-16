@@ -22,7 +22,6 @@ from .uploads import MAX_RESTORE_UPLOAD_BYTES
 from .api.v1.apps import apps_bp, marketplace_bp
 from .api.v1.benches import bench_readiness_bp, benches_bp
 from .api.v1.core import core_bp
-from .api.v1.dashboard import dashboard_bp
 from .api.v1.databases import database_bp
 from .api.v1.git import git_bp
 from .api.v1.logs import logs_bp
@@ -147,7 +146,6 @@ def create_app(bench_root: Path) -> Flask:
 
     app.register_blueprint(core_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(setup_bp, url_prefix=f"{API_V1_PREFIX}/setup")
-    app.register_blueprint(dashboard_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(apps_bp, url_prefix=f"{API_V1_PREFIX}/apps")
     app.register_blueprint(marketplace_bp, url_prefix=f"{API_V1_PREFIX}/marketplace")
     app.register_blueprint(benches_bp, url_prefix=f"{API_V1_PREFIX}/benches")

@@ -8,7 +8,7 @@ from flask import Blueprint, current_app, jsonify
 from pilot.config.toml_store import BenchTomlStore
 
 from ...api.responses import error_response
-from ...readers.processes import ProcessReader
+from ...providers.processes import ProcessProvider
 
 processes_bp = Blueprint("processes", __name__)
 
@@ -49,7 +49,7 @@ def _non_admin_programs(conf: Path, bench_name: str) -> list[str]:
 def _process_list_response():
     bench_root = current_app.config["BENCH_ROOT"]
     try:
-        processes = ProcessReader(bench_root).read_all()
+        processes = ProcessProvider(bench_root).get_all()
     except Exception:
         return error_response("processes_unavailable", "Could not read process status.", 500)
 

@@ -37,14 +37,6 @@ class AppValidationError(BenchError):
     pass
 
 
-class DatabaseProcessNotActiveError(BenchError):
-    pass
-
-
-class UnsupportedDatabaseEngineError(BenchError):
-    pass
-
-
 class DomainConflictError(BenchError):
     pass
 

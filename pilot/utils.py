@@ -143,20 +143,9 @@ def installed_app_version(env_path: Path, name: str) -> str:
 
 def git_has_local_changes(path: Path) -> bool:
     """True if the repo at *path* has uncommitted edits or commits not yet on upstream."""
-    import subprocess
+    from pilot.internal.git import GitRepo
 
-    r = subprocess.run(
-        ["git", "status", "--porcelain"],
-        capture_output=True, text=True, cwd=path,
-    )
-    if r.returncode == 0 and r.stdout.strip():
-        return True
-
-    r = subprocess.run(
-        ["git", "rev-list", "--count", "@{u}..HEAD"],
-        capture_output=True, text=True, cwd=path,
-    )
-    return r.returncode == 0 and r.stdout.strip() not in ("", "0")
+    return GitRepo(path).has_local_changes
 
 
 def get_yarn_bin() -> str:

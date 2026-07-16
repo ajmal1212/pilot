@@ -206,7 +206,9 @@ class PythonEnvManager:
         )
 
     def _try_download_prebuilt_assets(self, app: "App", app_public_dir: Path, dist_dir: Path) -> bool:
-        branch = self._app_branch(app)
+        from pilot.internal.git import GitRepo
+
+        branch = GitRepo(app.path).branch
         if not branch:
             return False
         url = self._release_asset_url(app, branch)
@@ -218,19 +220,6 @@ class PythonEnvManager:
             return False
         self._setup_prebuilt_assets(app.config.name, app_public_dir, dist_dir)
         return True
-
-    @staticmethod
-    def _app_branch(app: "App") -> str | None:
-        import subprocess
-
-        r = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True,
-            text=True,
-            cwd=app.path,
-        )
-        branch = r.stdout.strip()
-        return branch if r.returncode == 0 and branch not in ("HEAD", "") else None
 
     @staticmethod
     def _release_asset_url(app: "App", branch: str) -> str | None:

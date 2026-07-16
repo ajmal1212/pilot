@@ -1,9 +1,9 @@
-"""Tests for AppReader's best-effort pyproject.toml title/description scraping."""
+"""Tests for AppProvider's best-effort pyproject.toml title/description scraping."""
 from __future__ import annotations
 
 from pathlib import Path
 
-from admin.backend.readers.apps import AppReader
+from admin.backend.providers.apps import AppProvider
 
 
 def _make_app(bench_root: Path, name: str, pyproject: str | None = None) -> Path:
@@ -19,24 +19,24 @@ def test_pyproject_meta_reads_name_and_description(tmp_path: Path) -> None:
         tmp_path, "myapp",
         '[project]\nname = "myapp"\ndescription = "A demo Frappe app"\n',
     )
-    reader = AppReader(tmp_path)
-    title, description = reader._pyproject_meta(tmp_path / "apps" / "myapp", "myapp")
+    provider = AppProvider(tmp_path)
+    title, description = provider.get_pyproject_meta(tmp_path / "apps" / "myapp", "myapp")
     assert title == "myapp"
     assert description == "A demo Frappe app"
 
 
 def test_pyproject_meta_falls_back_to_folder_name_when_missing(tmp_path: Path) -> None:
     _make_app(tmp_path, "myapp")
-    reader = AppReader(tmp_path)
-    title, description = reader._pyproject_meta(tmp_path / "apps" / "myapp", "myapp")
+    provider = AppProvider(tmp_path)
+    title, description = provider.get_pyproject_meta(tmp_path / "apps" / "myapp", "myapp")
     assert title == "myapp"
     assert description == ""
 
 
 def test_pyproject_meta_falls_back_on_unparseable_toml(tmp_path: Path) -> None:
     _make_app(tmp_path, "myapp", "not valid toml [[[")
-    reader = AppReader(tmp_path)
-    title, description = reader._pyproject_meta(tmp_path / "apps" / "myapp", "myapp")
+    provider = AppProvider(tmp_path)
+    title, description = provider.get_pyproject_meta(tmp_path / "apps" / "myapp", "myapp")
     assert title == "myapp"
     assert description == ""
 
@@ -47,7 +47,7 @@ def test_read_all_includes_title_and_description(tmp_path: Path) -> None:
         '[project]\nname = "myapp"\ndescription = "A demo Frappe app"\n',
     )
     (app_path / ".git").mkdir()
-    apps = AppReader(tmp_path).read_all()
+    apps = AppProvider(tmp_path).get_all()
     assert len(apps) == 1
     assert apps[0].title == "myapp"
     assert apps[0].description == "A demo Frappe app"
