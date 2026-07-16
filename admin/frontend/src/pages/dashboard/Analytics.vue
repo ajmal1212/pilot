@@ -78,6 +78,9 @@
           <AxisChart :config="chart.config" class="w-full min-w-0 h-full min-h-[300px] px-2 sm:px-4 py-2" />
         </ChartCard>
       </div>
+
+      <!-- WAF analytics (only renders when the WAF has logged activity) -->
+      <WafAnalytics :window="activeWindow" />
     </template>
   </div>
 </template>
@@ -87,6 +90,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Button, Dropdown, LoadingText, ErrorMessage, AxisChart } from 'frappe-ui'
 import UpdatesAvailableButton from '@/components/common/UpdatesAvailableButton.vue'
 import ChartCard from '@/components/common/ChartCard.vue'
+import WafAnalytics from '@/components/common/WafAnalytics.vue'
 import { apiErrorMessage } from '@/api/client'
 import { monitorApi } from '@/api/monitor'
 

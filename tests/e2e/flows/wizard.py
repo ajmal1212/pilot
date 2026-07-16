@@ -10,7 +10,7 @@ from __future__ import annotations
 from playwright.sync_api import Page, expect
 
 # Long pole: bench init clones the framework and builds the venv.
-SETUP_TIMEOUT_MS = 45 * 60_000
+SETUP_TIMEOUT_MS = 20 * 60_000
 
 
 class WizardSetupError(Exception):

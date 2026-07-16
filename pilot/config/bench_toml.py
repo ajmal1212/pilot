@@ -4,6 +4,7 @@ from pathlib import Path
 
 from pilot.internal.toml import ConfigDict, Toml, TomlDataclassCodec
 from pilot.config.bench_config import BenchConfig
+from pilot.config.waf_config import WafConfig
 
 
 def _bench_config_from_dict(data: ConfigDict, *, strict: bool = False) -> BenchConfig:
@@ -120,6 +121,19 @@ def _bench_config_to_dict(config: BenchConfig) -> ConfigDict:
                 }
                 for rule in config.firewall.rules
             ],
+        }
+
+    waf = config.waf
+    if waf != WafConfig():
+        data["waf"] = {
+            "enabled": waf.enabled,
+            "mode": waf.mode,
+            "paranoia": waf.paranoia,
+            "inbound_threshold": waf.inbound_threshold,
+            "body_limit": waf.body_limit,
+            "inspect_responses": waf.inspect_responses,
+            "exclusions": waf.exclusions,
+            "exempt_paths": waf.exempt_paths,
         }
 
     s3 = config.s3

@@ -134,6 +134,18 @@ def get_monitor_history():
         )
 
 
+@stats_bp.get("/waf")
+def get_waf_analytics():
+    from admin.backend.providers.waf import WafProvider
+
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    window = request.args.get("window", "24h")
+    try:
+        return jsonify(WafProvider(bench_root, window).get_analytics())
+    except Exception:
+        return error_response("waf_analytics_unavailable", "Could not read WAF analytics.", 500)
+
+
 @stats_bp.get("/system")
 def system_info():
     from pilot.managers.platform import kernel_version, os_version
