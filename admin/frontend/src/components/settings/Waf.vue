@@ -7,7 +7,15 @@
       description="ModSecurity + OWASP Core Rule Set inspects request contents (SQLi, XSS, path traversal) for all sites and the admin."
       :model-value="enabled" @update:model-value="(v) => (enabled = v)" />
 
-    <Alert v-if="enabled && !installed" title="ModSecurity not installed" theme="yellow" :dismissible="false">
+    <Alert v-if="!production" title="Not enforced yet" theme="yellow" :dismissible="false">
+      <template #description>
+        <span class="text-ink-gray-6 text-p-sm">The WAF takes effect only in production (it's applied by nginx).
+          This bench isn't deployed, so nothing is enforced until you run
+          <span class="font-mono text-xs">bench setup production</span>.</span>
+      </template>
+    </Alert>
+
+    <Alert v-if="production && enabled && !installed" title="ModSecurity not installed" theme="yellow" :dismissible="false">
       <template #description>
         <span class="text-ink-gray-6 text-p-sm">The ModSecurity module isn't installed on this host, so the WAF
           stays inactive even when enabled. Redeploy production
@@ -69,6 +77,7 @@ const error = ref('')
 
 const enabled = ref(false)
 const installed = ref(false)
+const production = ref(true)
 const mode = ref('DetectionOnly')
 const modes = ref(['Off', 'DetectionOnly', 'On'])
 const paranoia = ref(1)
@@ -124,6 +133,7 @@ async function save() {
 onMounted(async () => {
   try {
     const data = await settingsApi.get()
+    production.value = !!data.production?.enabled
     const waf = data.waf || {}
     enabled.value = !!waf.enabled
     installed.value = !!waf.installed

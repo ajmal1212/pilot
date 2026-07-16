@@ -414,7 +414,7 @@ def _build_settings_response(config: BenchConfig) -> dict:
         "workers": _worker_groups_payload(config),
         "firewall": _firewall_payload(config),
         "waf": {**_waf_payload(config), "installed": WafManager.is_installed(), "modes": list(WAF_MODES)},
-        "production": {"process_manager": config.production.process_manager or "none"},
+        "production": {"process_manager": config.production.process_manager or "none", "enabled": config.production.enabled},
         "admin": {"domain": config.admin.domain, "tls": config.admin.tls},
         "letsencrypt": {"email": config.letsencrypt.email},
         "s3": _s3_payload(config),
