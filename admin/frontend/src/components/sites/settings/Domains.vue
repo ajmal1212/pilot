@@ -45,7 +45,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { Badge, Button, Dropdown, ErrorMessage, LoadingText, Tooltip } from 'frappe-ui'
 import AddDomainDialog from './domains/AddDomainDialog.vue'
 import RemoveDomainDialog from './domains/RemoveDomainDialog.vue'
-import { useSite } from '@/composables/useSite'
+import { useSite } from '@/composables/sites/useSite'
 import { apiErrorMessage } from '@/api/client'
 import { sitesApi } from '@/api/sites'
 

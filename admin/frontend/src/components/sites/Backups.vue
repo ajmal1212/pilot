@@ -84,7 +84,7 @@ import BackupConfigDialog from '@/components/sites/BackupConfigDialog.vue'
 import { apiErrorMessage } from '@/api/client'
 import { sitesApi } from '@/api/sites'
 import { tasksApi } from '@/api/tasks'
-import { useSite } from '@/composables/useSite'
+import { useSite } from '@/composables/sites/useSite'
 import { openTaskDetailPage } from '@/utils/taskRoute'
 import { cronToLabel } from '@/utils/backup'
 

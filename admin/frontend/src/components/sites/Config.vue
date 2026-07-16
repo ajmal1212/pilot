@@ -92,7 +92,7 @@
 import { computed, ref } from 'vue'
 import { Button, Dialog, Dropdown, ErrorMessage, ListView, ListRowItem, TextInput } from 'frappe-ui'
 import { sitesApi } from '@/api/sites'
-import { useSite } from '@/composables/useSite'
+import { useSite } from '@/composables/sites/useSite'
 
 const props = defineProps({ siteName: { type: String, required: true } })
 

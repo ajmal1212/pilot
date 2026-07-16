@@ -56,7 +56,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { Button, Dialog, ErrorMessage, TextInput } from 'frappe-ui'
-import SimpleTable from '@/components/SimpleTable.vue'
+import SimpleTable from '@/components/common/SimpleTable.vue'
 import { apiErrorMessage } from '@/api/client'
 import { sitesApi } from '@/api/sites'
 

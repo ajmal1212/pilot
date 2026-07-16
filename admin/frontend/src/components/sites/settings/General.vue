@@ -15,7 +15,7 @@
 <script setup>
 import { ref } from 'vue'
 import { ErrorMessage, Switch } from 'frappe-ui'
-import { useSite } from '@/composables/useSite'
+import { useSite } from '@/composables/sites/useSite'
 import { sitesApi } from '@/api/sites'
 
 const props = defineProps({ siteName: { type: String, required: true } })
