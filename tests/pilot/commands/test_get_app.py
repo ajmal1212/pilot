@@ -114,6 +114,7 @@ def test_short_circuit_still_populates_installed_dependencies(tmp_path: Path) ->
 
     with patch.object(Marketplace, "read_all_apps", return_value=[helpdesk]), \
             patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"), \
+            patch.object(Marketplace, "_read_apps_json", return_value="[]"), \
             patch("pilot.commands.apps.download.GetAppCommand") as mock_cmd:
         cmd = GetAppCommand(bench, "https://github.com/frappe/helpdesk", install_dependencies=True)
         cmd.run()
@@ -138,6 +139,7 @@ def test_still_installs_missing_dependency_when_parent_already_installed(tmp_pat
 
     with patch.object(Marketplace, "read_all_apps", return_value=[helpdesk]), \
             patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"), \
+            patch.object(Marketplace, "_read_apps_json", return_value="[]"), \
             patch("pilot.commands.apps.download.GetAppCommand") as mock_cmd:
         cmd = GetAppCommand(bench, "https://github.com/frappe/helpdesk", install_dependencies=True)
         cmd.run()

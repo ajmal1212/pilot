@@ -350,6 +350,22 @@ def make_marketplace(frappe_version: str, registry: list | None = None) -> Marke
     return mp
 
 
+def test_parse_registry_tolerates_null_frappe_core():
+    registry = [
+        {
+            "name": "unpinned_app",
+            "repo": "https://github.com/frappe/unpinned_app",
+            "targets": [
+                {"version": "1.0.0", "target_type": "branch", "target": "main", "frappe_core": None},
+            ],
+        },
+    ]
+    mp = make_marketplace("16.0.0", registry)
+    app = next(a for a in mp.read_all_apps() if a.app == "unpinned_app")
+    assert app.is_installable is True
+    assert app.required_version == ""
+
+
 def test_read_all_apps_returns_all_apps_including_incompatible():
     mp = make_marketplace("15.0.0")
     apps = mp.read_all_apps()

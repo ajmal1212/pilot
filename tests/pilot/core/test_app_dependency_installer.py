@@ -28,7 +28,8 @@ def test_install_returns_empty_when_app_not_in_marketplace_and_no_required_apps(
     (bench.apps_path / "custom_app" / "pyproject.toml").write_text('[project]\nname = "custom_app"\n')
 
     with patch.object(Marketplace, "read_all_apps", return_value=[]), \
-            patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"):
+            patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"), \
+            patch.object(Marketplace, "_read_apps_json", return_value="[]"):
         result = AppDependencyInstaller(bench, app).install()
 
     assert result == []
@@ -45,6 +46,7 @@ def test_install_installs_missing_dependency(tmp_path: Path) -> None:
 
     with patch.object(Marketplace, "read_all_apps", return_value=[helpdesk]), \
             patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"), \
+            patch.object(Marketplace, "_read_apps_json", return_value="[]"), \
             patch("pilot.commands.apps.download.GetAppCommand") as mock_cmd:
         result = AppDependencyInstaller(bench, app).install()
 
@@ -68,6 +70,7 @@ def test_install_skips_already_installed_dependency(tmp_path: Path) -> None:
 
     with patch.object(Marketplace, "read_all_apps", return_value=[helpdesk]), \
             patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"), \
+            patch.object(Marketplace, "_read_apps_json", return_value="[]"), \
             patch("pilot.commands.apps.download.GetAppCommand") as mock_cmd:
         result = AppDependencyInstaller(bench, app).install()
 
@@ -93,6 +96,7 @@ def test_dependency_apps_falls_back_to_direct_deps_on_transitive_conflict(tmp_pa
 
     with patch.object(Marketplace, "read_all_apps", return_value=[helpdesk]), \
             patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"), \
+            patch.object(Marketplace, "_read_apps_json", return_value="[]"), \
             patch.object(Resolver, "resolve", side_effect=DependencyResolutionError("conflict deep in the graph")):
         result = AppDependencyInstaller(bench, app).install()
 
@@ -125,6 +129,7 @@ def test_install_raises_when_app_not_in_marketplace_but_requires_missing_apps(tm
     app = make_app(bench, "india_compliance")
 
     with patch.object(Marketplace, "read_all_apps", return_value=[]), \
-            patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"):
+            patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"), \
+            patch.object(Marketplace, "_read_apps_json", return_value="[]"):
         with pytest.raises(BenchError, match="isn't in the marketplace registry"):
             AppDependencyInstaller(bench, app).install()

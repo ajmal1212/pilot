@@ -147,7 +147,7 @@ class Marketplace:
         for app in raw:
             for target in app.get("targets", []):
                 # prereleases=True so -dev/-rc frappe_core specs match.
-                target["_spec"] = SpecifierSet(target["frappe_core"], prereleases=True)
+                target["_spec"] = SpecifierSet(target.get("frappe_core") or "", prereleases=True)
         return raw
 
     def _make_resolver(self, app: dict, target: dict, is_installable: bool) -> "Resolver":
@@ -158,7 +158,7 @@ class Marketplace:
             target=target.get("target", ""),
             version=target.get("version", ""),
             frappe_version=self.frappe_version,
-            required_version=target.get("frappe_core", ""),
+            required_version=target.get("frappe_core") or "",
             dependencies=target.get("dependencies", {}),
             title=app.get("title", app["name"]),
             description=app.get("description", ""),
