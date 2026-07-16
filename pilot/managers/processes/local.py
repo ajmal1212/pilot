@@ -107,7 +107,9 @@ class ProcessManager:
         self.procfile_path.write_text("".join(lines))
 
     def _ensure_gunicorn_config(self) -> None:
-        GunicornManager(self.bench).generate_config()
+        manager = GunicornManager(self.bench)
+        manager.generate_config()
+        manager.generate_admin_config()
 
     def _ensure_redis_config(self) -> None:
         from pilot.managers.redis import RedisManager

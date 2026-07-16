@@ -203,6 +203,7 @@ def test_generate_config_writes_gunicorn_config(tmp_path: Path) -> None:
         mock_ensure.assert_called_once()
 
     assert (bench.config_path / "gunicorn.conf.py").exists()
+    assert (bench.config_path / "admin-gunicorn.conf.py").exists()
 
 
 def test_supervisor_generate_config_writes_gunicorn_config(tmp_path: Path) -> None:
