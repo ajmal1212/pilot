@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from pilot.config.toml_store import BenchTomlStore
@@ -84,9 +84,9 @@ class BackupReader:
 
     def _parse_timestamp(self, timestamp: str) -> datetime:
         try:
-            return datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+            return datetime.strptime(timestamp, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
         except ValueError:
-            return datetime.now()
+            return datetime.now(timezone.utc)
 
     def _read_local_backups(self) -> list[BackupSet]:
         if not self._backups_dir.is_dir():
@@ -111,9 +111,9 @@ class BackupReader:
         ts = m.group(1) if m else "unknown"
 
         try:
-            created_at = datetime.strptime(ts, "%Y%m%d_%H%M%S")
+            created_at = datetime.strptime(ts, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
         except ValueError:
-            created_at = datetime.fromtimestamp(path.stat().st_mtime)
+            created_at = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
 
         if "private-files" in name:
             kind = "private-file"
