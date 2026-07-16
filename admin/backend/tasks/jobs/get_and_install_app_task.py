@@ -41,7 +41,13 @@ class GetAndInstallAppTask(BaseTask):
         else:
             repo, branch = self.repo, self.branch
         self._step("fetch", f"Fetch {self.marketplace_app or self.repo}")
-        cmd = GetAppCommand(self.bench, repo, branch, install_dependencies=bool(self.marketplace_app))
+        cmd = GetAppCommand(
+            self.bench,
+            repo,
+            branch,
+            install_dependencies=bool(self.marketplace_app),
+            skip_validations=False,
+        )
         cmd.run()
         return cmd
 
@@ -51,7 +57,9 @@ class GetAndInstallAppTask(BaseTask):
         for site in self.sites:
             safe_key = site.replace(".", "_").replace("-", "_")
             for app in apps:
-                self._step(f"install_{safe_key}_{app.config.name}", f"Install {app.config.name} on {site}")
+                self._step(
+                    f"install_{safe_key}_{app.config.name}", f"Install {app.config.name} on {site}"
+                )
                 Site(SiteConfig(name=site, apps=[]), self.bench).install_app(app)
 
         env = PythonEnvManager(self.bench)

@@ -82,7 +82,7 @@ class GetAppCommand(Command):
         if self.install_dependencies:
             self._install_dependencies()
 
-        if not self.skip_validations:
+        if not self.skip_validations and not self._is_registered():
             self._validate()
 
         self._install()
@@ -215,10 +215,18 @@ class GetAppCommand(Command):
     def _register(self) -> None:
         # apps.txt lists the importable package name; the folder was normalized to
         # that name in _normalize_folder, so self.name is it.
-        apps_txt = self.bench.sites_path / "apps.txt"
-        existing = apps_txt.read_text().splitlines() if apps_txt.exists() else []
+        existing = self._registered_apps()
         if self.name not in existing:
-            apps_txt.write_text("\n".join(existing + [self.name]) + "\n")
+            (self.bench.sites_path / "apps.txt").write_text(
+                "\n".join(existing + [self.name]) + "\n"
+            )
+
+    def _is_registered(self) -> bool:
+        return self.name in self._registered_apps()
+
+    def _registered_apps(self) -> list[str]:
+        apps_txt = self.bench.sites_path / "apps.txt"
+        return apps_txt.read_text().splitlines() if apps_txt.exists() else []
 
     def _validate(self) -> None:
         import shutil
