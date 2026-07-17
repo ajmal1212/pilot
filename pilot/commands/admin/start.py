@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import argparse
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Annotated, ClassVar
 
-from pilot.commands.base import Command
+from pilot.commands.base import Arg, BenchMode, Command
 
 
 def download_admin_frontend(cli_root: Path) -> bool:
@@ -12,23 +13,15 @@ def download_admin_frontend(cli_root: Path) -> bool:
     return _download(cli_root)
 
 
+@dataclass(kw_only=True)
 class BuildAdminCommand(Command):
-    name = "build-admin"
-    help = "Download or rebuild admin frontend assets."
-    requires_bench = False
+    name: ClassVar[str] = "build-admin"
+    help: ClassVar[str] = "Download or rebuild admin frontend assets."
+    bench_mode: ClassVar[BenchMode] = BenchMode.NONE
 
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--force", action="store_true", help="Skip download and build from source.")
-
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(force_build=args.force)
-
-    def __init__(self, force_build: bool = False) -> None:
-        self.force_build = force_build
+    force: Annotated[bool, Arg(help="Skip download and build from source.")] = False
 
     def run(self) -> None:
         from pilot.core.admin_frontend import build_admin_frontend
 
-        build_admin_frontend(self.force_build, on_progress=self.print)
+        build_admin_frontend(self.force, on_progress=self.print)

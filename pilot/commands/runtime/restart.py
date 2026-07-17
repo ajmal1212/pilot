@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import argparse
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Annotated, ClassVar
 
-from pilot.commands.base import Command
+from pilot.commands.base import Arg, Command
 
 if TYPE_CHECKING:
     from pilot.core.bench import Bench
@@ -14,26 +14,14 @@ _DEV_MESSAGE = (
     "For development, stop the runner and execute `bench start` again."
 )
 
+
+@dataclass(kw_only=True)
 class RestartCommand(Command):
-    name = "restart"
-    help = "Restart the production workload (production mode only)."
-    supports_all_benches = True
+    name: ClassVar[str] = "restart"
+    help: ClassVar[str] = "Restart the production workload (production mode only)."
+    supports_all_benches: ClassVar[bool] = True
 
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument(
-            "--admin",
-            action="store_true",
-            help="Also restart the admin control plane, if it's installed.",
-        )
-
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(bench, admin=args.admin)
-
-    def __init__(self, bench: "Bench", admin: bool = False) -> None:
-        self.bench = bench
-        self.admin = admin
+    admin: Annotated[bool, Arg(help="Also restart the admin control plane, if it's installed.")] = False
 
     def run(self) -> None:
         if not self.bench.config.production.enabled:

@@ -1,33 +1,26 @@
 from __future__ import annotations
 
-import argparse
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Annotated, ClassVar
 
-from pilot.commands.base import Command
+from pilot.commands.base import Arg, Command
 
 if TYPE_CHECKING:
-    from pilot.core.bench import Bench
+    from pilot.core.site import Site
 
 
+@dataclass(kw_only=True)
 class ListSiteAppsCommand(Command):
-    name = "list-site-apps"
-    help = "List apps installed on a site."
+    name: ClassVar[str] = "list-site-apps"
+    help: ClassVar[str] = "List apps installed on a site."
 
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("site", help="Site name (e.g. site1.localhost).")
+    site_name: Annotated[str, Arg(help="Site name (e.g. site1.localhost).", metavar="site")]
 
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(bench, args.site)
-
-    def __init__(self, bench: "Bench", site_name: str) -> None:
+    def __post_init__(self) -> None:
         from pilot.config.site import SiteConfig
         from pilot.core.site import Site
 
-        self.bench = bench
-        self.site_name = site_name
-        self.site = Site(SiteConfig(name=site_name, apps=[]), bench)
+        self.site: "Site" = Site(SiteConfig(name=self.site_name, apps=[]), self.bench)
 
     def run(self) -> None:
         for app in self.site.installed_apps():

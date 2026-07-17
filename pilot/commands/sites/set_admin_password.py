@@ -1,31 +1,19 @@
 from __future__ import annotations
 
-import argparse
 import getpass
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Annotated, ClassVar
 
-from pilot.commands.base import Command
+from pilot.commands.base import Arg, Command
 from pilot.exceptions import BenchError
 
-if TYPE_CHECKING:
-    from pilot.core.bench import Bench
 
-
+@dataclass(kw_only=True)
 class SetAdminPasswordCommand(Command):
-    name = "set-admin-password"
-    help = "Set the admin panel password (prompts if --password is omitted)."
+    name: ClassVar[str] = "set-admin-password"
+    help: ClassVar[str] = "Set the admin panel password (prompts if --password is omitted)."
 
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--password", help="New password; omit to be prompted securely.")
-
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(bench, password=args.password)
-
-    def __init__(self, bench: "Bench", password: str | None = None) -> None:
-        self.bench = bench
-        self.password = password
+    password: Annotated[str | None, Arg(help="New password; omit to be prompted securely.")] = None
 
     def run(self) -> None:
         from pilot.config.toml_store import BenchTomlStore

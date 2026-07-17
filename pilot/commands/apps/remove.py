@@ -1,32 +1,25 @@
 from __future__ import annotations
 
-import argparse
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Annotated, ClassVar
 
-from pilot.commands.base import Command
+from pilot.commands.base import Arg, Command
 
 if TYPE_CHECKING:
-    from pilot.core.bench import Bench
+    from pilot.core.app import App
 
 
+@dataclass(kw_only=True)
 class RemoveAppCommand(Command):
-    name = "remove-app"
-    help = "Remove an app from the bench."
+    name: ClassVar[str] = "remove-app"
+    help: ClassVar[str] = "Remove an app from the bench."
 
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("app", help="App name to remove.")
+    app_name: Annotated[str, Arg(help="App name to remove.", metavar="app")]
+    skip_confirm: bool = False
+    force: Annotated[bool, Arg(cli=False)] = False
 
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(bench, args.app, skip_confirm=args.yes)
-
-    def __init__(self, bench: "Bench", app_name: str, skip_confirm: bool = False, force: bool = False) -> None:
-        self.bench = bench
-        self.app_name = app_name
-        self.skip_confirm = skip_confirm
-        self.force = force
-        self.app = bench.app(app_name)
+    def __post_init__(self) -> None:
+        self.app: "App" = self.bench.app(self.app_name)
 
     def run(self) -> None:
         self.app.ensure_removable()

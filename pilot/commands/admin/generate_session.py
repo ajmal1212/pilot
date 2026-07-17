@@ -1,32 +1,19 @@
 from __future__ import annotations
 
-import argparse
 import urllib.parse
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import Annotated, ClassVar
 
-from pilot.commands.base import Command
+from pilot.commands.base import Arg, Command
 from pilot.exceptions import BenchError
 
-if TYPE_CHECKING:
-    from pilot.core.bench import Bench
 
-
+@dataclass(kw_only=True)
 class GenerateSessionCommand(Command):
-    name = "generate-admin-session"
-    help = "Issue a 5-minute one-time sign-in token (use --full-path for a sign-in URL)."
+    name: ClassVar[str] = "generate-admin-session"
+    help: ClassVar[str] = "Issue a 5-minute one-time sign-in token (use --full-path for a sign-in URL)."
 
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("--full-path", action="store_true",
-                            help="Print the full admin URL with ?sid= instead of the bare token.")
-
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(bench, full_path=args.full_path)
-
-    def __init__(self, bench: "Bench", full_path: bool = False) -> None:
-        self.bench = bench
-        self.full_path = full_path
+    full_path: Annotated[bool, Arg(help="Print the full admin URL with ?sid= instead of the bare token.")] = False
 
     def run(self) -> None:
         from pilot.admin_url import admin_url
@@ -48,28 +35,21 @@ class GenerateSessionCommand(Command):
         return secret
 
 
+def _default_ttl() -> int:
+    # Discovery imports every command module, so this stays lazy — pilot.core
+    # must not load just to build --help.
+    from pilot.core.admin_auth import DEFAULT_TTL
+
+    return DEFAULT_TTL
+
+
+@dataclass(kw_only=True)
 class IssueSiteTokenCommand(Command):
-    name = "issue-site-token"
-    help = "Issue a scoped JWT for site-to-bench API calls."
+    name: ClassVar[str] = "issue-site-token"
+    help: ClassVar[str] = "Issue a scoped JWT for site-to-bench API calls."
 
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        from pilot.core.admin_auth import DEFAULT_TTL
-
-        parser.add_argument("site", help="Site name to scope the token to.")
-        parser.add_argument("--ttl", type=int, default=DEFAULT_TTL,
-                            help="Token TTL in seconds (default: 86400).")
-
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(bench, args.site, ttl=args.ttl)
-
-    def __init__(self, bench: "Bench", site: str, ttl: int | None = None) -> None:
-        from pilot.core.admin_auth import DEFAULT_TTL
-
-        self.bench = bench
-        self.site = site
-        self.ttl = ttl if ttl is not None else DEFAULT_TTL
+    site: Annotated[str, Arg(help="Site name to scope the token to.")]
+    ttl: Annotated[int, Arg(help="Token TTL in seconds (default: 86400).")] = field(default_factory=_default_ttl)
 
     def run(self) -> None:
         from pilot.core.admin_auth import ensure_jwt_secret, issue_site_token

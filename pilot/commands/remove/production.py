@@ -1,20 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import ClassVar
 
 from pilot.commands.base import Command
 
-if TYPE_CHECKING:
-    from pilot.core.bench import Bench
 
-
+@dataclass(kw_only=True)
 class RemoveProductionCommand(Command):
-    name = "production"
-    help = "Remove a production deployment (keeps logs, certificates, admin domain)."
-    group = "remove"
-
-    def __init__(self, bench: "Bench") -> None:
-        self.bench = bench
+    name: ClassVar[str] = "production"
+    help: ClassVar[str] = "Remove a production deployment (keeps logs, certificates, admin domain)."
+    group: ClassVar[str] = "remove"
 
     def run(self) -> None:
         self.bench.remove_production(on_progress=self.print)

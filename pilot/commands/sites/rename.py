@@ -1,35 +1,22 @@
 from __future__ import annotations
 
-import argparse
 import json
 import sys
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Annotated, ClassVar
 
-from pilot.commands.base import Command
+from pilot.commands.base import Arg, Command
 from pilot.exceptions import BenchError
 from pilot.secure_files import write_private_text
 
-if TYPE_CHECKING:
-    from pilot.core.bench import Bench
 
-
+@dataclass(kw_only=True)
 class RenameSiteCommand(Command):
-    name = "rename-site"
-    help = "Rename a site in this bench."
+    name: ClassVar[str] = "rename-site"
+    help: ClassVar[str] = "Rename a site in this bench."
 
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("old_name", help="Current site name.")
-        parser.add_argument("new_name", help="New site name (hostname).")
-
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(bench, args.old_name, args.new_name)
-
-    def __init__(self, bench: "Bench", old_name: str, new_name: str) -> None:
-        self.bench = bench
-        self.old_name = old_name
-        self.new_name = new_name
+    old_name: Annotated[str, Arg(help="Current site name.")]
+    new_name: Annotated[str, Arg(help="New site name (hostname).")]
 
     def run(self) -> None:
         from pilot.managers.nginx import NginxManager

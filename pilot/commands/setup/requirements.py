@@ -1,20 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import ClassVar
 
 from pilot.commands.base import Command
 
-if TYPE_CHECKING:
-    from pilot.core.bench import Bench
 
-
+@dataclass(kw_only=True)
 class SetupRequirementsCommand(Command):
-    name = "requirements"
-    help = "Install Python and JS requirements for all apps."
-    group = "setup"
-
-    def __init__(self, bench: "Bench") -> None:
-        self.bench = bench
+    name: ClassVar[str] = "requirements"
+    help: ClassVar[str] = "Install Python and JS requirements for all apps."
+    group: ClassVar[str] = "setup"
 
     def run(self) -> None:
         self._install_python()

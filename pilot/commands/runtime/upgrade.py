@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
+from typing import ClassVar
 
-from pilot.commands.base import Command
+from pilot.commands.base import BenchMode, Command
 
 
+@dataclass(kw_only=True)
 class UpgradeCommand(Command):
-    name = "upgrade"
-    help = "Pull latest bench-cli and download the admin frontend."
-    requires_bench = False
-    optional_bench = True  # used only to restart processes in production
+    name: ClassVar[str] = "upgrade"
+    help: ClassVar[str] = "Pull latest bench-cli and download the admin frontend."
+    # OPTIONAL: used only to restart processes in production, if one is active.
+    bench_mode: ClassVar[BenchMode] = BenchMode.OPTIONAL
 
     def run(self) -> None:
         from pilot.commands.admin.start import download_admin_frontend

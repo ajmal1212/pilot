@@ -40,7 +40,7 @@ def test_new_command_creates_directory_and_toml(tmp_path: Path, monkeypatch: pyt
 
     monkeypatch.setattr("builtins.input", lambda _: "")
     target = tmp_path / "benches" / "my-bench"
-    NewCommand(target, "my-bench").run()
+    NewCommand(target_directory=target, bench_name="my-bench").run()
 
     assert target.is_dir()
     content = (target / "bench.toml").read_text()
@@ -55,7 +55,7 @@ def test_new_command_raises_if_bench_already_exists(tmp_path: Path) -> None:
     (target / "bench.toml").write_text("[bench]\n")
 
     with pytest.raises(BenchAlreadyExistsError, match="already exists"):
-        NewCommand(target, "my-bench").run()
+        NewCommand(target_directory=target, bench_name="my-bench").run()
 
 
 def test_new_command_creates_benches_dir_if_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -64,7 +64,7 @@ def test_new_command_creates_benches_dir_if_missing(tmp_path: Path, monkeypatch:
     monkeypatch.setattr("builtins.input", lambda _: "")
     target = tmp_path / "benches" / "fresh"
     assert not target.parent.exists()
-    NewCommand(target, "fresh").run()
+    NewCommand(target_directory=target, bench_name="fresh").run()
     assert target.parent.is_dir()
 
 
@@ -75,7 +75,7 @@ def test_new_command_first_bench_uses_default_ports(tmp_path: Path, monkeypatch:
     monkeypatch.setattr("builtins.input", lambda _: "")
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: False))
     target = tmp_path / "benches" / "my-bench"
-    NewCommand(target, "my-bench").run()
+    NewCommand(target_directory=target, bench_name="my-bench").run()
 
     with open(target / "bench.toml", "rb") as f:
         data = tomllib.load(f)
@@ -92,8 +92,8 @@ def test_new_command_second_bench_gets_next_offset(tmp_path: Path, monkeypatch: 
     monkeypatch.setattr("builtins.input", lambda _: "")
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: False))
     benches_dir = tmp_path / "benches"
-    NewCommand(benches_dir / "first", "first").run()
-    NewCommand(benches_dir / "second", "second").run()
+    NewCommand(target_directory=benches_dir / "first", bench_name="first").run()
+    NewCommand(target_directory=benches_dir / "second", bench_name="second").run()
 
     with open(benches_dir / "second" / "bench.toml", "rb") as f:
         data = tomllib.load(f)
@@ -114,7 +114,7 @@ def test_new_command_inherits_sibling_jwks_url_and_audience(tmp_path: Path, monk
     monkeypatch.setattr("builtins.input", lambda _: "")
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: False))
     benches_dir = tmp_path / "benches"
-    NewCommand(benches_dir / "first", "first").run()
+    NewCommand(target_directory=benches_dir / "first", bench_name="first").run()
     store = BenchTomlStore.for_bench(benches_dir / "first")
     data = store.read_raw()
     admin = data.setdefault("admin", {})
@@ -122,7 +122,7 @@ def test_new_command_inherits_sibling_jwks_url_and_audience(tmp_path: Path, monk
     admin["jwks_audience"] = "bench-fleet"
     store.write_raw(data)
 
-    NewCommand(benches_dir / "second", "second").run()
+    NewCommand(target_directory=benches_dir / "second", bench_name="second").run()
     with open(benches_dir / "second" / "bench.toml", "rb") as f:
         inherited = tomllib.load(f)["admin"]
     assert inherited["jwks_url"] == "https://issuer.example.com/jwks.json"
@@ -136,7 +136,7 @@ def test_new_command_first_bench_has_no_jwks_url(tmp_path: Path, monkeypatch: py
     monkeypatch.setattr("builtins.input", lambda _: "")
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: False))
     target = tmp_path / "benches" / "only"
-    NewCommand(target, "only").run()
+    NewCommand(target_directory=target, bench_name="only").run()
     with open(target / "bench.toml", "rb") as f:
         assert "jwks_url" not in tomllib.load(f).get("admin", {})
 
@@ -151,7 +151,7 @@ def test_new_command_postgres_bench(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr("builtins.input", lambda _: "")
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: False))
     benches_dir = tmp_path / "benches"
-    NewCommand(benches_dir / "pg", "pg", db_type="postgres").run()
+    NewCommand(target_directory=benches_dir / "pg", bench_name="pg", database="postgres").run()
 
     with open(benches_dir / "pg" / "bench.toml", "rb") as f:
         data = tomllib.load(f)
@@ -169,8 +169,8 @@ def test_new_command_second_postgres_bench_inherits_password(tmp_path: Path, mon
     monkeypatch.setattr("builtins.input", lambda _: "")
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: False))
     benches_dir = tmp_path / "benches"
-    NewCommand(benches_dir / "pg1", "pg1", db_type="postgres").run()
-    NewCommand(benches_dir / "pg2", "pg2", db_type="postgres").run()
+    NewCommand(target_directory=benches_dir / "pg1", bench_name="pg1", database="postgres").run()
+    NewCommand(target_directory=benches_dir / "pg2", bench_name="pg2", database="postgres").run()
 
     with open(benches_dir / "pg1" / "bench.toml", "rb") as f:
         first = tomllib.load(f)
@@ -189,8 +189,8 @@ def test_new_command_postgres_port_is_not_offset_between_benches(tmp_path: Path,
     monkeypatch.setattr("builtins.input", lambda _: "")
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: False))
     benches_dir = tmp_path / "benches"
-    NewCommand(benches_dir / "first", "first", db_type="postgres").run()
-    NewCommand(benches_dir / "second", "second", db_type="postgres").run()
+    NewCommand(target_directory=benches_dir / "first", bench_name="first", database="postgres").run()
+    NewCommand(target_directory=benches_dir / "second", bench_name="second", database="postgres").run()
 
     with open(benches_dir / "second" / "bench.toml", "rb") as f:
         data = tomllib.load(f)
@@ -209,7 +209,7 @@ def test_new_command_postgres_port_ignores_live_scan_on_macos(tmp_path: Path, mo
     # 5432 reads as live, which would normally push the picker to 5433+.
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: port == 5432))
     with patch("pilot.managers.platform.is_macos", return_value=True):
-        NewCommand(tmp_path / "benches" / "pg", "pg", db_type="postgres").run()
+        NewCommand(target_directory=tmp_path / "benches" / "pg", bench_name="pg", database="postgres").run()
 
     with open(tmp_path / "benches" / "pg" / "bench.toml", "rb") as f:
         data = tomllib.load(f)
@@ -222,7 +222,7 @@ def test_new_command_mariadb_bench_has_no_postgres_password(tmp_path: Path, monk
 
     monkeypatch.setattr("builtins.input", lambda _: "")
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: False))
-    NewCommand(tmp_path / "benches" / "m", "m").run()
+    NewCommand(target_directory=tmp_path / "benches" / "m", bench_name="m").run()
 
     with open(tmp_path / "benches" / "m" / "bench.toml", "rb") as f:
         data = tomllib.load(f)
@@ -240,8 +240,8 @@ def test_new_command_mariadb_port_is_not_offset_between_benches(tmp_path: Path, 
     monkeypatch.setattr("builtins.input", lambda _: "")
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: False))
     benches_dir = tmp_path / "benches"
-    NewCommand(benches_dir / "first", "first").run()
-    NewCommand(benches_dir / "second", "second").run()
+    NewCommand(target_directory=benches_dir / "first", bench_name="first").run()
+    NewCommand(target_directory=benches_dir / "second", bench_name="second").run()
 
     with open(benches_dir / "second" / "bench.toml", "rb") as f:
         data = tomllib.load(f)
@@ -261,7 +261,7 @@ def test_new_command_mariadb_port_ignores_live_scan_on_macos(tmp_path: Path, mon
     # 3306 reads as live, which would normally push the picker to 3307+.
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: port == 3306))
     with patch("pilot.managers.platform.is_macos", return_value=True):
-        NewCommand(tmp_path / "benches" / "m", "m").run()
+        NewCommand(target_directory=tmp_path / "benches" / "m", bench_name="m").run()
 
     with open(tmp_path / "benches" / "m" / "bench.toml", "rb") as f:
         data = tomllib.load(f)
@@ -279,14 +279,14 @@ def test_new_command_second_mariadb_bench_inherits_password(tmp_path: Path, monk
     monkeypatch.setattr("builtins.input", lambda _: "")
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: False))
     benches_dir = tmp_path / "benches"
-    NewCommand(benches_dir / "m1", "m1").run()
+    NewCommand(target_directory=benches_dir / "m1", bench_name="m1").run()
     with open(benches_dir / "m1" / "bench.toml", "rb") as f:
         first = tomllib.load(f)
     # Random, not the old guessable hardcoded default.
     assert first["mariadb"]["root_password"] != "root"
     assert len(first["mariadb"]["root_password"]) == 16  # secrets.token_hex(nbytes=8)
 
-    NewCommand(benches_dir / "m2", "m2").run()
+    NewCommand(target_directory=benches_dir / "m2", bench_name="m2").run()
     with open(benches_dir / "m2" / "bench.toml", "rb") as f:
         second = tomllib.load(f)
     assert second["mariadb"]["root_password"] == first["mariadb"]["root_password"]
@@ -302,7 +302,7 @@ def test_new_command_skips_offset_with_live_port(tmp_path: Path, monkeypatch: py
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: port == 8000))
 
     target = tmp_path / "benches" / "my-bench"
-    NewCommand(target, "my-bench").run()
+    NewCommand(target_directory=target, bench_name="my-bench").run()
 
     with open(target / "bench.toml", "rb") as f:
         data = tomllib.load(f)
@@ -324,7 +324,7 @@ def test_new_command_skips_offset_with_live_admin_internal_port(tmp_path: Path, 
     monkeypatch.setattr(BenchCreator, "_port_is_live", staticmethod(lambda port: port == 7001))
 
     target = tmp_path / "benches" / "my-bench"
-    NewCommand(target, "my-bench").run()
+    NewCommand(target_directory=target, bench_name="my-bench").run()
 
     with open(target / "bench.toml", "rb") as f:
         data = tomllib.load(f)
@@ -427,7 +427,7 @@ def test_remove_app_confirm_raises_on_negative_answer(tmp_path: Path, monkeypatc
     monkeypatch.setattr("builtins.input", lambda _: "n")
 
     with pytest.raises(BenchError, match="Aborted"):
-        RemoveAppCommand(bench, "myapp").confirm("Remove?")
+        RemoveAppCommand(bench, app_name="myapp").confirm("Remove?")
 
 
 def test_remove_app_confirm_passes_on_yes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -436,7 +436,7 @@ def test_remove_app_confirm_passes_on_yes(tmp_path: Path, monkeypatch: pytest.Mo
     bench = make_bench(tmp_path)
     (bench.apps_path / "myapp").mkdir(parents=True)
     monkeypatch.setattr("builtins.input", lambda _: "y")
-    RemoveAppCommand(bench, "myapp").confirm("Remove?")  # no raise
+    RemoveAppCommand(bench, app_name="myapp").confirm("Remove?")  # no raise
 
 
 def test_remove_app_confirm_skipped_when_skip_confirm(tmp_path: Path) -> None:
@@ -444,7 +444,7 @@ def test_remove_app_confirm_skipped_when_skip_confirm(tmp_path: Path) -> None:
 
     bench = make_bench(tmp_path)
     (bench.apps_path / "myapp").mkdir(parents=True)
-    RemoveAppCommand(bench, "myapp", skip_confirm=True).confirm("Remove?", skip=True)  # no raise, no input
+    RemoveAppCommand(bench, app_name="myapp", skip_confirm=True).confirm("Remove?", skip=True)  # no raise, no input
 
 
 def test_remove_app_removes_app_from_apps_txt(tmp_path: Path) -> None:
@@ -480,7 +480,7 @@ def test_remove_app_full_flow_no_sites(tmp_path: Path) -> None:
     app_dir.mkdir()
     (bench.sites_path / "apps.txt").write_text("frappe\nerpnext\n")
 
-    cmd = RemoveAppCommand(bench, "erpnext", skip_confirm=True)
+    cmd = RemoveAppCommand(bench, app_name="erpnext", skip_confirm=True)
     with patch("pilot.managers.python_environment.PythonEnvManager.uninstall_app"):
         cmd.run()
 
@@ -499,7 +499,7 @@ def test_uninstall_app_raises_if_site_not_found(tmp_path: Path) -> None:
     bench.create_directories()
 
     with pytest.raises(BenchError, match="does not exist"):
-        UninstallAppCommand(bench, "site1.localhost", ["myapp"]).run()
+        UninstallAppCommand(bench, site_name="site1.localhost", app_names=["myapp"]).run()
 
 
 def test_uninstall_app_raises_if_app_not_installed(tmp_path: Path) -> None:
@@ -512,7 +512,7 @@ def test_uninstall_app_raises_if_app_not_installed(tmp_path: Path) -> None:
     site_dir.mkdir()
     (site_dir / "site_config.json").write_text("{}")
 
-    cmd = UninstallAppCommand(bench, "site1.localhost", ["myapp"])
+    cmd = UninstallAppCommand(bench, site_name="site1.localhost", app_names=["myapp"])
     with patch("pilot.core.site.Site.list_apps", return_value=["frappe"]):
         with pytest.raises(BenchError, match="not installed"):
             cmd.run()
@@ -528,7 +528,7 @@ def test_uninstall_app_calls_site_uninstall_when_installed(tmp_path: Path) -> No
     site_dir.mkdir()
     (site_dir / "site_config.json").write_text("{}")
 
-    cmd = UninstallAppCommand(bench, "site1.localhost", ["myapp"])
+    cmd = UninstallAppCommand(bench, site_name="site1.localhost", app_names=["myapp"])
     with patch("pilot.core.site.Site.list_apps", return_value=["frappe", "myapp"]), \
          patch("pilot.core.site.Site.uninstall_app") as mock_uninstall:
         cmd.run()
@@ -544,7 +544,7 @@ def test_frappe_command_raises_if_venv_python_missing(tmp_path: Path) -> None:
     bench = make_bench(tmp_path)
 
     with pytest.raises(BenchError, match="not found"):
-        FrappeCommand(bench).run_raw(["frappe", "migrate"])
+        FrappeCommand(bench).run(["migrate"])
 
 
 def test_frappe_command_calls_subprocess_with_frappe_call(tmp_path: Path) -> None:
@@ -557,7 +557,7 @@ def test_frappe_command_calls_subprocess_with_frappe_call(tmp_path: Path) -> Non
     mock_result = MagicMock(returncode=0)
     with patch("subprocess.run", return_value=mock_result) as mock_run:
         with pytest.raises(SystemExit) as exc_info:
-            FrappeCommand(bench).run_raw(["frappe", "migrate"])
+            FrappeCommand(bench).run(["migrate"])
         assert exc_info.value.code == 0
         called_args = mock_run.call_args[0][0]
         assert "frappe.utils.bench_helper" in " ".join(called_args)
@@ -574,7 +574,7 @@ def test_frappe_command_exits_with_subprocess_returncode(tmp_path: Path) -> None
 
     with patch("subprocess.run", return_value=MagicMock(returncode=42)):
         with pytest.raises(SystemExit) as exc_info:
-            FrappeCommand(bench).run_raw(["frappe", "foo"])
+            FrappeCommand(bench).run(["foo"])
         assert exc_info.value.code == 42
 
 
@@ -1300,7 +1300,7 @@ def test_start_rebuilds_admin_when_source_changed(tmp_path: Path, monkeypatch: p
 
     RunCommand(make_bench(tmp_path))._ensure_admin_dist()
 
-    build.assert_called_once_with(force_build=True)
+    build.assert_called_once_with(force=True)
 
 
 def test_start_skips_admin_rebuild_when_fresh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

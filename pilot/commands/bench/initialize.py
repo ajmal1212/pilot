@@ -1,21 +1,17 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import ClassVar
 
-from pilot.commands.base import Command
-
-if TYPE_CHECKING:
-    from pilot.core.bench import Bench
+from pilot.commands.base import BenchMode, Command
 
 
+@dataclass(kw_only=True)
 class InitCommand(Command):
-    name = "init"
-    help = "Initialise the bench."
+    name: ClassVar[str] = "init"
+    help: ClassVar[str] = "Initialise the bench."
     # Heavy/irreversible — never guess the target bench.
-    requires_explicit_bench = True
-
-    def __init__(self, bench: "Bench") -> None:
-        self.bench = bench
+    bench_mode: ClassVar[BenchMode] = BenchMode.EXPLICIT
 
     def run(self) -> None:
         self.bench.initialize(on_progress=self.print)

@@ -30,7 +30,7 @@ def make_resolver(name: str, deps: dict[str, str] | None = None) -> Resolver:
 def test_full_flow_runs_when_app_not_registered(tmp_path: Path) -> None:
     bench = make_bench(tmp_path)
     bench.create_directories()
-    cmd = GetAppCommand(bench, "https://github.com/frappe/myapp")
+    cmd = GetAppCommand(bench, repo="https://github.com/frappe/myapp")
 
     with patch.object(App, "clone") as mock_clone, \
             patch.object(App, "_validate") as mock_validate, \
@@ -49,7 +49,7 @@ def test_run_short_circuits_when_app_already_registered(tmp_path: Path) -> None:
     bench.create_directories()
     (bench.apps_path / "myapp").mkdir(parents=True)  # registered apps always have a real folder
     (bench.sites_path / "apps.txt").write_text("frappe\nmyapp\n")
-    cmd = GetAppCommand(bench, "https://github.com/frappe/myapp")
+    cmd = GetAppCommand(bench, repo="https://github.com/frappe/myapp")
 
     with patch.object(App, "clone") as mock_clone, \
             patch.object(App, "_validate") as mock_validate, \
@@ -74,7 +74,7 @@ def test_short_circuit_adopts_real_on_disk_app_path(tmp_path: Path) -> None:
     real_app_dir.mkdir(parents=True)
     (bench.sites_path / "apps.txt").write_text("frappe\nindia_compliance\n")
 
-    cmd = GetAppCommand(bench, "https://github.com/frappe/india-compliance")
+    cmd = GetAppCommand(bench, repo="https://github.com/frappe/india-compliance")
     cmd.run()
 
     assert cmd.app.path == real_app_dir
@@ -100,7 +100,7 @@ def test_short_circuit_still_populates_installed_dependencies(tmp_path: Path) ->
     with patch.object(Marketplace, "read_all_apps", return_value=[helpdesk]), \
             patch.object(Marketplace, "get_current_frappe_version", return_value="16.0.0"), \
             patch.object(Marketplace, "_read_apps_json", return_value="[]"):
-        cmd = GetAppCommand(bench, "https://github.com/frappe/helpdesk", install_dependencies=True)
+        cmd = GetAppCommand(bench, repo="https://github.com/frappe/helpdesk", install_dependencies=True)
         cmd.run()
 
     assert [app.config.name for app in cmd.installed_dependencies] == ["telephony"]
@@ -127,7 +127,7 @@ def test_still_installs_missing_dependency_when_parent_already_installed(tmp_pat
             patch.object(App, "_validate"), \
             patch.object(App, "_install_into_environment"), \
             patch.object(App, "_build_assets_via_env_manager"):
-        cmd = GetAppCommand(bench, "https://github.com/frappe/helpdesk", install_dependencies=True)
+        cmd = GetAppCommand(bench, repo="https://github.com/frappe/helpdesk", install_dependencies=True)
         cmd.run()
 
     # helpdesk itself short-circuits (already installed); telephony is the
@@ -139,7 +139,7 @@ def test_still_installs_missing_dependency_when_parent_already_installed(tmp_pat
 def test_skip_validations_flag_still_skips_validate(tmp_path: Path) -> None:
     bench = make_bench(tmp_path)
     bench.create_directories()
-    cmd = GetAppCommand(bench, "https://github.com/frappe/myapp", skip_validations=True)
+    cmd = GetAppCommand(bench, repo="https://github.com/frappe/myapp", skip_validations=True)
 
     with patch.object(App, "clone"), \
             patch.object(App, "_validate") as mock_validate, \

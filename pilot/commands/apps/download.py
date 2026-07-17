@@ -1,60 +1,28 @@
 from __future__ import annotations
 
-import argparse
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Annotated, ClassVar
 
-from pilot.commands.base import Command
+from pilot.commands.base import Arg, Command
 
 if TYPE_CHECKING:
     from pilot.core.app import App
-    from pilot.core.bench import Bench
 
 
+@dataclass(kw_only=True)
 class GetAppCommand(Command):
-    name = "get-app"
-    help = "Clone and install an app."
+    name: ClassVar[str] = "get-app"
+    help: ClassVar[str] = "Clone and install an app."
 
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
-        parser.add_argument("repo", help="Git repository URL.")
-        parser.add_argument("--branch", default="", help="Git branch to checkout.")
-        parser.add_argument(
-            "--install-dependencies",
-            action="store_true",
-            default=False,
-            help="Install app dependencies",
-        )
-        parser.add_argument(
-            "--skip-validations",
-            action="store_true",
-            default=False,
-            help="Skip running app validations",
-        )
+    repo: Annotated[str, Arg(help="Git repository URL.")]
+    branch: Annotated[str, Arg(help="Git branch to checkout.")] = ""
+    install_dependencies: Annotated[bool, Arg(help="Install app dependencies")] = False
+    skip_validations: Annotated[bool, Arg(help="Skip running app validations")] = False
 
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(
-            bench,
-            args.repo,
-            args.branch or "main",
-            install_dependencies=args.install_dependencies,
-            skip_validations=args.skip_validations,
-        )
-
-    def __init__(
-        self,
-        bench: "Bench",
-        repo: str,
-        branch: str = "",
-        install_dependencies: bool = False,
-        skip_validations: bool = False,
-    ) -> None:
+    def __post_init__(self) -> None:
         from pilot.core.app import App
 
-        self.bench = bench
-        self.install_dependencies = install_dependencies
-        self.skip_validations = skip_validations
-        self.app = App.from_repo(bench, repo, branch)
+        self.app = App.from_repo(self.bench, self.repo, self.branch or "main")
         self.installed_dependencies: list[App] = []
 
     def run(self) -> None:

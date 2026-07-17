@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
 
-from pilot.commands.base import Command
+from pilot.commands.base import BenchMode, Command
 
 
+@dataclass(kw_only=True)
 class ListCommand(Command):
-    name = "ls"
-    help = "List all benches."
-    requires_bench = False
-
-    def __init__(self, bench=None) -> None:
-        self.bench = bench
+    name: ClassVar[str] = "ls"
+    help: ClassVar[str] = "List all benches."
+    bench_mode: ClassVar[BenchMode] = BenchMode.NONE
 
     def run(self) -> None:
         from pilot.loader import cli_root

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import ClassVar
+
 from pilot.commands.base import Command
 
 
+@dataclass(kw_only=True)
 class TaskWorkerStatusCommand(Command):
-    name = "status"
-    help = "Show the Admin task worker state."
-    group = "tasks"
+    name: ClassVar[str] = "status"
+    help: ClassVar[str] = "Show the Admin task worker state."
+    group: ClassVar[str] = "tasks"
 
     def run(self) -> None:
         from pilot.tasks.manager.activity import TaskActivityReader

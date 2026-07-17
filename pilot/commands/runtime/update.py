@@ -3,53 +3,27 @@ from __future__ import annotations
 import sys
 import time
 import traceback
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Annotated, ClassVar
 
-from pilot.commands.base import Command
+from pilot.commands.base import Arg, Command
 from pilot.exceptions import MigrateError
 
-if TYPE_CHECKING:
-    from pilot.core.bench import Bench
 
-
+@dataclass(kw_only=True)
 class UpdateCommand(Command):
-    name = "update"
-    help = "Pull latest code and migrate sites."
+    name: ClassVar[str] = "update"
+    help: ClassVar[str] = "Pull latest code and migrate sites."
 
-    @classmethod
-    def add_arguments(cls, parser):
-        parser.add_argument(
-            "--apps",
-            nargs="+",
-            metavar="APP",
-            help="Limit git pull + reinstall to these apps (default: all).",
-        )
-        parser.add_argument(
-            "--skip-failing-patches",
-            action="store_true",
-            help="Skip patches that fail to run during site migration.",
-        )
+    skip_confirm: bool = False
+    apps: Annotated[
+        list[str] | None,
+        Arg(help="Limit git pull + reinstall to these apps (default: all).", metavar="APP"),
+    ] = None
+    skip_failing_patches: Annotated[bool, Arg(help="Skip patches that fail to run during site migration.")] = False
 
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(
-            bench,
-            skip_confirm=args.yes,
-            apps=set(args.apps) if args.apps else None,
-            skip_failing_patches=args.skip_failing_patches,
-        )
-
-    def __init__(
-        self,
-        bench: "Bench",
-        skip_confirm: bool = False,
-        apps: set | None = None,
-        skip_failing_patches: bool = False,
-    ) -> None:
-        self.bench = bench
-        self.skip_confirm = skip_confirm
-        self._apps_filter = apps  # None = all apps
-        self._skip_failing_patches = skip_failing_patches
+    def __post_init__(self) -> None:
+        self._apps_filter = set(self.apps) if self.apps else None  # None = all apps
         self._current_step: str | None = None
 
     def run(self) -> None:
@@ -57,7 +31,7 @@ class UpdateCommand(Command):
         try:
             self.bench.update(
                 apps_filter=self._apps_filter,
-                skip_failing_patches=self._skip_failing_patches,
+                skip_failing_patches=self.skip_failing_patches,
                 on_step=self._step,
                 on_progress=self.print,
             )

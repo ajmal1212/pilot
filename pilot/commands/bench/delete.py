@@ -1,28 +1,21 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import ClassVar
 
-from pilot.commands.base import Command
-
-if TYPE_CHECKING:
-    from pilot.core.bench import Bench
+from pilot.commands.base import BenchMode, Command
 
 
+@dataclass(kw_only=True)
 class DropBenchCommand(Command):
-    name = "drop"
-    help = "Delete a bench (must have no sites), tearing down its production services and nginx."
+    name: ClassVar[str] = "drop"
+    help: ClassVar[str] = "Delete a bench (must have no sites), tearing down its production services and nginx."
     # Deleting whichever bench happens to be active by default would be too easy
     # to trigger by accident, so require an explicit -b/--bench (or running from
     # inside the bench dir).
-    requires_explicit_bench = True
+    bench_mode: ClassVar[BenchMode] = BenchMode.EXPLICIT
 
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(bench, skip_confirm=args.yes)
-
-    def __init__(self, bench: "Bench", skip_confirm: bool = False) -> None:
-        self.bench = bench
-        self.skip_confirm = skip_confirm
+    skip_confirm: bool = False
 
     def run(self) -> None:
         self.bench.ensure_no_sites()

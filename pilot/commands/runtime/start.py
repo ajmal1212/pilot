@@ -3,25 +3,17 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import ClassVar
 
 from pilot.commands.base import Command
 
-if TYPE_CHECKING:
-    from pilot.core.bench import Bench
 
-
+@dataclass(kw_only=True)
 class RunCommand(Command):
-    name = "start"
-    help = "Start all bench processes."
-    supports_all_benches = True
-
-    @classmethod
-    def from_args(cls, args, bench):
-        return cls(bench)
-
-    def __init__(self, bench: "Bench") -> None:
-        self.bench = bench
+    name: ClassVar[str] = "start"
+    help: ClassVar[str] = "Start all bench processes."
+    supports_all_benches: ClassVar[bool] = True
 
     def run(self) -> None:
         from pilot.managers.processes.local import ProcessManager
@@ -99,7 +91,7 @@ class RunCommand(Command):
         if not (dist / "assets").exists():
             self.print("Admin UI not built yet; building it now...")
             if has_source:
-                BuildAdminCommand(force_build=True).run()
+                BuildAdminCommand(force=True).run()
             else:
                 download_admin_frontend(root)
             return
@@ -113,7 +105,7 @@ class RunCommand(Command):
 
         print("Admin UI source changed since last build; rebuilding...")
         try:
-            build_command(force_build=True).run()
+            build_command(force=True).run()
         except BenchError as error:
             # Never block startup on a build failure (e.g. Node too old) — keep
             # serving the existing dist and surface why.

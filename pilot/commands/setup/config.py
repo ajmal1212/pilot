@@ -1,20 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from typing import ClassVar
 
 from pilot.commands.base import Command
 
-if TYPE_CHECKING:
-    from pilot.core.bench import Bench
 
-
+@dataclass(kw_only=True)
 class UpdateConfigCommand(Command):
-    name = "config"
-    help = "Regenerate config files from bench.toml."
-    group = "setup"
-
-    def __init__(self, bench: "Bench") -> None:
-        self.bench = bench
+    name: ClassVar[str] = "config"
+    help: ClassVar[str] = "Regenerate config files from bench.toml."
+    group: ClassVar[str] = "setup"
 
     def run(self) -> None:
         from pilot.managers.nginx import NginxManager
