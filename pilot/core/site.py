@@ -18,6 +18,11 @@ class Site:
         self.config = config
         self.bench = bench
 
+    @classmethod
+    def for_name(cls, name: str, bench: "Bench") -> "Site":
+        """Look up an existing site by name, with no other config known yet."""
+        return cls(SiteConfig(name=name, apps=[]), bench)
+
     @property
     def path(self) -> Path:
         return self.bench.sites_path / self.config.name

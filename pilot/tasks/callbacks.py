@@ -51,7 +51,6 @@ def _drop_failed_site(bench_root: Path, site_name: str, site_path: Path) -> bool
     if not (site_path / "site_config.json").is_file():
         return True
     try:
-        from pilot.config.site import SiteConfig
         from pilot.config.toml_store import BenchTomlStore
         from pilot.core.bench import Bench
         from pilot.core.site import Site
@@ -60,7 +59,7 @@ def _drop_failed_site(bench_root: Path, site_name: str, site_path: Path) -> bool
         config = BenchTomlStore.for_bench(bench_root).read()
         bench = Bench(config, bench_root)
         with noninteractive_privileges():
-            Site(SiteConfig(name=site_name, apps=[]), bench).drop()
+            Site.for_name(site_name, bench).drop()
         return True
     except Exception as exc:
         logging.debug("Site drop callback failed for %s: %s", site_name, exc)
