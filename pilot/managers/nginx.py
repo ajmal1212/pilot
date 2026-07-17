@@ -672,11 +672,12 @@ class NginxManager:
         (modsec_dir / "exclusions.conf").write_text(self._renderer._render_modsec_exclusions(waf))
         (modsec_dir / "main.conf").write_text(self._renderer._render_modsec_main(modsec_dir))
 
-    def _config_dir(self) -> Path:
+    @property
+    def config_dir(self) -> Path:
         return self.bench.config.nginx.config_dir or default_nginx_config_dir()
 
     def install_config(self) -> None:
-        nginx_dir = self._config_dir()
+        nginx_dir = self.config_dir
         symlink_path = nginx_dir / f"{self.bench.config.name}.conf"
         source_path = self.bench.config_path / "nginx" / "include.conf"
 
@@ -755,7 +756,7 @@ class NginxManager:
 
     def uninstall_config(self) -> None:
         """Remove this bench's vhost symlink and reload. Certs are kept."""
-        symlink_path = self._config_dir() / f"{self.bench.config.name}.conf"
+        symlink_path = self.config_dir / f"{self.bench.config.name}.conf"
         if symlink_path.exists() or symlink_path.is_symlink():
             run_command(_privileged(["unlink", str(symlink_path)]))
         self.reload()
