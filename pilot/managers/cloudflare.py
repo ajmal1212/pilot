@@ -306,48 +306,79 @@ WantedBy=default.target
 
     def create_tunnel_via_cert(self, tunnel_name: str, hostname: str) -> tuple[str, str]:
         """Creates a Cloudflare Tunnel using cert.pem and returns (tunnel_token, domain)."""
+        import subprocess
+        import re
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         cloudflared_path = shutil.which("cloudflared")
         if not cloudflared_path:
             cloudflared_path = str(Path.home() / ".local" / "bin" / "cloudflared")
-            
-        import subprocess
+
+        # Step 1: Create tunnel (or reuse existing one with the same name)
         res = subprocess.run(
             [cloudflared_path, "tunnel", "create", tunnel_name],
             capture_output=True,
             text=True,
-            check=True
         )
+
+        tunnel_id = None
+        combined = f"{res.stdout}\n{res.stderr}"
+
+        if res.returncode == 0:
+            match = re.search(r"Created tunnel [^\s]+ with id ([a-f0-9-]+)", combined)
+            if match:
+                tunnel_id = match.group(1)
         
-        import re
-        match = re.search(r"Created tunnel [^\s]+ with id ([a-f0-9-]+)", res.stdout)
-        if not match:
-            match = re.search(r"Created tunnel [^\s]+ with id ([a-f0-9-]+)", res.stderr)
-            if not match:
-                raise RuntimeError(f"Failed to parse tunnel ID from cloudflared output: {res.stdout}\n{res.stderr}")
-                
-        tunnel_id = match.group(1)
-        
+        # If creation failed because the tunnel already exists, look it up
+        if tunnel_id is None:
+            if "already exists" in combined.lower():
+                logger.info(f"Tunnel '{tunnel_name}' already exists, reusing it.")
+            list_res = subprocess.run(
+                [cloudflared_path, "tunnel", "list", "-o", "json"],
+                capture_output=True,
+                text=True,
+            )
+            if list_res.returncode == 0 and list_res.stdout.strip():
+                tunnels = json.loads(list_res.stdout)
+                for t in tunnels:
+                    if t.get("name") == tunnel_name:
+                        tunnel_id = t["id"]
+                        break
+
+        if not tunnel_id:
+            raise RuntimeError(f"Failed to create or find tunnel '{tunnel_name}': {combined}")
+
+        # Step 2: Read credentials file
         creds_path = Path.home() / ".cloudflared" / f"{tunnel_id}.json"
         if not creds_path.exists():
             raise RuntimeError(f"Credentials file not found at {creds_path}")
-            
+
         creds = json.loads(creds_path.read_text(encoding="utf-8"))
         account_id = creds["AccountTag"]
         tunnel_secret_b64 = creds["TunnelSecret"]
-        
-        subprocess.run(
+
+        # Step 3: Route DNS (non-fatal if record already exists)
+        dns_res = subprocess.run(
             [cloudflared_path, "tunnel", "route", "dns", tunnel_name, hostname],
             capture_output=True,
             text=True,
-            check=True
         )
-        
+        if dns_res.returncode != 0:
+            dns_output = f"{dns_res.stdout}\n{dns_res.stderr}"
+            if "already exists" in dns_output.lower():
+                logger.info(f"DNS record for '{hostname}' already exists, continuing.")
+            else:
+                raise RuntimeError(f"Failed to route DNS for '{hostname}': {dns_output}")
+
+        # Step 4: Build the tunnel token
         token_data = {
             "a": account_id,
             "t": tunnel_id,
             "s": tunnel_secret_b64
         }
         tunnel_token = base64.b64encode(json.dumps(token_data).encode("utf-8")).decode("utf-8")
-        
+
         return tunnel_token, hostname
 
