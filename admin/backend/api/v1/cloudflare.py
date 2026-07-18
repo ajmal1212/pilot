@@ -512,7 +512,7 @@ def get_site_expose_status(name: str):
                     break
         else:
             # Cert-based: read ingress from local config file
-            config_path = Path.home() / ".cloudflared" / f"{config.bench.name}-config.yml"
+            config_path = Path.home() / ".cloudflared" / f"{config.name}-config.yml"
             if config_path.exists():
                 content = config_path.read_text(encoding="utf-8")
                 # Simple parse: look for hostname lines
