@@ -76,6 +76,51 @@ WantedBy=default.target
         # Reload systemd manager config
         self._systemctl("daemon-reload")
 
+    def setup_service_with_config(self, tunnel_id: str, tunnel_name: str, hostname: str, local_port: int) -> None:
+        """Set up tunnel service using a local config.yml (for cert/CLI-based tunnels)."""
+        self.install()
+
+        cloudflared_path = shutil.which("cloudflared")
+        if not cloudflared_path:
+            cloudflared_path = str(Path.home() / ".local" / "bin" / "cloudflared")
+
+        # Write config.yml in ~/.cloudflared/
+        config_dir = Path.home() / ".cloudflared"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_path = config_dir / f"{self.bench.config.name}-config.yml"
+
+        creds_path = config_dir / f"{tunnel_id}.json"
+
+        config_content = f"""tunnel: {tunnel_id}
+credentials-file: {creds_path}
+ingress:
+  - hostname: {hostname}
+    service: http://localhost:{local_port}
+  - service: http_status:404
+"""
+
+        config_path.write_text(config_content, encoding="utf-8")
+
+        service_content = f"""[Unit]
+Description=Frappe Pilot Cloudflare Tunnel ({self.bench.config.name})
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={cloudflared_path} --no-autoupdate tunnel --config {config_path} run {tunnel_name}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+"""
+        self.service_path.parent.mkdir(parents=True, exist_ok=True)
+        self.service_path.write_text(service_content, encoding="utf-8")
+
+        # Reload systemd manager config
+        self._systemctl("daemon-reload")
+
+
     def start(self) -> None:
         self._systemctl("enable", self.service_name)
         self._systemctl("start", self.service_name)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import json
 import subprocess
 import threading
 import time
@@ -387,6 +389,32 @@ def provision_cloudflare_tunnel():
                 tunnel_name=tunnel_name,
                 hostname=hostname
             )
+            
+            # For cert-based tunnels, extract tunnel_id and use local config
+            import base64
+            token_bytes = base64.b64decode(tunnel_token)
+            token_data = json.loads(token_bytes.decode("utf-8"))
+            tunnel_id = token_data["t"]
+            
+            # Save token & settings
+            with store.edit() as config:
+                config.cloudflare.enabled = True
+                config.cloudflare.tunnel_name = tunnel_name
+                config.cloudflare.domain = domain
+                config.cloudflare.tunnel_token = encrypt(tunnel_token)
+                config.cloudflare.api_token = ""
+
+            # Use local config file for ingress (no API needed)
+            config = store.read()
+            bench = Bench(config, bench_root)
+            manager = CloudflareTunnelManager(bench)
+            manager.setup_service_with_config(
+                tunnel_id=tunnel_id,
+                tunnel_name=tunnel_name,
+                hostname=domain,
+                local_port=config.admin.internal_port
+            )
+            manager.start()
         else:
             tunnel_token, domain = manager.create_tunnel_via_api(
                 api_token=api_token,
@@ -395,29 +423,26 @@ def provision_cloudflare_tunnel():
                 hostname=hostname
             )
         
-        # Save token & settings
-        with store.edit() as config:
-            config.cloudflare.enabled = True
-            config.cloudflare.tunnel_name = tunnel_name
-            config.cloudflare.domain = domain
-            config.cloudflare.tunnel_token = encrypt(tunnel_token)
-            if api_token:
+            # Save token & settings
+            with store.edit() as config:
+                config.cloudflare.enabled = True
+                config.cloudflare.tunnel_name = tunnel_name
+                config.cloudflare.domain = domain
+                config.cloudflare.tunnel_token = encrypt(tunnel_token)
                 config.cloudflare.api_token = encrypt(api_token)
-            else:
-                config.cloudflare.api_token = ""
+                
+            # Start the service with token
+            manager.setup_service(tunnel_token)
+            manager.start()
             
-        # Start the service
-        manager.setup_service(tunnel_token)
-        manager.start()
-        
-        # Configure routing for the admin domain
-        config = store.read()
-        bench = Bench(config, bench_root)
-        manager = CloudflareTunnelManager(bench)
-        manager.update_ingress_rule(
-            hostname=domain,
-            local_service=f"http://localhost:{config.admin.internal_port}"
-        )
+            # Configure routing via Cloudflare API
+            config = store.read()
+            bench = Bench(config, bench_root)
+            manager = CloudflareTunnelManager(bench)
+            manager.update_ingress_rule(
+                hostname=domain,
+                local_service=f"http://localhost:{config.admin.internal_port}"
+            )
         
     except Exception as e:
         return error_response("provisioning_failed", f"Failed to provision tunnel: {e}", 500)
