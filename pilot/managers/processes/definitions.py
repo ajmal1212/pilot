@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pilot.utils import cli_root
-from pilot.managers.admin_environment import AdminEnvManager
+from pilot.managers.environment import AdminEnvManager
 
 if TYPE_CHECKING:
     from pilot.core.bench import Bench

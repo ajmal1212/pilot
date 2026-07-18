@@ -238,7 +238,7 @@ def test_supervisor_generate_config_writes_gunicorn_config(tmp_path: Path) -> No
     bench.config_path.mkdir(parents=True, exist_ok=True)
     manager = SupervisorProcessManager(bench)
 
-    with patch("pilot.managers.admin_environment.AdminEnvManager"), \
+    with patch("pilot.managers.environment.AdminEnvManager"), \
          patch.object(manager, "_prod_process_definitions", return_value=[]):
         manager.write_config()
 
@@ -253,7 +253,7 @@ def test_systemd_generate_config_writes_gunicorn_config(tmp_path: Path) -> None:
     bench.config_path.mkdir(parents=True, exist_ok=True)
     manager = SystemdProcessManager(bench)
 
-    with patch("pilot.managers.admin_environment.AdminEnvManager"), \
+    with patch("pilot.managers.environment.AdminEnvManager"), \
          patch.object(manager, "_prod_process_definitions", return_value=[]):
         manager.write_config()
 

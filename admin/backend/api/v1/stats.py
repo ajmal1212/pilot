@@ -78,7 +78,7 @@ def _directory_size(path: str) -> int:
 
 
 def _path_sizes(bench_root: Path, config: BenchConfig) -> list[dict]:
-    from pilot.managers.mariadb import MariaDBManager
+    from pilot.managers.database import MariaDBManager
 
     benches_dir = str(bench_root)
     mariadb_dir = str(MariaDBManager(config.mariadb).data_dir)

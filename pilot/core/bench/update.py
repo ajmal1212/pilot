@@ -32,7 +32,7 @@ class BenchUpdater:
 
     def reinstall_apps(self, apps_filter: set | None, on_progress: Callable[[str], None]) -> None:
         from pilot.exceptions import CommandError, MigrateError
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
 
         python_env = PythonEnvManager(self.bench)
         for app in self.bench.apps():
@@ -45,7 +45,7 @@ class BenchUpdater:
                 raise MigrateError(f"Failed to install app {app}: {error}") from error
 
     def rebuild_assets(self, apps_filter: set | None, on_progress: Callable[[str], None]) -> None:
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
 
         python_env = PythonEnvManager(self.bench)
         for app in self.bench.apps():

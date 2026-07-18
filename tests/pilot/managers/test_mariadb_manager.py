@@ -7,10 +7,10 @@ import pytest
 
 from pilot.config import MariaDBConfig
 from pilot.exceptions import DatabaseError
-from pilot.managers.mariadb import MariaDBManager
+from pilot.managers.database.mariadb import MariaDBManager
 
-MODULE = "pilot.managers.mariadb"
-BASE_MODULE = "pilot.managers.user_database"
+MODULE = "pilot.managers.database.mariadb"
+BASE_MODULE = "pilot.managers.database.base"
 
 
 def _manager(password: str = "root") -> MariaDBManager:

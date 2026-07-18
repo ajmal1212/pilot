@@ -71,7 +71,7 @@ class SiteCommands:
         if db_type == "sqlite":
             return ["--db-type", "sqlite"]
 
-        from pilot.managers.mariadb import MariaDBManager
+        from pilot.managers.database import MariaDBManager
 
         socket_path = MariaDBManager(self.site.bench.config.mariadb)._detect_socket()
         return self.mariadb_db_args(socket_path)

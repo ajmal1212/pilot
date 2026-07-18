@@ -431,7 +431,7 @@ def test_build_missing_assets_skips_cloned_but_unregistered_apps(tmp_path: Path)
     # builder is cloned on disk but never registered — it isn't installed.
     (bench.sites_path / "apps.txt").write_text("frappe\n")
 
-    with patch("pilot.managers.python_environment.PythonEnvManager.build_assets_for_app") as build:
+    with patch("pilot.managers.environment.PythonEnvManager.build_assets_for_app") as build:
         Site(SiteConfig(name="site1.localhost", apps=["frappe"]), bench)._build_missing_assets()
 
     built = {call.args[0].config.name for call in build.call_args_list}
@@ -524,7 +524,7 @@ def test_remove_app_full_flow_no_sites(tmp_path: Path) -> None:
     (bench.sites_path / "apps.txt").write_text("frappe\nerpnext\n")
 
     cmd = RemoveAppCommand(bench, app_name="erpnext", skip_confirm=True)
-    with patch("pilot.managers.python_environment.PythonEnvManager.uninstall_app"):
+    with patch("pilot.managers.environment.PythonEnvManager.uninstall_app"):
         cmd.run()
 
     assert not app_dir.exists()
@@ -634,7 +634,7 @@ def test_build_command_force_calls_frappe_build(tmp_path: Path) -> None:
     bench = make_bench(tmp_path)
     bench.create_directories()
 
-    with patch("pilot.managers.python_environment.PythonEnvManager.build_assets") as mock_build:
+    with patch("pilot.managers.environment.PythonEnvManager.build_assets") as mock_build:
         BuildCommand(bench, force=True).run()
         mock_build.assert_called_once()
 
@@ -646,7 +646,7 @@ def test_build_command_default_uses_prebuilt_per_app(tmp_path: Path) -> None:
     bench.create_directories()
 
     with patch(
-        "pilot.managers.python_environment.PythonEnvManager.build_assets_for_app"
+        "pilot.managers.environment.PythonEnvManager.build_assets_for_app"
     ) as mock_build:
         with patch.object(bench, "apps", return_value=[]):
             BuildCommand(bench).run()
@@ -667,7 +667,7 @@ def test_requirements_skips_app_without_python_setup_files(tmp_path: Path) -> No
     # No pyproject.toml or setup.py
 
     with (
-        patch("pilot.managers.python_environment.PythonEnvManager._ensure_uv", return_value="uv"),
+        patch("pilot.managers.environment.PythonEnvManager._ensure_uv", return_value="uv"),
         patch("pilot.utils.run_command") as mock_rc,
     ):
         BenchRuntime(bench)._install_python_requirements(lambda _message: None)
@@ -685,7 +685,7 @@ def test_requirements_installs_app_with_pyproject_toml(tmp_path: Path) -> None:
     (app_dir / "pyproject.toml").write_text("[project]\nname = 'myapp'\n")
 
     with (
-        patch("pilot.managers.python_environment.PythonEnvManager._ensure_uv", return_value="uv"),
+        patch("pilot.managers.environment.PythonEnvManager._ensure_uv", return_value="uv"),
         patch("pilot.utils.run_command") as mock_rc,
     ):
         BenchRuntime(bench)._install_python_requirements(lambda _message: None)
@@ -703,7 +703,7 @@ def test_requirements_installs_app_with_setup_py(tmp_path: Path) -> None:
     (app_dir / "setup.py").write_text("from setuptools import setup; setup()\n")
 
     with (
-        patch("pilot.managers.python_environment.PythonEnvManager._ensure_uv", return_value="uv"),
+        patch("pilot.managers.environment.PythonEnvManager._ensure_uv", return_value="uv"),
         patch("pilot.utils.run_command") as mock_rc,
     ):
         BenchRuntime(bench)._install_python_requirements(lambda _message: None)
@@ -752,7 +752,7 @@ def test_upgrade_command_installs_admin_python_deps() -> None:
         patch("pilot.utils.cli_root", return_value=Path("/tmp/pilot")),
         patch("pilot.utils.run_command") as mock_run_command,
         patch("pilot.commands.admin.start.download_admin_frontend", return_value=True),
-        patch("pilot.managers.admin_environment.AdminEnvManager") as mock_admin_env,
+        patch("pilot.managers.environment.AdminEnvManager") as mock_admin_env,
     ):
         UpgradeCommand().run()
 

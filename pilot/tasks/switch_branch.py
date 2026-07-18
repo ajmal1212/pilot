@@ -13,7 +13,7 @@ class SwitchBranchTask(Task):
     branch: str
 
     def run(self) -> None:
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
 
         app = self.bench.app(self.name)
         self.checkout(app)

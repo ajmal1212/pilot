@@ -373,7 +373,7 @@ def test_systemd_generate_config_writes_unit_files(tmp_path: Path) -> None:
     mgr = _make_systemd_manager(tmp_path)
     mgr.systemd_conf_dir.mkdir(parents=True, exist_ok=True)
     fake_defs = [ProcessDefinition("web", ["/env/bin/python", "serve"], tmp_path / "logs" / "web.log")]
-    with patch("pilot.managers.admin_environment.AdminEnvManager"):
+    with patch("pilot.managers.environment.AdminEnvManager"):
         with patch.object(mgr, "_prod_process_definitions", return_value=fake_defs):
             mgr.write_config()
     assert (mgr.systemd_conf_dir / "test-bench-web.service").exists()
@@ -424,7 +424,7 @@ def test_systemd_generate_config_writes_admin_socket(tmp_path: Path) -> None:
         ProcessDefinition("web", ["/env/bin/python", "serve"], tmp_path / "logs" / "web.log"),
         ProcessDefinition("admin", ["/env/bin/python", "-m", "admin"], tmp_path / "logs" / "admin.log"),
     ]
-    with patch("pilot.managers.admin_environment.AdminEnvManager"):
+    with patch("pilot.managers.environment.AdminEnvManager"):
         with patch.object(mgr, "_prod_process_definitions", return_value=fake_defs):
             mgr.write_config()
     assert (mgr.systemd_conf_dir / "test-bench-admin.socket").exists()

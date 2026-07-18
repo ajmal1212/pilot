@@ -176,7 +176,7 @@ def test_install_uses_sudo_when_not_root(monkeypatch) -> None:
 
 
 def test_install_node_uses_brew_on_macos(monkeypatch) -> None:
-    from pilot.managers import python_environment as module
+    from pilot.managers import environment as module
 
     manager = module.PythonEnvManager(bench=None)
     commands: list[list[str]] = []
@@ -188,7 +188,7 @@ def test_install_node_uses_brew_on_macos(monkeypatch) -> None:
 
 def test_install_node_raises_on_other_linux(monkeypatch) -> None:
     from pilot.exceptions import BenchError
-    from pilot.managers import python_environment as module
+    from pilot.managers import environment as module
 
     manager = module.PythonEnvManager(bench=None)
     monkeypatch.setattr(module, "is_macos", lambda: False)

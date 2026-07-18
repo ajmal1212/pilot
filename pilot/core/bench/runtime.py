@@ -97,7 +97,7 @@ class BenchRuntime:
 
     def rebuild_assets(self, force: bool = False) -> None:
         from pilot.managers.processes.local import ProcessManager
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
 
         manager = PythonEnvManager(self.bench)
         if force:
@@ -182,7 +182,7 @@ class BenchRuntime:
 
     def _start_wizard(self, on_progress: Callable[[str], None]) -> None:
         from admin.backend.frontend import download_admin_frontend
-        from pilot.managers.admin_environment import AdminEnvManager
+        from pilot.managers.environment import AdminEnvManager
         from pilot.utils import cli_root
 
         root = cli_root()
@@ -249,7 +249,7 @@ class BenchRuntime:
         return False
 
     def _install_python_requirements(self, on_progress: Callable[[str], None]) -> None:
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
         from pilot.utils import run_command
 
         manager = PythonEnvManager(self.bench)

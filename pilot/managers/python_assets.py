@@ -13,7 +13,7 @@ from pilot.utils import get_yarn_bin, git_has_local_changes, run_command
 
 if TYPE_CHECKING:
     from pilot.core.app import App
-    from pilot.managers.python_environment import PythonEnvManager
+    from pilot.managers.environment import PythonEnvManager
 
 _BUNDLE_RE = re.compile(r"^(.+)\.bundle\.[A-Z0-9]{8}\.(js|css)$")
 

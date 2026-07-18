@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pilot.config import PostgresConfig
 from pilot.exceptions import DatabaseError
-from pilot.managers.user_database import UserOwnedDBManager
+from pilot.managers.database.base import UserOwnedDBManager
 from pilot.managers.platform import is_macos, which
 from pilot.utils import run_command
 

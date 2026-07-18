@@ -4,7 +4,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from pilot.managers.admin_environment import AdminEnvManager
+from pilot.managers.environment import AdminEnvManager
 from pilot.managers.gunicorn import GunicornManager
 from pilot.utils import cli_root
 from pilot.managers.processes.local import ProcessDefinition

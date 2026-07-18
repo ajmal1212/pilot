@@ -28,7 +28,7 @@ class BenchInitializer:
             raise
 
     def _run_steps(self, on_progress: Callable[[str], None]) -> None:
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
 
         python_env_manager = PythonEnvManager(self.bench)
 
@@ -126,7 +126,7 @@ class BenchInitializer:
             build_admin_frontend(on_progress=on_progress)
 
     def _install_system_packages(self) -> None:
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
         from pilot.managers.redis import RedisManager
         from pilot.managers.packages import get_package_manager
 
@@ -179,11 +179,11 @@ class BenchInitializer:
             )
 
     def _postgres_manager(self):
-        from pilot.managers.postgres import PostgresManager
+        from pilot.managers.database import PostgresManager
 
         return PostgresManager(self.bench.config.postgres)
 
     def _mariadb_manager(self):
-        from pilot.managers.mariadb import MariaDBManager
+        from pilot.managers.database import MariaDBManager
 
         return MariaDBManager(self.bench.config.mariadb)

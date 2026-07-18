@@ -141,7 +141,7 @@ class MonitorConfigurator:
         return ["systemctl", "--user", *args]
 
     def _render_unit(self) -> str:
-        from pilot.managers.admin_environment import AdminEnvManager
+        from pilot.managers.environment import AdminEnvManager
 
         root = cli_root()
         return MONITOR_DAEMON_TEMPLATE.format(

@@ -60,7 +60,7 @@ class GetAndInstallAppTask(Task):
                 self.bench.site(site).install_app(app)
 
     def build_assets(self, apps: list[App]) -> None:
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
 
         env = PythonEnvManager(self.bench)
         for app in apps:

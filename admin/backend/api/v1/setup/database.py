@@ -7,8 +7,7 @@ from typing import TYPE_CHECKING
 from pilot.config import BenchTomlStore
 
 if TYPE_CHECKING:
-    from pilot.managers.mariadb import MariaDBManager
-    from pilot.managers.postgres import PostgresManager
+    from pilot.managers.database import MariaDBManager, PostgresManager
 
 
 def database_validation(bench_root: Path, data: dict):
@@ -36,7 +35,7 @@ def database_validation(bench_root: Path, data: dict):
         raise ValueError("host and admin_user are required for an existing server.")
 
     if engine == "mariadb":
-        from pilot.managers.mariadb import MariaDBManager
+        from pilot.managers.database import MariaDBManager
 
         config = _mariadb_config(
             bench_root,
@@ -49,7 +48,7 @@ def database_validation(bench_root: Path, data: dict):
         return engine, MariaDBManager(config), password, existing
 
     from pilot.config import PostgresConfig
-    from pilot.managers.postgres import PostgresManager
+    from pilot.managers.database import PostgresManager
 
     config = PostgresConfig(
         host=host,

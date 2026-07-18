@@ -61,7 +61,7 @@ def test_build_assets_builds_for_app_and_every_dependency(tmp_path: Path) -> Non
     dep.config.name = "telephony"
 
     with patch(
-        "pilot.managers.python_environment.PythonEnvManager.build_assets_for_app"
+        "pilot.managers.environment.PythonEnvManager.build_assets_for_app"
     ) as mock_build:
         task.build_assets([app, dep])
 

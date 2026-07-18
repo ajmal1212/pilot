@@ -7,10 +7,10 @@ import pytest
 
 from pilot.config import PostgresConfig
 from pilot.exceptions import DatabaseError
-from pilot.managers.postgres import PostgresManager
+from pilot.managers.database.postgres import PostgresManager
 
-MODULE = "pilot.managers.postgres"
-BASE_MODULE = "pilot.managers.user_database"
+MODULE = "pilot.managers.database.postgres"
+BASE_MODULE = "pilot.managers.database.base"
 
 
 def _mgr(**kwargs) -> PostgresManager:

@@ -227,7 +227,7 @@ class App:
         Validator(self).validate()
 
     def _install_into_environment(self) -> None:
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
 
         PythonEnvManager(self.bench).install_app(self)
 
@@ -239,7 +239,7 @@ class App:
             )
 
     def _build_assets_via_env_manager(self) -> None:
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
 
         PythonEnvManager(self.bench).build_assets_for_app(self)
 
@@ -288,6 +288,6 @@ class App:
         apps_txt.write_text("\n".join(lines) + ("\n" if lines else ""))
 
     def _pip_uninstall(self) -> None:
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
 
         PythonEnvManager(self.bench).uninstall_app(self.config.name)

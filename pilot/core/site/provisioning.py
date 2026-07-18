@@ -84,7 +84,7 @@ class SiteProvisioner:
         write_private_text(config_path, json.dumps(config, indent=1))
 
     def build_missing_assets(self) -> None:
-        from pilot.managers.python_environment import PythonEnvManager
+        from pilot.managers.environment import PythonEnvManager
 
         manager = PythonEnvManager(self.bench)
         assets_dir = self.bench.sites_path / "assets"

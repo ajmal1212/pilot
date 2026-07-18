@@ -25,7 +25,7 @@ class UpgradeCommand(Command):
         run_command(["git", "-C", str(root), "pull"], stream_output=True)
 
         self.report("Installing admin Python dependencies...")
-        from pilot.managers.admin_environment import AdminEnvManager
+        from pilot.managers.environment import AdminEnvManager
 
         AdminEnvManager(root).install_python_deps()
 
