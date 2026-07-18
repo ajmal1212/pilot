@@ -89,6 +89,61 @@ def update_cloudflare_settings():
     return jsonify({"success": True})
 
 
+@cloudflare_bp.delete("")
+def delete_cloudflare_tunnel():
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    store = BenchTomlStore.for_bench(bench_root)
+    try:
+        config = store.read()
+        bench = Bench(config, bench_root)
+        manager = CloudflareTunnelManager(bench)
+        
+        # 1. Stop and remove systemd service
+        manager.remove_service()
+        
+        # 2. Attempt to delete from Cloudflare if API token is configured
+        if config.cloudflare.api_token and config.cloudflare.tunnel_token:
+            try:
+                import base64
+                import json
+                
+                api_token = decrypt(config.cloudflare.api_token)
+                api_token = "".join(api_token.split())
+                
+                decrypted_token = decrypt(config.cloudflare.tunnel_token)
+                decrypted_token = "".join(decrypted_token.split())
+                padding = len(decrypted_token) % 4
+                if padding:
+                    decrypted_token += "=" * (4 - padding)
+                token_bytes = base64.b64decode(decrypted_token)
+                token_data = json.loads(token_bytes.decode("utf-8"))
+                
+                account_id = token_data["a"]
+                tunnel_id = token_data["t"]
+                
+                # Delete tunnel from Cloudflare
+                manager._api_request(
+                    f"https://api.cloudflare.com/client/v4/accounts/{account_id}/cfd_tunnel/{tunnel_id}",
+                    api_token,
+                    method="DELETE"
+                )
+            except Exception:
+                pass
+        
+        # 3. Clear configuration in bench.toml
+        with store.edit() as config:
+            config.cloudflare.enabled = False
+            config.cloudflare.tunnel_name = ""
+            config.cloudflare.domain = ""
+            config.cloudflare.tunnel_token = ""
+            config.cloudflare.api_token = ""
+            
+    except Exception as e:
+        return error_response("delete_failed", f"Failed to delete tunnel configuration: {e}", 500)
+    
+    return jsonify({"success": True})
+
+
 @cloudflare_bp.post("/action")
 def perform_cloudflare_action():
     bench_root = Path(current_app.config["BENCH_ROOT"])

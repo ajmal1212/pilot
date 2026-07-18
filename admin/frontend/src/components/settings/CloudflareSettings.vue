@@ -34,7 +34,7 @@
           <Button
             v-if="statusData.token_configured"
             variant="solid"
-            :disabled="actionLoading"
+            :loading="actionLoading"
             @click="toggleTunnel"
           >
             {{ statusData.enabled ? 'Disable Tunnel' : 'Enable Tunnel' }}
@@ -136,9 +136,18 @@
               </div>
             </div>
 
-            <div class="flex justify-end">
+            <div class="flex justify-end gap-2">
               <Button variant="subtle" size="sm" @click="isEditingExisting = true">
                 Edit Details
+              </Button>
+              <Button
+                variant="subtle"
+                size="sm"
+                theme="red"
+                :loading="deleting"
+                @click="confirmDeleteTunnel"
+              >
+                Delete Tunnel
               </Button>
             </div>
           </div>
@@ -207,6 +216,7 @@ import { apiErrorMessage } from '@/api/client'
 const loading = ref(true)
 const saving = ref(false)
 const actionLoading = ref(false)
+const deleting = ref(false)
 const error = ref(null)
 const setupType = ref('create')
 
@@ -364,6 +374,28 @@ async function provisionNewTunnel() {
     toast.error(err.message)
   } finally {
     saving.value = false
+  }
+}
+
+async function confirmDeleteTunnel() {
+  if (!confirm("Are you sure you want to delete this Cloudflare Tunnel? This will stop the service, delete local configuration, and remove the tunnel from your Cloudflare account.")) {
+    return
+  }
+  deleting.value = true
+  try {
+    const res = await cloudflareApi.delete()
+    if (res.error) {
+      toast.error(apiErrorMessage(res, 'Failed to delete tunnel.'))
+    } else {
+      toast.success('Tunnel deleted successfully!')
+      isEditingExisting.value = false
+      setupType.value = 'create'
+      await fetchStatus()
+    }
+  } catch (err) {
+    toast.error(err.message)
+  } finally {
+    deleting.value = false
   }
 }
 

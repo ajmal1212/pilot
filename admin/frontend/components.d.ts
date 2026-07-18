@@ -47,6 +47,7 @@ declare module 'vue' {
     S3Bucket: typeof import('./src/components/settings/S3Bucket.vue')['default']
     Settings: typeof import('./src/components/sites/Settings.vue')['default']
     SettingsDialog: typeof import('./src/components/settings/SettingsDialog.vue')['default']
+    SetupProductionDialog: typeof import('./src/components/benches/SetupProductionDialog.vue')['default']
     SimpleTable: typeof import('./src/components/common/SimpleTable.vue')['default']
     SQLCodeEditor: typeof import('./src/components/database/SQLCodeEditor.vue')['default']
     SQLSchemaDialog: typeof import('./src/components/database/SQLSchemaDialog.vue')['default']
