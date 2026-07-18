@@ -80,7 +80,7 @@ def test_new_command_first_bench_uses_default_ports(tmp_path: Path, monkeypatch:
 
 
 def test_new_command_second_bench_gets_next_offset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Every port field must shift by the same offset — a regression guard
+    """Every port field must shift by the same offset - a regression guard
     for a bug where admin_port got the offset applied twice."""
     from pilot.commands.bench.create import NewCommand
     from pilot.core.bench.creator import BenchCreator
@@ -313,7 +313,7 @@ def test_new_command_skips_offset_with_live_admin_internal_port(
     from pilot.core.bench.creator import BenchCreator
 
     monkeypatch.setattr("builtins.input", lambda _: "")
-    # 7001 is admin.port(7000) + 1 at offset 0 — without the internal-port
+    # 7001 is admin.port(7000) + 1 at offset 0 - without the internal-port
     # check, offset 0 would be wrongly accepted since nothing else probes it.
     # (It also collides with the plain admin.port base check one offset later,
     # at offset 1, which is why the picker lands on offset 2, not 1.)
@@ -380,7 +380,7 @@ def test_build_missing_assets_skips_cloned_but_unregistered_apps(tmp_path: Path)
     bench.create_directories()
     for name in ("frappe", "builder"):
         (bench.apps_path / name / ".git").mkdir(parents=True)
-    # builder is cloned on disk but never registered — it isn't installed.
+    # builder is cloned on disk but never registered - it isn't installed.
     (bench.sites_path / "apps.txt").write_text("frappe\n")
 
     with patch("pilot.managers.environment.PythonEnvManager.build_assets_for_app") as build:
@@ -458,7 +458,7 @@ def test_remove_app_removes_from_apps_txt_missing_file(tmp_path: Path) -> None:
     bench = make_bench(tmp_path)
     bench.create_directories()
     (bench.apps_path / "myapp").mkdir()
-    # apps.txt does not exist — should not raise
+    # apps.txt does not exist - should not raise
 
     bench.app("myapp")._deregister()
 
@@ -1148,7 +1148,7 @@ def _drop_config(name: str) -> BenchConfig:
 
 def test_unmount_legacy_bind_mount_noop_when_not_mounted(tmp_path: Path) -> None:
     """A bench that was never volume-backed has nothing mounted at its dir, so
-    this must be a silent no-op — no sudo calls, no fstab rewrite."""
+    this must be a silent no-op - no sudo calls, no fstab rewrite."""
     from pilot.managers.platform import unmount_legacy_bind_mount
 
     target = tmp_path / "not-a-mountpoint"

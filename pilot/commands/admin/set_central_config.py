@@ -26,7 +26,7 @@ class SetCentralConfigCommand(Command):
                 config.setdefault("central", {})["endpoint"] = self.endpoint
                 config["central"]["auth_token"] = self.token
         except FileNotFoundError as exc:
-            raise BenchError(f"{store.path} not found — is this a bench?") from exc
+            raise BenchError(f"{store.path} not found - is this a bench?") from exc
         except ValueError as exc:
             raise BenchError(f"{store.path} contains invalid TOML: {exc}") from exc
         self.bench.config.central.endpoint = self.endpoint

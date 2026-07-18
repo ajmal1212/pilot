@@ -115,7 +115,7 @@ def _capture_drop_cmd(tmp_path: Path, monkeypatch, bench: Bench) -> dict:
 
 def test_drop_uses_postgres_root_creds(tmp_path: Path, monkeypatch) -> None:
     # The drop connects to the server as root to drop the database, so it must pass
-    # the bench engine's credentials — postgres password auth fails without them.
+    # the bench engine's credentials - postgres password auth fails without them.
     _install_provider(tmp_path, monkeypatch)
     bench = _make_bench(tmp_path)
     bench.config.db_type = "postgres"

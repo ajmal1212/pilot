@@ -177,7 +177,7 @@ def test_run_sql_as_superuser_no_sudo() -> None:
 
 
 def test_is_reachable_on_macos_ignores_local_socket_path() -> None:
-    """socket_path() (our own _STATE_DIR) is never created on macOS — only
+    """socket_path() (our own _STATE_DIR) is never created on macOS - only
     is_running() is a meaningful signal there."""
     m = _manager()
     with (
@@ -188,7 +188,7 @@ def test_is_reachable_on_macos_ignores_local_socket_path() -> None:
 
 
 def test_run_sql_as_superuser_omits_local_socket_on_macos() -> None:
-    """Homebrew's mariadb client owns socket resolution on macOS —
+    """Homebrew's mariadb client owns socket resolution on macOS -
     socket_path() (our own _STATE_DIR) is never created there."""
     m = _manager()
     with patch(f"{MODULE}.is_macos", return_value=True), patch(f"{MODULE}.subprocess.run") as run:

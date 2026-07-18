@@ -32,7 +32,7 @@ class App:
             name = name[:-4]
         if name.replace("-", "_").lower() == "frappe":
             raise BenchError(
-                "'frappe' is the base framework, not an app — it can't be added "
+                "'frappe' is the base framework, not an app - it can't be added "
                 "with get-app. It's set up when the bench itself is created."
             )
         return cls(AppConfig(name=name, repo=repo, branch=branch), bench)

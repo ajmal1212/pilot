@@ -31,7 +31,7 @@ class BenchInitializer:
         python_env_manager = PythonEnvManager(self.bench)
 
         # Production deployment (process manager, nginx, TLS) is intentionally
-        # NOT done here — it's a separate `bench setup production` step. bench
+        # NOT done here - it's a separate `bench setup production` step. bench
         # init never needs root: system packages/services are installed once
         # by install.sh, and MariaDB/PostgreSQL run as a rootless per-user
         # server (see MariaDBManager/PostgresManager).
@@ -70,8 +70,8 @@ class BenchInitializer:
             try:
                 fn()
             except Exception as e:
-                on_progress(f"    Warning: rollback step failed — {e}")
-        on_progress("\nRollback complete. bench.toml is preserved — fix the issue and run init again.")
+                on_progress(f"    Warning: rollback step failed - {e}")
+        on_progress("\nRollback complete. bench.toml is preserved - fix the issue and run init again.")
 
     def _remove_bench_dirs(self) -> None:
         for name in _BENCH_DIRS:
@@ -123,7 +123,7 @@ class BenchInitializer:
         from pilot.utils import cli_root
 
         if not download_admin_frontend(cli_root()):
-            on_progress("  Pre-built download failed — building from source (requires Node.js)...")
+            on_progress("  Pre-built download failed - building from source (requires Node.js)...")
             build_admin_frontend(on_progress=on_progress)
 
     def _install_system_packages(self) -> None:

@@ -88,7 +88,7 @@ class ProductionSetup:
             )
         self.bench.config.production.process_manager = pm
         self.bench.config.production.enabled = True
-        # Production serves the admin behind its domain, so it must be enabled —
+        # Production serves the admin behind its domain, so it must be enabled -
         # otherwise the API answers 503 "Admin is disabled". The wizard sets this
         # too; do it here so pure-CLI deploys are reachable as well.
         self.bench.config.admin.enabled = True
@@ -208,7 +208,7 @@ class ProductionSetup:
         with store.edit_raw() as data:
             for section, values in updates.items():
                 data.setdefault(section, {}).update(values)
-            # Drop the deprecated production.nginx key — nginx is always on in prod.
+            # Drop the deprecated production.nginx key - nginx is always on in prod.
             data.get("production", {}).pop("nginx", None)
 
     def _write_dns_multitenancy(self) -> None:
@@ -245,7 +245,7 @@ class ProductionSetup:
 
     def _start_workload(self) -> None:
         """Start the workload (and admin) so the bench is actually serving once
-        setup completes — otherwise sites 502 until a separate `bench start`."""
+        setup completes - otherwise sites 502 until a separate `bench start`."""
         from pilot.managers.processes.local import ProcessManager
 
         ProcessManager.for_bench(self.bench).start()

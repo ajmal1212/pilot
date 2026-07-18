@@ -68,7 +68,7 @@ def test_validate_configuration_ignores_host_when_not_marked_existing() -> None:
 
 
 def test_read_defaults_omits_password_fallbacks_for_fresh_bench(tmp_path: Path) -> None:
-    """No bench.toml yet — the wizard must not see the CLI's 'root' fallback as
+    """No bench.toml yet - the wizard must not see the CLI's 'root' fallback as
     an already-chosen password, or it'll skip generating its own."""
     result = read_defaults(tmp_path)
     assert "mariadb_password" not in result
@@ -80,7 +80,7 @@ def test_read_defaults_omits_password_fallbacks_for_fresh_bench(tmp_path: Path) 
 
 def test_read_defaults_never_leaks_a_real_saved_password(tmp_path: Path) -> None:
     """Even a real, already-saved password must never come back over this
-    endpoint — it's polled before login."""
+    endpoint - it's polled before login."""
     from admin.backend.api.v1.setup import BenchTomlStore
 
     store = BenchTomlStore(tmp_path / "bench.toml")

@@ -408,7 +408,7 @@ def test_systemd_admin_service_runs_gunicorn_with_idle_timeout(tmp_path: Path) -
     # Re-activation is via the socket, not a systemd restart loop.
     assert "Restart=no" in service
     assert "KillMode=process" in service
-    # Not PartOf the target — stopping the workload must not stop the admin.
+    # Not PartOf the target - stopping the workload must not stop the admin.
     assert "PartOf=" not in service
 
 
@@ -496,7 +496,7 @@ def test_supervisor_is_alive_false_when_process_dead(tmp_path: Path) -> None:
 
 def test_supervisor_is_running_false_when_not_configured(tmp_path: Path) -> None:
     mgr = _make_supervisor_manager(tmp_path)
-    # conf file absent — is_configured() short-circuits before any subprocess call
+    # conf file absent - is_configured() short-circuits before any subprocess call
     with patch("subprocess.run") as mock_run:
         assert mgr.is_running() is False
         mock_run.assert_not_called()
@@ -535,7 +535,7 @@ def test_supervisor_is_running_false_when_no_running_in_output(tmp_path: Path) -
 
 def test_supervisor_multiqueue_worker_name_has_no_commas(tmp_path: Path) -> None:
     """A worker group serving several queues must not produce a comma in the
-    program name — commas break supervisor's `programs=` CSV (regression)."""
+    program name - commas break supervisor's `programs=` CSV (regression)."""
     from pilot.config import WorkerConfig, WorkerGroup
     from pilot.managers.processes.supervisor import SupervisorRenderer
 

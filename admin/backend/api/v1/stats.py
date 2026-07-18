@@ -21,7 +21,7 @@ psutil.cpu_percent()
 psutil.cpu_times_percent()
 
 # Network/disk counters are cumulative, so throughput is the delta between polls
-# divided by the elapsed time — this holds the previous reading between requests.
+# divided by the elapsed time - this holds the previous reading between requests.
 _io_state = {
     "time": time.monotonic(),
     "net": psutil.net_io_counters(),

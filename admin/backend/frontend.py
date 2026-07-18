@@ -107,7 +107,7 @@ def _check_node_version() -> None:
     try:
         version = (int(parts[0]), int(parts[1]))
     except (IndexError, ValueError):
-        return  # unparseable — let the build run and surface its own error
+        return  # unparseable - let the build run and surface its own error
     if version < _MIN_NODE:
         major, minor = _MIN_NODE
         raise BenchError(

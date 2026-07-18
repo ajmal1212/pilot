@@ -97,7 +97,7 @@ class MariaDBManager(UserOwnedDBManager):
             return False
         if is_macos():
             # Homebrew owns the socket location here, not socket_path() (our
-            # own _STATE_DIR, only ever created for the Linux systemd unit) —
+            # own _STATE_DIR, only ever created for the Linux systemd unit) -
             # is_running() is the only signal we have.
             return True
         return Path(self.socket_path).exists()

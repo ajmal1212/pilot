@@ -11,7 +11,7 @@ from pilot.tasks import Task, step
 class FetchAppUpdatesTask(Task):
     command: ClassVar[str] = "fetch-all-app-updates"
     # Sites.vue reads output[-1] as the JSON result, so the dumped JSON must
-    # stay the last line — no trailing "done" step.
+    # stay the last line - no trailing "done" step.
     has_done_step: ClassVar[bool] = False
 
     def __post_init__(self) -> None:

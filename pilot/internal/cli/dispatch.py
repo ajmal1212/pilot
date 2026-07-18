@@ -42,7 +42,7 @@ def find_bench_root(context: CliContext, require_explicit: bool = False) -> Path
 
     if require_explicit:
         raise BenchError(
-            "This command needs an explicit bench — run it from inside the bench "
+            "This command needs an explicit bench - run it from inside the bench "
             "directory, or pass -b <name>.\n" + available_hint(benches_dir, sort=True)
         )
 

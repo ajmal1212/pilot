@@ -28,7 +28,7 @@ def _is_public_domain(domain: str) -> bool:
 
 
 def public_domains(site: "SiteConfig") -> list[str]:
-    """The site's domains certbot can issue for — the only ones a cert covers, so
+    """The site's domains certbot can issue for - the only ones a cert covers, so
     a site with an internal name but a public custom domain still gets TLS."""
     return [domain for domain in site.all_domains if _is_public_domain(domain)]
 
