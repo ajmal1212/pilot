@@ -39,6 +39,7 @@ Avoid new APIs that pass a bench and site into unrelated helper objects when the
 These rules are mandatory for agents changing this repo:
 
 - Choose clean code over clever code.
+- Prefer explicit config over implicit behavior.
 - Prefer object-oriented code where it maps to the domain.
 - Keep functions small. Around 10 lines is a useful target, not a reason to split readable code blindly.
 - Keep files between 100 and 300 lines when practical.
@@ -46,11 +47,16 @@ These rules are mandatory for agents changing this repo:
 - Avoid abbreviations.
 - Use standard APIs and existing repo helpers before adding custom logic.
 - Reuse existing patterns. Write as little new code as the change needs.
+- Delete before adding when existing code can be simplified.
 - For Admin UI, use Frappe UI and the Espresso design system by default.
 - Always add or update tests for behavior changes, and make sure they pass.
 - Build the minimum working change, then iterate.
 - Keep comments and docstrings terse. Explain only what the code does not already make obvious.
 - Put detailed change explanation in commit messages or docs, not inline comments.
+- Keep one owner for state that can drift out of sync.
+- Keep state scoped. Do not let temporary state leak across object or module boundaries.
+- Fail loudly near the bug. Do not hide corrupt or partial state behind broad fallbacks.
+- Retry only operations that are safe to repeat.
 - For a no-argument method that computes and returns one noun-like value, use `@property`, such as `nginx_version`.
 - For methods with arguments or multi-step work, prefer `get_<what_it_returns>()`, such as `get_commit_sha()`.
 - Default to public methods. Use a leading underscore only for raw parsing, security-sensitive validation, OS plumbing, or genuinely internal details callers should not reach for.
