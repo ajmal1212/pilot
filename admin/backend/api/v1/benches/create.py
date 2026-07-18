@@ -7,7 +7,7 @@ from pathlib import Path
 from flask import url_for
 
 from admin.backend.api.responses import created_response, error_response
-from admin.backend.api.v1.benches_support import bench_resource, target_bench_dir
+from admin.backend.api.v1.benches.support import bench_resource, target_bench_dir
 from admin.backend.providers.bench import BenchProvider
 from pilot.config import BenchTomlStore
 from pilot.core.bench import Bench

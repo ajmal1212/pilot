@@ -9,8 +9,8 @@ from admin.backend.api.responses import error_response
 from admin.backend.providers.bench import BenchProvider
 from pilot.config import BenchTomlStore
 
-_NAME_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
-_ADMIN_DOMAIN_RE = re.compile(
+BENCH_NAME_RE = re.compile(r"^[a-zA-Z0-9_-]+$")
+ADMIN_DOMAIN_RE = re.compile(
     r"^(?=.{1,253}$)[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
 )
 

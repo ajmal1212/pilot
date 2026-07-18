@@ -1,5 +1,5 @@
 # Benches (created by `bench new`)
-benches/
+/benches/
 
 # Git provider PAT store (plaintext token — never commit)
 .bench.git.info

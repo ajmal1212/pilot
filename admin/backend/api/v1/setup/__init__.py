@@ -5,15 +5,12 @@ from pathlib import Path
 from flask import Blueprint, current_app, g, jsonify, request
 
 from admin.backend.api.responses import accepted_task_response, error_response, no_content_response
-from admin.backend.api.v1.setup_config import read_defaults as _read_defaults
-from admin.backend.api.v1.setup_config import validate_configuration as _validate
-from admin.backend.api.v1.setup_database import database_validation, database_validation_state
-from admin.backend.api.v1.setup_state import (
-    clear_wizard_marker_if_idle as _clear_wizard_marker_if_idle,
-)
-from admin.backend.api.v1.setup_state import running_setup_task as _running_setup_task
-from admin.backend.api.v1.setup_state import setup_handoff_task as _setup_handoff_task
-from admin.backend.api.v1.setup_state import wizard_marker_path
+from admin.backend.api.v1.setup.config import read_defaults, validate_configuration
+from admin.backend.api.v1.setup.database import database_validation, database_validation_state
+from admin.backend.api.v1.setup.state import clear_wizard_marker_if_idle
+from admin.backend.api.v1.setup.state import running_setup_task
+from admin.backend.api.v1.setup.state import setup_handoff_task
+from admin.backend.api.v1.setup.state import wizard_marker_path
 from admin.backend.middleware import allow_during_setup, set_session_cookie
 from pilot.config.bench_toml_builder import (
     FRAMEWORK_BRANCHES,
@@ -28,12 +25,21 @@ from pilot.tasks.wizard_setup import WizardSetupTask
 
 setup_bp = Blueprint("setup", __name__)
 
+__all__ = [
+    "BenchTomlStore",
+    "read_defaults",
+    "running_setup_task",
+    "setup_bp",
+    "validate_configuration",
+    "wizard_marker_path",
+]
+
 
 @setup_bp.get("/configuration")
 @allow_during_setup
 def get_configuration():
     bench_root = Path(current_app.config["BENCH_ROOT"])
-    return jsonify(_read_defaults(bench_root))
+    return jsonify(read_defaults(bench_root))
 
 
 @setup_bp.get("/framework-branches")
@@ -74,7 +80,7 @@ def _update_configuration(bench_root: Path, data: dict):
         )
 
     settings = {**current, **data, "admin_enabled": True}
-    error = _validate(settings)
+    error = validate_configuration(settings)
     if error:
         return error_response("invalid_setup_configuration", error, 422)
 
@@ -98,7 +104,7 @@ def _update_configuration(bench_root: Path, data: dict):
             500,
         )
 
-    resp = jsonify(_read_defaults(bench_root))
+    resp = jsonify(read_defaults(bench_root))
     if settings.get("admin_password"):
         _issue_setup_session(resp, toml_path)
     return resp
@@ -165,7 +171,7 @@ def start_setup():
     marker = wizard_marker_path(bench_root)
     try:
         with exclusive_file_lock(marker):
-            existing = _setup_handoff_task(bench_root)
+            existing = setup_handoff_task(bench_root)
             if existing:
                 replace_private_text_locked(marker, existing.task_id)
                 return accepted_task_response(bench_root, existing.task_id)
@@ -177,13 +183,13 @@ def start_setup():
             replace_private_text_locked(marker, task_id)
             return accepted_task_response(bench_root, task_id)
     except TaskConflictError as error:
-        _clear_wizard_marker_if_idle(bench_root)
+        clear_wizard_marker_if_idle(bench_root)
         return error_response("task_conflict", str(error), 409)
     except ValueError as error:
-        _clear_wizard_marker_if_idle(bench_root)
+        clear_wizard_marker_if_idle(bench_root)
         return error_response("invalid_setup_task", str(error), 422)
     except Exception:
-        _clear_wizard_marker_if_idle(bench_root)
+        clear_wizard_marker_if_idle(bench_root)
         return error_response("setup_start_failed", "Could not start setup.", 500)
 
 
@@ -219,14 +225,14 @@ def finish_setup():
         )
     marker = wizard_marker_path(bench_root)
     with exclusive_file_lock(marker):
-        handoff = _setup_handoff_task(bench_root)
+        handoff = setup_handoff_task(bench_root)
         if handoff is None or handoff.task_id != task_id:
             return error_response(
                 "setup_task_mismatch",
                 "Task is not the current setup attempt.",
                 409,
             )
-        if _running_setup_task(bench_root):
+        if running_setup_task(bench_root):
             return error_response(
                 "setup_active",
                 "Another setup task is still active.",

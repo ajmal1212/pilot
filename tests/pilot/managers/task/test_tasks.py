@@ -397,7 +397,7 @@ def test_stream_waits_for_queued_cancellation(
 
 
 def test_queued_setup_task_is_available_for_resume(tmp_path: Path) -> None:
-    from admin.backend.api.v1.setup import _running_setup_task
+    from admin.backend.api.v1.setup import running_setup_task
 
     task_id = "20260521-143022-aabbcc"
     TaskStore(tmp_path).create_queued(
@@ -413,7 +413,7 @@ def test_queued_setup_task_is_available_for_resume(tmp_path: Path) -> None:
         }
     )
 
-    assert _running_setup_task(tmp_path).task_id == task_id
+    assert running_setup_task(tmp_path).task_id == task_id
 
 
 def test_reader_derives_queue_positions_from_fifo_order(tmp_path: Path) -> None:

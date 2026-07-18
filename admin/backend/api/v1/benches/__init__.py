@@ -10,17 +10,17 @@ from pilot.core.bench import Bench
 from pilot.internal.atomic_file import exclusive_file_lock
 
 from admin.backend.api.responses import error_response, no_content_response
-from admin.backend.api.v1.benches_create import create_bench_locked as _create_bench_locked
-from admin.backend.api.v1.benches_readiness import bench_readiness_bp
-from admin.backend.api.v1.benches_support import (
-    _ADMIN_DOMAIN_RE,
-    _NAME_RE,
-    bench_busy_response as _bench_busy_response,
-    bench_lock_target as _bench_lock_target,
-    bench_management_lock_target as _bench_management_lock_target,
-    bench_resource as _bench_resource,
+from admin.backend.api.v1.benches.create import create_bench_locked
+from admin.backend.api.v1.benches.readiness import bench_readiness_bp
+from admin.backend.api.v1.benches.support import (
+    ADMIN_DOMAIN_RE,
+    BENCH_NAME_RE,
+    bench_busy_response,
+    bench_lock_target,
+    bench_management_lock_target,
+    bench_resource,
     guard_bench_management,
-    target_bench_dir as _target_bench_dir,
+    target_bench_dir,
 )
 
 benches_bp = Blueprint("benches", __name__)
@@ -40,7 +40,7 @@ def list_benches():
         if bench_dir.is_symlink() or not bench_dir.is_dir():
             continue
         try:
-            benches.append(_bench_resource(bench_dir))
+            benches.append(bench_resource(bench_dir))
         except Exception:
             continue
     return jsonify(benches)
@@ -48,17 +48,17 @@ def list_benches():
 
 @benches_bp.get("/<name>")
 def get_bench(name: str):
-    if not _NAME_RE.fullmatch(name):
+    if not BENCH_NAME_RE.fullmatch(name):
         return error_response("invalid_bench_name", "Invalid bench name.", 422)
     bench_root = Path(current_app.config["BENCH_ROOT"])
     try:
-        bench_dir = _target_bench_dir(bench_root, name)
+        bench_dir = target_bench_dir(bench_root, name)
     except ValueError:
         return error_response("bench_not_found", f"Bench '{name}' not found.", 404)
     if not (bench_dir / "bench.toml").exists():
         return error_response("bench_not_found", f"Bench '{name}' not found.", 404)
     try:
-        return jsonify(_bench_resource(bench_dir))
+        return jsonify(bench_resource(bench_dir))
     except Exception:
         return error_response("bench_unavailable", "Could not read the bench.", 503)
 
@@ -80,11 +80,11 @@ def restart_bench(name: str):
 
 def _run_action(name: str, action: str):
     bench_root = Path(current_app.config["BENCH_ROOT"])
-    if not _NAME_RE.fullmatch(name):
+    if not BENCH_NAME_RE.fullmatch(name):
         return error_response("invalid_bench_name", "Invalid bench name.", 422)
 
     try:
-        target_dir = _target_bench_dir(bench_root, name)
+        target_dir = target_bench_dir(bench_root, name)
     except ValueError:
         return error_response("bench_not_found", f"Bench '{name}' not found.", 404)
     toml_path = target_dir / "bench.toml"
@@ -93,12 +93,12 @@ def _run_action(name: str, action: str):
 
     try:
         with (
-            exclusive_file_lock(_bench_management_lock_target(bench_root), blocking=False),
-            exclusive_file_lock(_bench_lock_target(bench_root, name), blocking=False),
+            exclusive_file_lock(bench_management_lock_target(bench_root), blocking=False),
+            exclusive_file_lock(bench_lock_target(bench_root, name), blocking=False),
         ):
             return _run_action_locked(target_dir, toml_path, name, action)
     except BlockingIOError:
-        return _bench_busy_response(name)
+        return bench_busy_response(name)
 
 
 def _run_action_locked(target_dir: Path, toml_path: Path, name: str, action: str):
@@ -120,7 +120,7 @@ def _run_action_locked(target_dir: Path, toml_path: Path, name: str, action: str
         )
     try:
         Bench(target_config, target_dir).run_production_action(action)
-        return jsonify(_bench_resource(target_dir))
+        return jsonify(bench_resource(target_dir))
     except Exception:
         return error_response(
             "bench_action_failed",
@@ -132,11 +132,11 @@ def _run_action_locked(target_dir: Path, toml_path: Path, name: str, action: str
 @benches_bp.delete("/<name>")
 def delete_bench(name: str):
     bench_root = Path(current_app.config["BENCH_ROOT"])
-    if not _NAME_RE.fullmatch(name):
+    if not BENCH_NAME_RE.fullmatch(name):
         return error_response("invalid_bench_name", "Invalid bench name.", 422)
 
     try:
-        target_dir = _target_bench_dir(bench_root, name)
+        target_dir = target_bench_dir(bench_root, name)
     except ValueError:
         return error_response("bench_not_found", f"Bench '{name}' not found.", 404)
     toml_path = target_dir / "bench.toml"
@@ -147,12 +147,12 @@ def delete_bench(name: str):
 
     try:
         with (
-            exclusive_file_lock(_bench_management_lock_target(bench_root), blocking=False),
-            exclusive_file_lock(_bench_lock_target(bench_root, name), blocking=False),
+            exclusive_file_lock(bench_management_lock_target(bench_root), blocking=False),
+            exclusive_file_lock(bench_lock_target(bench_root, name), blocking=False),
         ):
             return _delete_bench_locked(target_dir, toml_path, name)
     except BlockingIOError:
-        return _bench_busy_response(name)
+        return bench_busy_response(name)
 
 
 def _delete_bench_locked(target_dir: Path, toml_path: Path, name: str):
@@ -230,7 +230,7 @@ def create_bench():
         return error_response("invalid_admin_tls", "admin_tls must be a boolean.", 422)
 
     name = (data.get("name") or "").strip()
-    if not name or not _NAME_RE.fullmatch(name):
+    if not name or not BENCH_NAME_RE.fullmatch(name):
         return error_response(
             "invalid_bench_name",
             "Bench name must contain only letters, numbers, '-' and '_'.",
@@ -264,17 +264,17 @@ def create_bench():
             "Admin domain is required so the bench is reachable in production.",
             422,
         )
-    if not _ADMIN_DOMAIN_RE.match(admin_domain):
+    if not ADMIN_DOMAIN_RE.match(admin_domain):
         return error_response(
             "invalid_admin_domain", f"'{admin_domain}' is not a valid hostname.", 422
         )
 
     try:
         with (
-            exclusive_file_lock(_bench_management_lock_target(bench_root), blocking=False),
-            exclusive_file_lock(_bench_lock_target(bench_root, name), blocking=False),
+            exclusive_file_lock(bench_management_lock_target(bench_root), blocking=False),
+            exclusive_file_lock(bench_lock_target(bench_root, name), blocking=False),
         ):
-            return _create_bench_locked(
+            return create_bench_locked(
                 bench_root,
                 name,
                 process_manager,
@@ -283,4 +283,4 @@ def create_bench():
                 bool(data["admin_tls"]) if "admin_tls" in data else None,
             )
     except BlockingIOError:
-        return _bench_busy_response(name)
+        return bench_busy_response(name)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from admin.backend.api.v1.setup_state import setup_handoff_task
+from admin.backend.api.v1.setup.state import setup_handoff_task
 from pilot.config.bench_toml_builder import BenchTomlBuilder
 from pilot.config import BenchTomlStore
 from pilot.internal.validators import validate_branch_name, validate_repo_url

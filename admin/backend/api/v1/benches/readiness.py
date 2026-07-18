@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import Blueprint, current_app, jsonify, request
 
 from admin.backend.api.responses import error_response
-from admin.backend.api.v1.benches_support import _ADMIN_DOMAIN_RE, guard_bench_management
+from admin.backend.api.v1.benches.support import ADMIN_DOMAIN_RE, guard_bench_management
 from admin.backend.providers.bench import BenchProvider
 
 bench_readiness_bp = Blueprint("bench-readiness", __name__)
@@ -43,7 +43,7 @@ def _domain_readiness_response(bench_root: Path, data: dict, domain: str):
             "Provide either domain or port, not both.",
             422,
         )
-    if not _ADMIN_DOMAIN_RE.fullmatch(domain):
+    if not ADMIN_DOMAIN_RE.fullmatch(domain):
         return error_response("invalid_domain", "domain must be a valid hostname.", 422)
     scheme = (data.get("scheme") or "http").strip()
     if scheme not in ("http", "https"):

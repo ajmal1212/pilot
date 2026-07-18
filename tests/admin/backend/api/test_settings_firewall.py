@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pilot.config import BenchConfig
 
-from admin.backend.api.v1.settings import ConfigPatcher, _build_settings_response, _firewall_payload
+from admin.backend.api.v1.settings import ConfigPatcher, build_settings_response, firewall_payload
 
 
 def _config() -> BenchConfig:
@@ -18,7 +18,7 @@ def _config() -> BenchConfig:
 
 
 def test_settings_response_defaults_to_open_firewall() -> None:
-    payload = _build_settings_response(_config())
+    payload = build_settings_response(_config())
     assert payload["firewall"] == {"enabled": False, "default": "allow", "rules": []}
 
 
@@ -40,7 +40,7 @@ def test_patcher_applies_firewall_rules() -> None:
     assert config.firewall.default == "deny"
     assert len(config.firewall.rules) == 1
     assert config.firewall.rules[0].ip == "203.0.113.4"
-    assert _firewall_payload(config)["rules"][0]["description"] == "office"
+    assert firewall_payload(config)["rules"][0]["description"] == "office"
 
 
 def test_patcher_rejects_invalid_ip() -> None:

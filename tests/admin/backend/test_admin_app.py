@@ -337,7 +337,7 @@ def test_api_benches_create_does_not_prompt_for_system_privileges(tmp_path: Path
             return_value=True,
         ),
         patch("pilot.managers.platform.has_passwordless_sudo", return_value=False),
-        patch("admin.backend.api.v1.benches_create.Bench.create_at") as create,
+        patch("admin.backend.api.v1.benches.create.Bench.create_at") as create,
         patch(
             "pilot.core.adapters.domain_provider.DomainRouteProvider.wildcard_domains",
             return_value=[],

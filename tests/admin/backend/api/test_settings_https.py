@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pilot.config import BenchConfig
 
-from admin.backend.api.v1.settings import ConfigPatcher, _build_settings_response
+from admin.backend.api.v1.settings import ConfigPatcher, build_settings_response
 
 
 def _config() -> BenchConfig:
@@ -22,7 +22,7 @@ def test_settings_response_exposes_tls_and_email() -> None:
     config.admin.tls = True
     config.letsencrypt.email = "ops@example.com"
 
-    payload = _build_settings_response(config)
+    payload = build_settings_response(config)
 
     assert payload["admin"]["tls"] is True
     assert payload["admin"]["domain"] == "admin.example.com"

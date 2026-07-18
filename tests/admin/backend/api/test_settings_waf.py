@@ -5,7 +5,7 @@ import pytest
 
 from pilot.config import BenchConfig
 
-from admin.backend.api.v1.settings import ConfigPatcher, _build_settings_response, _waf_payload
+from admin.backend.api.v1.settings import ConfigPatcher, build_settings_response, waf_payload
 
 
 def _config() -> BenchConfig:
@@ -20,7 +20,7 @@ def _config() -> BenchConfig:
 
 
 def test_settings_response_defaults_to_disabled_waf() -> None:
-    waf = _build_settings_response(_config())["waf"]
+    waf = build_settings_response(_config())["waf"]
     assert waf["enabled"] is False and waf["mode"] == "DetectionOnly"
     assert waf["modes"] == ["Off", "DetectionOnly", "On"]
     assert "installed" in waf
@@ -40,7 +40,7 @@ def test_patcher_applies_waf() -> None:
     assert error is None
     assert config.waf.enabled and config.waf.mode == "On" and config.waf.paranoia == 3
     assert config.waf.exclusions == ["SecRuleRemoveById 942100"]
-    assert _waf_payload(config)["exempt_paths"] == ["/api/method/ping"]
+    assert waf_payload(config)["exempt_paths"] == ["/api/method/ping"]
 
 
 def test_patcher_rejects_invalid_mode() -> None:
@@ -91,6 +91,6 @@ def test_patcher_rejects_malicious_custom_rule_cleanly() -> None:
 
 
 def test_settings_response_exposes_rule_vocabulary() -> None:
-    waf = _build_settings_response(_config())["waf"]
+    waf = build_settings_response(_config())["waf"]
     assert waf["rule_fields"] and waf["rule_operators"] and waf["rule_actions"]
     assert "block" in waf["rule_actions"] and "uri_path" in waf["rule_fields"]
