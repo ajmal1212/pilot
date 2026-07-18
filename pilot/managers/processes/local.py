@@ -324,7 +324,9 @@ class ProcessManager:
             working_dir = self.bench.path
             backend_env = self._py_memory_env()
         else:
-            argv = ["node", f"{self.bench.apps_path}/frappe/socketio.js"]
+            import shutil
+            node_bin = shutil.which("node") or "node"
+            argv = [node_bin, f"{self.bench.apps_path}/frappe/socketio.js"]
             working_dir = self.bench.sites_path
             backend_env = {}
         return ProcessDefinition(

@@ -18,6 +18,7 @@ from pilot.config.postgres import PostgresConfig
 from pilot.config.production import ProductionConfig
 from pilot.config.redis import RedisConfig
 from pilot.config.s3 import S3Config
+from pilot.config.cloudflare import CloudflareConfig
 from pilot.config.waf import WafConfig
 from pilot.config.worker import WorkerConfig
 from pilot.exceptions import ConfigError
@@ -55,6 +56,7 @@ class BenchConfig:
     firewall: FirewallConfig = field(default_factory=FirewallConfig)
     waf: WafConfig = field(default_factory=WafConfig)
     s3: S3Config = field(default_factory=S3Config)
+    cloudflare: CloudflareConfig = field(default_factory=CloudflareConfig)
 
     @classmethod
     def from_file(cls, path: Path) -> "BenchConfig":
@@ -90,6 +92,7 @@ class BenchConfig:
         firewall = FirewallConfig.from_dict(data.get("firewall"))
         waf = WafConfig.from_dict(data.get("waf"))
         s3 = S3Config(**cls._known_fields(S3Config, data.get("s3", {})))
+        cloudflare = CloudflareConfig(**cls._known_fields(CloudflareConfig, data.get("cloudflare", {})))
         return cls(
             name=bench_data.get("name", ""),
             python_version=bench_data.get("python", ""),
@@ -115,6 +118,7 @@ class BenchConfig:
             firewall=firewall,
             waf=waf,
             s3=s3,
+            cloudflare=cloudflare,
         )
 
     @staticmethod

@@ -180,17 +180,36 @@ def run_command(
 
 
 def _start_process(argv: list[str], cwd: Path | None, env: dict | None, stream_output: bool) -> subprocess.Popen:
+    run_env = dict(env) if env is not None else dict(os.environ)
     inherited = {
         key: os.environ[key]
         for key in ("BENCH_TASK_LAUNCH_ID", "PILOT_NONINTERACTIVE_PRIVILEGES")
         if key in os.environ
     }
-    if env is not None and inherited:
-        env = {**env, **inherited}
+    run_env.update(inherited)
+
+    # Automatically prepend the latest NVM Node version to PATH if present
+    nvm_dir = Path.home() / ".nvm" / "versions" / "node"
+    if nvm_dir.is_dir():
+        versions = []
+        for p in nvm_dir.iterdir():
+            if p.is_dir() and p.name.startswith("v"):
+                try:
+                    parts = [int(x) for x in p.name[1:].split(".")]
+                    versions.append((parts, p / "bin"))
+                except ValueError:
+                    continue
+        if versions:
+            versions.sort(reverse=True)
+            node_bin_dir = str(versions[0][1])
+            current_path = run_env.get("PATH", "")
+            if node_bin_dir not in current_path:
+                run_env["PATH"] = os.pathsep.join([node_bin_dir, current_path]) if current_path else node_bin_dir
+
     return subprocess.Popen(
         argv,
         cwd=cwd,
-        env=env,
+        env=run_env,
         stdout=None if stream_output else subprocess.PIPE,
         stderr=None if stream_output else subprocess.PIPE,
         start_new_session=True,
@@ -225,3 +244,62 @@ def _raise_on_failure(argv, process, stderr, stream_output, redactions) -> None:
         f"Command {argv[0]!r} failed with exit code {process.returncode}.\n{stderr_text}".strip(),
         returncode=process.returncode,
     )
+
+
+def encrypt(plain_text: str) -> str:
+    import base64
+    import hashlib
+    import os
+
+    if not plain_text:
+        return ""
+
+    # Use machine-id if available, fallback to a static salt
+    machine_id = b"pilot-fallback-secret-key-salt"
+    for p in ("/etc/machine-id", "/var/lib/dbus/machine-id"):
+        try:
+            with open(p, "rb") as f:
+                content = f.read().strip()
+                if content:
+                    machine_id = content
+                    break
+        except Exception:
+            continue
+
+    salt = os.urandom(16)
+    data_bytes = plain_text.encode("utf-8")
+    keystream = hashlib.pbkdf2_hmac("sha256", machine_id, salt, 1000, dklen=len(data_bytes))
+    cipher_bytes = bytes(a ^ b for a, b in zip(data_bytes, keystream))
+    return f"{salt.hex()}:{base64.b64encode(cipher_bytes).decode('utf-8')}"
+
+
+def decrypt(cipher_text: str) -> str:
+    import base64
+    import hashlib
+
+    if not cipher_text:
+        return ""
+    if ":" not in cipher_text:
+        return cipher_text
+    try:
+        salt_hex, b64_cipher = cipher_text.split(":", 1)
+        salt = bytes.fromhex(salt_hex)
+        cipher_bytes = base64.b64decode(b64_cipher)
+
+        machine_id = b"pilot-fallback-secret-key-salt"
+        for p in ("/etc/machine-id", "/var/lib/dbus/machine-id"):
+            try:
+                with open(p, "rb") as f:
+                    content = f.read().strip()
+                    if content:
+                        machine_id = content
+                        break
+            except Exception:
+                continue
+
+        keystream = hashlib.pbkdf2_hmac("sha256", machine_id, salt, 1000, dklen=len(cipher_bytes))
+        plain_bytes = bytes(a ^ b for a, b in zip(cipher_bytes, keystream))
+        return plain_bytes.decode("utf-8")
+    except Exception:
+        return cipher_text
+

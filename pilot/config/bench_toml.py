@@ -170,6 +170,16 @@ def _bench_config_to_dict(config: BenchConfig) -> ConfigDict:
         if monitor.log_path:
             data["monitor"]["log_path"] = str(monitor.log_path)
 
+    cloudflare = config.cloudflare
+    if cloudflare.tunnel_token or cloudflare.enabled or cloudflare.tunnel_name or cloudflare.domain or cloudflare.api_token:
+        data["cloudflare"] = {
+            "enabled": cloudflare.enabled,
+            "tunnel_name": cloudflare.tunnel_name,
+            "tunnel_token": cloudflare.tunnel_token,
+            "domain": cloudflare.domain,
+            "api_token": cloudflare.api_token,
+        }
+
     return data
 
 

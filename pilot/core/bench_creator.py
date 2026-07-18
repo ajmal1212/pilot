@@ -87,7 +87,16 @@ class BenchCreator:
             if sibling_admin.jwks_audience:
                 settings["admin_jwks_audience"] = sibling_admin.jwks_audience
 
+        sibling_cloudflare = self._sibling_cloudflare()
+        if sibling_cloudflare:
+            settings["cloudflare_enabled"] = sibling_cloudflare.enabled
+            settings["cloudflare_tunnel_name"] = sibling_cloudflare.tunnel_name
+            settings["cloudflare_tunnel_token"] = sibling_cloudflare.tunnel_token
+            settings["cloudflare_domain"] = sibling_cloudflare.domain
+            settings["cloudflare_api_token"] = sibling_cloudflare.api_token
+
         BenchTomlStore(bench_toml).write_flat(self.name, settings, port_offset=offset)
+
 
         admin_port = default_ports()["admin.port"] + offset
         on_progress(f"\nBench '{self.name}' created at {self.target_directory}")
@@ -105,6 +114,16 @@ class BenchCreator:
             if email:
                 return email
         return ""
+
+    def _sibling_cloudflare(self):
+        """The Cloudflare configuration from any sibling bench that has one configured."""
+        from pilot.config.cloudflare import CloudflareConfig
+
+        for _, config in iter_sibling_benches(self.target_directory):
+            if config.cloudflare.is_configured:
+                return config.cloudflare
+        return None
+
 
     def _sibling_mariadb_port(self) -> int:
         """The MariaDB port a sibling bench already established for the

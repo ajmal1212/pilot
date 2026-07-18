@@ -49,12 +49,14 @@ def register_blueprints(app: Flask) -> None:
     from admin.backend.api.v1.stats import stats_bp
     from admin.backend.api.v1.tasks import task_worker_bp, tasks_bp
     from admin.backend.api.v1.updates import updates_bp
+    from admin.backend.api.v1.cloudflare import cloudflare_bp
 
     app.register_blueprint(core_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(setup_bp, url_prefix=f"{API_V1_PREFIX}/setup")
     app.register_blueprint(apps_bp, url_prefix=f"{API_V1_PREFIX}/apps")
     app.register_blueprint(marketplace_bp, url_prefix=f"{API_V1_PREFIX}/marketplace")
     app.register_blueprint(benches_bp, url_prefix=f"{API_V1_PREFIX}/benches")
+    app.register_blueprint(cloudflare_bp, url_prefix=f"{API_V1_PREFIX}/cloudflare")
     app.register_blueprint(bench_readiness_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(sites_bp, url_prefix=f"{API_V1_PREFIX}/sites")
     app.register_blueprint(processes_bp, url_prefix=f"{API_V1_PREFIX}/runtime")

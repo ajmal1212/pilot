@@ -40,6 +40,7 @@
           <S3Bucket v-else-if="currentSection === 's3-bucket'" />
           <SshKeys v-else-if="currentSection === 'ssh-keys'" ref="sshKeysRef" />
           <SystemInfo v-else-if="currentSection === 'system-info'" />
+          <CloudflareSettings v-else-if="currentSection === 'cloudflare'" />
         </div>
       </div>
     </template>
@@ -47,7 +48,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Dialog, Button } from 'frappe-ui'
 import Firewall from '@/components/settings/Firewall.vue'
 import Waf from '@/components/settings/Waf.vue'
@@ -55,6 +56,7 @@ import Git from '@/components/settings/Git.vue'
 import S3Bucket from '@/components/settings/S3Bucket.vue'
 import SshKeys from '@/components/settings/SshKeys.vue'
 import SystemInfo from '@/components/settings/SystemInfo.vue'
+import CloudflareSettings from '@/components/settings/CloudflareSettings.vue'
 import Workers from '@/components/settings/Workers.vue'
 import { useIsMobile } from '@/composables/common/useIsMobile'
 
@@ -70,10 +72,24 @@ const sections = computed(() => [
   { id: 'waf', label: 'WAF', icon: 'lucide-shield-alert' },
   { id: 'ssh-keys', label: 'SSH Keys', icon: 'lucide-key-round' },
   { id: 'system-info', label: 'System Info', icon: 'lucide-info' },
+  { id: 'cloudflare', label: 'Cloudflare', icon: 'lucide-cloud' },
 ])
 const activeSection = ref(null)
 const workersRef = ref(null)
 const sshKeysRef = ref(null)
 const currentSection = computed(() => activeSection.value ?? sections.value[0].id)
 const activeSectionLabel = computed(() => sections.value.find((s) => s.id === currentSection.value)?.label)
+
+onMounted(() => {
+  const handler = (e) => {
+    open.value = true
+    if (e.detail?.section) {
+      activeSection.value = e.detail.section
+    }
+  }
+  window.addEventListener('open-pilot-settings', handler)
+  onUnmounted(() => {
+    window.removeEventListener('open-pilot-settings', handler)
+  })
+})
 </script>

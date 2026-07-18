@@ -232,6 +232,8 @@ class MariaDBManager(UserOwnedDBManager):
     def _detect_socket(self) -> str:
         if self.config.socket_path:
             return self.config.socket_path
+        if self.config.existing:
+            return ""
         if not is_macos() and Path(self.socket_path).exists():
             return self.socket_path
         return ""

@@ -147,7 +147,7 @@ class PythonEnvManager:
         for app in self.bench.apps():
             if (app.path / "package.json").exists():
                 run_command(
-                    [get_yarn_bin(), "install", "--frozen-lockfile"],
+                    [get_yarn_bin(), "install", "--no-cache"],
                     cwd=app.path,
                     stream_output=True,
                 )
@@ -207,7 +207,7 @@ class PythonEnvManager:
         print(f"  Installing JS dependencies for {app_name}...")
         sys.stdout.flush()
         run_command(
-            [get_yarn_bin(), "install", "--frozen-lockfile"],
+            [get_yarn_bin(), "install", "--no-cache"],
             cwd=path,
             stream_output=True,
         )

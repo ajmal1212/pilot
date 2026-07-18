@@ -380,6 +380,31 @@ class NginxConfigRenderer:
 
     def _render_catchall(self, http_port: int, https_port: int, error_dir: Path) -> str:
         directives = "".join(f"    error_page {code} /_errors/{code}.html;\n" for code in _ERROR_PAGES)
+        
+        # Check if ssl_reject_handshake is supported (nginx >= 1.19.4)
+        import subprocess, re
+        try:
+            v_out = subprocess.run(["nginx", "-v"], capture_output=True, text=True)
+            v_match = re.search(r"nginx/(\d+)\.(\d+)\.(\d+)", v_out.stderr or v_out.stdout)
+            if v_match:
+                major, minor, patch = map(int, v_match.groups())
+                has_reject_handshake = (major > 1) or (major == 1 and minor > 19) or (major == 1 and minor == 19 and patch >= 4)
+            else:
+                has_reject_handshake = False
+        except Exception:
+            has_reject_handshake = False
+
+        ssl_default_server_block = ""
+        if has_reject_handshake:
+            ssl_default_server_block = (
+                "\nserver {\n"
+                f"    listen {https_port} ssl http2 default_server;\n"
+                f"    listen [::]:{https_port} ssl http2 default_server;\n"
+                "    server_name _;\n\n"
+                "    ssl_reject_handshake on;\n"
+                "}\n"
+            )
+
         return (
             # 256 fits any server_name; the stock 64-byte bucket overflows on
             # long custom/wildcard domains. Set once here, not per-bench.
@@ -396,15 +421,8 @@ class NginxConfigRenderer:
             + "    location / {\n"
             + "        return 404;\n"
             + "    }\n"
-            "}\n\n"
-            # Without this, an https:// request for an http-only bench falls
-            # through to the first 443 vhost and serves the wrong cert.
-            "server {\n"
-            f"    listen {https_port} ssl http2 default_server;\n"
-            f"    listen [::]:{https_port} ssl http2 default_server;\n"
-            "    server_name _;\n\n"
-            "    ssl_reject_handshake on;\n"
             "}\n"
+            + ssl_default_server_block
         )
 
     def _render_error_pages(self) -> str:

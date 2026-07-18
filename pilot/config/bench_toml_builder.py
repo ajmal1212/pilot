@@ -47,6 +47,11 @@ FLAT_KEYS = {
     "admin_allow_bench_management": "admin.allow_bench_management",
     "letsencrypt_email": "letsencrypt.email",
     "production_process_manager": "production.process_manager",
+    "cloudflare_enabled": "cloudflare.enabled",
+    "cloudflare_tunnel_name": "cloudflare.tunnel_name",
+    "cloudflare_tunnel_token": "cloudflare.tunnel_token",
+    "cloudflare_domain": "cloudflare.domain",
+    "cloudflare_api_token": "cloudflare.api_token",
 }
 
 # Framework branches the setup wizard offers, newest/recommended first.

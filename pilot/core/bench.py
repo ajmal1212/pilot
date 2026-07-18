@@ -95,6 +95,8 @@ class Bench:
         mariadb = self.config.mariadb
         return ["--db-root-username", mariadb.admin_user, "--db-root-password", mariadb.root_password]
 
+
+
     def postgres_root_password(self) -> str:
         return self.config.postgres.root_password or "trust_auth"
 
@@ -230,8 +232,24 @@ class Bench:
             "socketio_backend": self.config.socketio_backend,
             "monitor": True,
         }
+        if self.config.db_type == "mariadb":
+            mariadb = self.config.mariadb
+            from pilot.managers.mariadb import MariaDBManager
+
+            socket_path = MariaDBManager(mariadb)._detect_socket()
+            if socket_path:
+                config["db_socket"] = socket_path
+            else:
+                config["db_host"] = mariadb.host
+                config["db_port"] = mariadb.port
+        elif self.config.db_type == "postgres":
+            postgres = self.config.postgres
+            config["db_host"] = postgres.host
+            config["db_port"] = postgres.port
+
         config_path = self.sites_path / "common_site_config.json"
         write_private_text(config_path, json.dumps(config, indent=2) + "\n")
+
 
     def restart(self):
         """Restart bench in case we are running in production"""
