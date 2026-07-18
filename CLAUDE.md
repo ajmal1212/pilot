@@ -66,6 +66,7 @@ These rules are mandatory for agents changing this repo:
 - Use `apply_patch` for manual edits.
 - Run `uv run ruff check admin pilot tests` after Python changes.
 - Run targeted tests for narrow behavior changes and `uv run pytest` before committing broad refactors.
+- For bug fixes, identify the root cause before attempting a fix.
 
 ## Docs
 
