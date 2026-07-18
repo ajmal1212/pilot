@@ -33,7 +33,7 @@ def get_cloudflare_status():
         "domain": config.cloudflare.domain,
         "token_configured": bool(config.cloudflare.tunnel_token),
         "api_token_configured": bool(config.cloudflare.api_token),
-        "cert_configured": (Path.home() / ".cloudflare" / "cert.pem").exists()
+        "cert_configured": (Path.home() / ".cloudflared" / "cert.pem").exists()
     })
 
 
@@ -233,7 +233,7 @@ def start_cloudflare_login():
 @cloudflare_bp.get("/login/status")
 def get_cloudflare_login_status():
     bench_root = Path(current_app.config["BENCH_ROOT"])
-    cert_path = Path.home() / ".cloudflare" / "cert.pem"
+    cert_path = Path.home() / ".cloudflared" / "cert.pem"
     
     if cert_path.exists():
         _cancel_login_process(bench_root)
@@ -244,6 +244,11 @@ def get_cloudflare_login_status():
     if proc:
         exit_code = proc.poll()
         if exit_code is not None:
+            time.sleep(0.5)
+            if cert_path.exists() or exit_code == 0:
+                _cancel_login_process(bench_root)
+                return jsonify({"status": "success", "cert_path": str(cert_path)})
+                
             _login_processes.pop(key, None)
             _login_urls.pop(key, None)
             return jsonify({
@@ -266,7 +271,7 @@ def cancel_cloudflare_login():
 
 @cloudflare_bp.post("/login/disconnect")
 def disconnect_cloudflare_login():
-    cert_path = Path.home() / ".cloudflare" / "cert.pem"
+    cert_path = Path.home() / ".cloudflared" / "cert.pem"
     try:
         if cert_path.exists():
             cert_path.unlink()
@@ -339,7 +344,7 @@ def provision_cloudflare_tunnel():
     domain_root = data.get("domain")
     subdomain = data.get("subdomain", "").strip()
     
-    cert_path = Path.home() / ".cloudflare" / "cert.pem"
+    cert_path = Path.home() / ".cloudflared" / "cert.pem"
     has_cert = cert_path.exists()
     
     if not domain_root:

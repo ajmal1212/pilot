@@ -327,7 +327,7 @@ WantedBy=default.target
                 
         tunnel_id = match.group(1)
         
-        creds_path = Path.home() / ".cloudflare" / f"{tunnel_id}.json"
+        creds_path = Path.home() / ".cloudflared" / f"{tunnel_id}.json"
         if not creds_path.exists():
             raise RuntimeError(f"Credentials file not found at {creds_path}")
             
