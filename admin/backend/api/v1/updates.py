@@ -31,7 +31,7 @@ def check_app_updates():
 
 def _app_updates(*, fetch: bool) -> list[dict]:
     bench_root = Path(current_app.config["BENCH_ROOT"])
-    bench = Bench.from_path(bench_root)
+    bench = Bench(bench_root)
 
     apps_info = []
     for app in bench.apps():

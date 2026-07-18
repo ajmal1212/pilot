@@ -67,7 +67,7 @@ def detail(name: str):
         installable = []
 
     try:
-        bench_config = Bench.from_path(bench_root).config
+        bench_config = Bench(bench_root).config
         http_port = bench_config.http_port
         nginx_enabled = bench_config.production.enabled
         admin_tls = bench_config.admin.tls
@@ -125,7 +125,7 @@ def create_site():
 
     try:
         task_id = NewSiteTask.queue(
-            Bench.from_path(bench_root),
+            Bench(bench_root),
             name=name,
             admin_password=admin_password,
             apps=apps,
@@ -146,7 +146,7 @@ def drop_site(name: str):
         return site_not_found()
     try:
         task_id = DropSiteTask.queue(
-            Bench.from_path(bench_root),
+            Bench(bench_root),
             site=name,
             idempotency_key=request.headers.get("Idempotency-Key"),
             resource_key=f"site:{name.lower()}",
@@ -172,7 +172,7 @@ def reinstall_site(name: str):
         admin_password = secrets.token_urlsafe(16)
     try:
         task_id = ReinstallSiteTask.queue(
-            Bench.from_path(bench_root),
+            Bench(bench_root),
             site=name,
             admin_password=admin_password,
             idempotency_key=request.headers.get("Idempotency-Key"),
@@ -191,7 +191,7 @@ def clear_cache(name: str):
         return site_not_found()
     try:
         task_id = ClearCacheTask.queue(
-            Bench.from_path(bench_root),
+            Bench(bench_root),
             site=name,
             idempotency_key=request.headers.get("Idempotency-Key"),
             resource_key=f"site:{name.lower()}",
@@ -209,7 +209,7 @@ def migrate_site(name: str):
         return site_not_found()
     try:
         task_id = MigrateTask.queue(
-            Bench.from_path(bench_root),
+            Bench(bench_root),
             site=name,
             idempotency_key=request.headers.get("Idempotency-Key"),
             resource_key=f"site:{name.lower()}",
@@ -228,7 +228,7 @@ def create_login_link(name: str):
     if config_path is None:
         return site_not_found()
     try:
-        bench = Bench.from_path(bench_root)
+        bench = Bench(bench_root)
         proxy_tls = current_app.config["SESSION_COOKIE_SECURE"] and not bench.config.admin.tls
         url = bench.site(name).admin_login_url(proxy_tls=proxy_tls)
     except Exception:

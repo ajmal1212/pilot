@@ -9,8 +9,10 @@ from pilot.config import MariaDBConfig
 from pilot.config import RedisConfig
 from pilot.config import SiteConfig
 from pilot.config import WorkerConfig, WorkerGroup
+from pilot.config.bench_toml_builder import BenchTomlBuilder
 from pilot.core.app import App, RevisionPin
 from pilot.core.bench import Bench
+from pilot.core.server import Server
 from pilot.core.site import Site
 from pilot.exceptions import BenchError
 from pilot.managers.processes.local import ProcessManager
@@ -37,6 +39,43 @@ def make_bench(tmp_path: Path) -> Bench:
         ),
     )
     return Bench(config, tmp_path)
+
+
+def _write_bench_toml(bench_dir: Path, name: str) -> None:
+    bench_dir.mkdir(parents=True)
+    (bench_dir / "bench.toml").write_text(BenchTomlBuilder(name).render())
+
+
+def test_bench_loads_from_path(tmp_path: Path) -> None:
+    bench_dir = tmp_path / "benches" / "alpha"
+    _write_bench_toml(bench_dir, "alpha")
+
+    bench = Bench(bench_dir)
+
+    assert bench.path == bench_dir
+    assert bench.config.name == "alpha"
+
+
+def test_bench_loads_name_from_known_benches_dir(tmp_path: Path, monkeypatch) -> None:
+    bench_dir = tmp_path / "benches" / "alpha"
+    _write_bench_toml(bench_dir, "alpha")
+    monkeypatch.setattr("pilot.utils.cli_root", lambda: tmp_path)
+
+    bench = Bench("alpha")
+
+    assert bench.path == bench_dir
+    assert bench.config.name == "alpha"
+
+
+def test_server_resolves_bench_by_name(tmp_path: Path, monkeypatch) -> None:
+    bench_dir = tmp_path / "benches" / "alpha"
+    _write_bench_toml(bench_dir, "alpha")
+    monkeypatch.setattr("pilot.utils.cli_root", lambda: tmp_path)
+
+    bench = Server().bench("alpha")
+
+    assert bench.path == bench_dir
+    assert bench.config.name == "alpha"
 
 
 # ── App tests ────────────────────────────────────────────────────────────────

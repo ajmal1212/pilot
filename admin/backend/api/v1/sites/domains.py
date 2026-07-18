@@ -74,7 +74,7 @@ def enable_tls(name: str):
 
     try:
         task_id = SetupLetsEncryptTask.queue(
-            Bench.from_path(bench_root),
+            Bench(bench_root),
             site=name,
             email=email,
             idempotency_key=request.headers.get("Idempotency-Key"),
@@ -86,7 +86,7 @@ def enable_tls(name: str):
 
 
 def _site_domains(bench_root: Path, name: str):
-    return Bench.from_path(bench_root).site(name).domains
+    return Bench(bench_root).site(name).domains
 
 
 def _apply_domains(bench_root: Path, name: str) -> str:

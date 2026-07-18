@@ -35,7 +35,7 @@ def marketplace():
     try:
         from pilot.integrations.marketplace import Marketplace
 
-        apps = Marketplace(Bench.from_path(bench_root)).read_all_apps()
+        apps = Marketplace(Bench(bench_root)).read_all_apps()
         return jsonify([a.to_dict() for a in apps])
     except Exception:
         return error_response("marketplace_unavailable", "Could not read marketplace apps.", 500)
@@ -77,7 +77,7 @@ def install():
         task_args = {"name": name, "marketplace_app": name}
 
     try:
-        bench = Bench.from_path(bench_root)
+        bench = Bench(bench_root)
         if sites:
             task_id = GetAndInstallAppTask.queue(
                 bench,
@@ -148,7 +148,7 @@ def remove(name: str):
         return error_response("app_not_found", f"App '{name}' not found in bench.", 404)
 
     try:
-        task_id = RemoveAppTask.queue(Bench.from_path(bench_root), name=name)
+        task_id = RemoveAppTask.queue(Bench(bench_root), name=name)
     except Exception:
         return error_response("app_removal_failed", "Could not start app removal.", 500)
 
@@ -159,7 +159,7 @@ def remove(name: str):
 def fetch_updates():
     bench_root = Path(current_app.config["BENCH_ROOT"])
     try:
-        task_id = FetchAppUpdatesTask.queue(Bench.from_path(bench_root))
+        task_id = FetchAppUpdatesTask.queue(Bench(bench_root))
     except Exception:
         return error_response("app_fetch_failed", "Could not start fetching app updates.", 500)
     return accepted_task_response(bench_root, task_id)

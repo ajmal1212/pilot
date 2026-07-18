@@ -79,13 +79,12 @@ def task_argv_suffix(cls: type[Task], args: dict) -> list[str]:
 
 
 def run_task_main(cls: type[Task]) -> None:
-    from pilot.config import BenchTomlStore
     from pilot.core.bench import Bench
 
     args = task_parser(cls).parse_args()
     apply_task_secrets(args)
     bench_root = Path(args.bench_root)
-    bench = Bench(BenchTomlStore.for_bench(bench_root).read(), bench_root)
+    bench = Bench(bench_root)
     run_task(task_from_args(cls, bench, bench_root, args))
 
 

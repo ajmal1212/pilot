@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from pilot.config import BenchTomlStore
 from pilot.core.bench import Bench
 from pilot.core.site.backups import parse_backup_timestamp
 from pilot.integrations.s3.backups import OffsiteBackup
@@ -42,7 +41,7 @@ class BackupProvider:
 
     def __init__(self, bench_root: Path, site_name: str) -> None:
         self._site_name = site_name
-        self._bench = Bench(BenchTomlStore.for_bench(bench_root).read(), bench_root)
+        self._bench = Bench(bench_root)
         self._site = self._bench.site(site_name)
 
     def get_all(self, limit: int | None = None) -> list[Backup]:

@@ -43,11 +43,9 @@ class ProcessProvider:
         self._bench_root = bench_root
 
     def get_all(self) -> list[ProcessInfo]:
-        from pilot.config import BenchTomlStore
         from pilot.core.bench import Bench
 
-        config = BenchTomlStore.for_bench(self._bench_root).read()
-        bench = Bench(config, self._bench_root)
+        bench = Bench(self._bench_root)
 
         from pilot.managers.processes.supervisor import SupervisorProcessManager
         from pilot.managers.processes.systemd import SystemdProcessManager

@@ -65,6 +65,10 @@ def cli_root() -> Path:
     return Path(package.__file__).parent.parent
 
 
+def benches_dir() -> Path:
+    return cli_root() / "benches"
+
+
 @dataclass(frozen=True)
 class ArchiveLimits:
     max_members: int = 100_000

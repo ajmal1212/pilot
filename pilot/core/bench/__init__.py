@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from pathlib import Path
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, List
 
 from pilot.config import BenchConfig
@@ -17,16 +17,37 @@ if TYPE_CHECKING:
 
 
 class Bench:
-    def __init__(self, config: BenchConfig, path: Path) -> None:
+    def __init__(
+        self,
+        config_or_path: BenchConfig | str | Path,
+        path: str | Path | None = None,
+    ) -> None:
+        if isinstance(config_or_path, BenchConfig):
+            if path is None:
+                raise TypeError("Bench(config, path) requires a bench path.")
+            config = config_or_path
+            bench_path = Path(path)
+        else:
+            if path is not None:
+                raise TypeError("Use Bench(config, path) or Bench(path_or_name).")
+            bench_path = self._resolve_path(config_or_path)
+            from pilot.config import BenchTomlStore
+
+            config = BenchTomlStore.for_bench(bench_path).read()
+
         self.config = config
-        self.path = path
+        self.path = bench_path
         self._db: "Database | None" = None
 
-    @classmethod
-    def from_path(cls, path: Path) -> "Bench":
-        from pilot.config import BenchTomlStore
+    @staticmethod
+    def _resolve_path(path_or_name: str | Path) -> Path:
+        path = Path(path_or_name).expanduser()
+        if isinstance(path_or_name, Path) or path.is_absolute() or path.parent != Path("."):
+            return path
 
-        return cls(BenchTomlStore.for_bench(path).read(), path)
+        from pilot.utils import benches_dir
+
+        return benches_dir() / path
 
     @classmethod
     def create_at(

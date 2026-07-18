@@ -35,7 +35,7 @@ def backup_site(name: str):
         return site_not_found()
     try:
         task_id = BackupSiteTask.queue(
-            Bench.from_path(bench_root), site=name, with_files=True
+            Bench(bench_root), site=name, with_files=True
         )
     except Exception as error:
         return task_failure(error)
@@ -94,7 +94,7 @@ def _backup_set_resource(s) -> dict:
 def download_backup_file(name: str, timestamp: str, file_id: str):
     bench_root = Path(current_app.config["BENCH_ROOT"])
     try:
-        target = Bench.from_path(bench_root).site(name).backups.download_file_path(
+        target = Bench(bench_root).site(name).backups.download_file_path(
             timestamp, file_id
         )
     except BenchError:
@@ -106,7 +106,7 @@ def download_backup_file(name: str, timestamp: str, file_id: str):
 
 
 def _site_backups_dir(bench_root: Path, name: str) -> Path:
-    return Bench.from_path(bench_root).site(name).backups.directory
+    return Bench(bench_root).site(name).backups.directory
 
 
 @sites_bp.get("/<name>/backups/<timestamp>/download-links")
@@ -116,7 +116,7 @@ def backup_download_links(name: str, timestamp: str):
     straight from the bucket, so this server never proxies the transfer."""
     bench_root = Path(current_app.config["BENCH_ROOT"])
     try:
-        links = Bench.from_path(bench_root).site(name).backups.download_links(timestamp)
+        links = Bench(bench_root).site(name).backups.download_links(timestamp)
     except FileNotFoundError:
         return error_response("backup_not_found", "Offsite backup not found.", 404)
     except Exception:
@@ -126,7 +126,7 @@ def backup_download_links(name: str, timestamp: str):
 
 
 def _backup_cron_command(bench_root: Path, site: str) -> str:
-    return Bench.from_path(bench_root).site(site).backups._cron_command()
+    return Bench(bench_root).site(site).backups._cron_command()
 
 
 def _retention_from_payload(block: dict | None):
@@ -140,7 +140,7 @@ def _retention_from_payload(block: dict | None):
 def get_backup_schedule(name: str):
     bench_root = Path(current_app.config["BENCH_ROOT"])
     try:
-        schedule = Bench.from_path(bench_root).site(name).backups.schedule()
+        schedule = Bench(bench_root).site(name).backups.schedule()
     except Exception:
         return internal_error("Could not read the backup schedule.")
     return jsonify(schedule)
@@ -162,7 +162,7 @@ def set_backup_schedule(name: str):
     schedule = fields["schedule"]
     if err := validate_cron_expression(schedule):
         return error_response("invalid_schedule", err, 422)
-    backups = Bench.from_path(bench_root).site(name).backups
+    backups = Bench(bench_root).site(name).backups
     retention = backups.retention_from_payload(retention_value)
     if isinstance(retention, str):
         return error_response("invalid_retention", retention, 422)
@@ -178,7 +178,7 @@ def set_backup_schedule(name: str):
 def delete_backup_schedule(name: str):
     bench_root = Path(current_app.config["BENCH_ROOT"])
     try:
-        Bench.from_path(bench_root).site(name).backups.clear_schedule()
+        Bench(bench_root).site(name).backups.clear_schedule()
     except Exception:
         return internal_error("Could not remove the backup schedule.")
     return no_content_response()

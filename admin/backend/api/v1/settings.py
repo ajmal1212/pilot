@@ -53,7 +53,7 @@ def audit_log():
     bench_root = Path(current_app.config["BENCH_ROOT"])
     limit, offset = parse_pagination(_AUDIT_LOG_DEFAULT_LIMIT, _AUDIT_LOG_MAX_LIMIT)
     try:
-        log = AuditLog(Bench.from_path(bench_root))
+        log = AuditLog(Bench(bench_root))
 
         def fetch_newest(count: int) -> list:
             return log.entries(

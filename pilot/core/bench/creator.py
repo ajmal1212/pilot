@@ -95,7 +95,7 @@ class BenchCreator:
         on_progress("  bench start")
         on_progress(f"  Then open http://localhost:{admin_port} — the setup wizard takes it from there.")
 
-        return Bench(BenchTomlStore(bench_toml).read(), self.target_directory)
+        return Bench(self.target_directory)
 
     def _sibling_letsencrypt_email(self) -> str:
         """The Let's Encrypt email from any sibling bench that has one, so a new

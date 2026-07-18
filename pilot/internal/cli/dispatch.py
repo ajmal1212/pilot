@@ -62,12 +62,10 @@ def find_bench_root(context: CliContext, require_explicit: bool = False) -> Path
 
 
 def load_bench(context: CliContext, require_explicit: bool = False) -> "Bench":
-    from pilot.config import BenchTomlStore
     from pilot.core.bench import Bench
 
     bench_root = find_bench_root(context, require_explicit=require_explicit)
-    config = BenchTomlStore.for_bench(bench_root).read()
-    return Bench(config, bench_root)
+    return Bench(bench_root)
 
 
 def strip_bench_flag(args: list[str]) -> tuple[str | None, list[str]]:

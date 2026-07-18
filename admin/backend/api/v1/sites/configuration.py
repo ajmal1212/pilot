@@ -31,7 +31,7 @@ def get_configuration(name: str):
     if site_config_path(bench_root, name) is None:
         return site_not_found()
     try:
-        return jsonify(Bench.from_path(bench_root).site(name).public_config())
+        return jsonify(Bench(bench_root).site(name).public_config())
     except Exception:
         return internal_error("Could not read site configuration.")
 
@@ -48,7 +48,7 @@ def update_configuration(name: str):
         return malformed_body()
 
     try:
-        public = Bench.from_path(bench_root).site(name).update_public_config(data)
+        public = Bench(bench_root).site(name).update_public_config(data)
     except BenchError as error:
         return error_response("protected_configuration", str(error), 422)
     except Exception:

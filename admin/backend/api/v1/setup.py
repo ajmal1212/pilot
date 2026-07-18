@@ -171,7 +171,7 @@ def start_setup():
                 return accepted_task_response(bench_root, existing.task_id)
             replace_private_text_locked(marker, "")
             task_id = WizardSetupTask.queue(
-                Bench.from_path(bench_root),
+                Bench(bench_root),
                 idempotency_key=idempotency_key,
             )
             replace_private_text_locked(marker, task_id)

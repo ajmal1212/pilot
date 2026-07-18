@@ -106,7 +106,7 @@ def _submit_install_task(
 ) -> str:
     """An app already cloned into the bench installs directly; otherwise it is
     fetched first, by repository URL or by marketplace name."""
-    bench = Bench.from_path(bench_root)
+    bench = Bench(bench_root)
     if app and _is_app_cloned(bench_root, app):
         return InstallAppTask.queue(bench, site=site, app=app)
     if repo:
@@ -117,7 +117,7 @@ def _submit_install_task(
 
 def _is_app_cloned(bench_root: Path, app: str) -> bool:
     try:
-        return Bench.from_path(bench_root).app(app).is_cloned
+        return Bench(bench_root).app(app).is_cloned
     except BenchError:
         return False
 
@@ -135,7 +135,7 @@ def delete_site_app(name: str, app: str):
     force = request.args.get("force") == "true"
     try:
         task_id = UninstallAppTask.queue(
-            Bench.from_path(bench_root), site=name, app=app, force=force
+            Bench(bench_root), site=name, app=app, force=force
         )
     except Exception as error:
         return task_failure(error)
