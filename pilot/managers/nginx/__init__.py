@@ -3,13 +3,14 @@ from __future__ import annotations
 import pwd
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Any
 
-from pilot.managers.nginx.certs import cert_files_exist, live_cert_path
-from pilot.managers.nginx.error_pages import ERROR_PAGES, render_error_html
-from pilot.managers.nginx.render import NginxConfigRenderer
+from pilot.internal.template import Template
+from pilot.managers.gunicorn import GunicornManager
 from pilot.managers.nginx.waf_render import ModSecurityRenderer
 from pilot.managers.packages import get_package_manager
 from pilot.managers.platform import (
@@ -22,25 +23,160 @@ from pilot.managers.platform import (
 from pilot.managers.waf import WafManager
 from pilot.utils import run_command
 
+if TYPE_CHECKING:
+    from pilot.config import SiteConfig
+    from pilot.core.bench import Bench
+
 _NGINX_CONF = Path("/etc/nginx/nginx.conf")
 _USER_DIRECTIVE = re.compile(r"^[ \t]*user[ \t]+[^;\n]+;", re.MULTILINE)
 
 _SHARED_ERROR_DIR = Path("/usr/share/nginx/bench-error-pages")
 
+_TEMPLATES = Path(__file__).parent / "templates"
+_BENCH_TEMPLATE = Template.from_path(_TEMPLATES / "bench.conf.template")
+_SERVER_TEMPLATE = Template.from_path(_TEMPLATES / "server.conf.template")
+_ERROR_PAGE_TEMPLATE = Template.from_path(_TEMPLATES / "error_page.html.template")
 
-def _catchall_conf() -> Path:
-    """Shared default_server vhost so unknown hosts get our 404, not nginx's."""
-    return default_nginx_config_dir() / "00-bench-default.conf"
+_CORS_PATHS = ["/api/v1/health", "/api/v1/bootstrap"]
+
+# Custom pages for nginx-generated errors (downed upstream, missing static
+# file). App responses pass through unchanged - proxy_intercept_errors is off.
+ERROR_PAGES = {
+    403: ("Access blocked", "Your network doesn't have access to this server."),
+    404: ("Page not found", "The page you're looking for doesn't exist."),
+    502: (
+        "Temporarily unavailable",
+        "The server isn't responding right now. Please try again in a moment.",
+    ),
+    503: (
+        "Service unavailable",
+        "The service is temporarily unavailable. Please try again shortly.",
+    ),
+}
+
+LETSENCRYPT_LIVE = Path("/etc/letsencrypt/live")
 
 
-def _stock_default_sites() -> list[Path]:
-    """The distro's own default vhost(s), which would conflict with our catch-all."""
-    return [Path("/etc/nginx/sites-enabled/default")]
+def render_error_html(code: int, title: str, message: str) -> str:
+    return _ERROR_PAGE_TEMPLATE.render(code=code, title=title, message=message)
 
 
-if TYPE_CHECKING:
-    from pilot.config import SiteConfig
-    from pilot.core.bench import Bench
+def live_cert_path(domain: str) -> Path:
+    return LETSENCRYPT_LIVE / domain / "fullchain.pem"
+
+
+def live_key_path(domain: str) -> Path:
+    return LETSENCRYPT_LIVE / domain / "privkey.pem"
+
+
+def cert_files_exist(domain: str) -> bool:
+    # /etc/letsencrypt/live is root-only (0700), so stat with privilege.
+    return (
+        subprocess.run(
+            _privileged(
+                [
+                    "test",
+                    "-f",
+                    str(live_cert_path(domain)),
+                    "-a",
+                    "-f",
+                    str(live_key_path(domain)),
+                ]
+            ),
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+
+
+class NginxConfigRenderer:
+    """Turns a bench into nginx config text. All layout and branching lives in
+    templates/*.conf.template; this class only prepares the data they render
+    from. NginxManager owns writing and reloading what this produces."""
+
+    def __init__(self, bench: "Bench") -> None:
+        self.bench = bench
+        self._proxy_servers_cache: list[str] | None = None
+
+    def generate_bench_config(self, sites: list[tuple["SiteConfig", bool]], admin_ssl: bool) -> str:
+        """The whole per-bench config: upstream, every site vhost, admin vhost.
+        Each site is paired with whether its HTTPS cert is ready to serve."""
+        vhosts = [self._site_vhost(site, ssl) for site, ssl in sites]
+        if self.bench.config.admin.domain:
+            vhosts.append(self._admin_vhost(admin_ssl))
+        return _BENCH_TEMPLATE.render(**self._bench_context(vhosts))
+
+    def generate_server_config(self, error_dir: Path) -> str:
+        """The host-wide catch-all vhost, shared by every bench on the box."""
+        nginx = self.bench.config.nginx
+        return _SERVER_TEMPLATE.render(
+            http_port=nginx.http_port,
+            https_port=nginx.https_port,
+            error_dir=error_dir,
+            error_codes=list(ERROR_PAGES),
+        )
+
+    @property
+    def _proxy_servers(self) -> list[str]:
+        """Edge-proxy IPs in front of this bench, if any; looked up once."""
+        if self._proxy_servers_cache is None:
+            from pilot.core.adapters.domain_provider import DomainRouteProvider
+
+            self._proxy_servers_cache = DomainRouteProvider.proxy_servers()
+        return self._proxy_servers_cache
+
+    def _is_waf_active(self) -> bool:
+        """Gated on the module + CRS actually being installed, so a vhost
+        never references an absent module (which would fail nginx -t)."""
+        return self.bench.config.waf.enabled and WafManager.is_installed()
+
+    def _site_vhost(self, site: "SiteConfig", ssl: bool) -> SimpleNamespace:
+        canonical = site.primary if (len(site.all_domains) > 1 and site.primary_domain) else ""
+        return SimpleNamespace(
+            kind="site",
+            server_name=" ".join(site.all_domains),
+            ssl=ssl,
+            cert=live_cert_path(site.name),
+            key=live_key_path(site.name),
+            name=site.name,
+            public_root=f"{self.bench.path}/sites/{site.name}/public",
+            canonical=canonical,
+        )
+
+    def _admin_vhost(self, ssl: bool) -> SimpleNamespace:
+        admin = self.bench.config.admin
+        socket_activated = self.bench.config.production.process_manager == "systemd"
+        return SimpleNamespace(
+            kind="admin",
+            server_name=admin.domain,
+            ssl=ssl,
+            cert=live_cert_path(admin.domain),
+            key=live_key_path(admin.domain),
+            port=admin.internal_port if socket_activated else admin.port,
+        )
+
+    def _bench_context(self, vhosts: list[SimpleNamespace]) -> dict[str, Any]:
+        config = self.bench.config
+        nginx = config.nginx
+        return {
+            "upstream_name": config.name,
+            "upstream_server": GunicornManager(self.bench).upstream_server,
+            "http_port": nginx.http_port,
+            "https_port": nginx.https_port,
+            "client_max_body_size": nginx.client_max_body_size,
+            "socketio_port": config.socketio_port,
+            "sites_root": f"{self.bench.path}/sites",
+            "acme_root": config.letsencrypt.webroot_path,
+            "error_dir": self.bench.config_path / "nginx" / "error_pages",
+            "error_codes": list(ERROR_PAGES),
+            "proxy_servers": self._proxy_servers,
+            "proxy_peers": "|".join(re.escape(ip) for ip in self._proxy_servers),
+            "firewall": config.firewall,
+            "waf_active": self._is_waf_active(),
+            "waf_rules_file": self.bench.config_path / "modsecurity" / "main.conf",
+            "cors_paths": _CORS_PATHS,
+            "vhosts": vhosts,
+        }
 
 
 class NginxManager:
@@ -107,16 +243,14 @@ class NginxManager:
             )
             staged.unlink()
 
-        staged = staging / "_catchall.conf"
-        staged.write_text(self._renderer.generate_server_config(_SHARED_ERROR_DIR))
-        run_command(_privileged(["cp", str(staged), str(_catchall_conf())]))
-        staged.unlink()
+        catchall_conf = default_nginx_config_dir() / "00-bench-default.conf"
+        self._stage_and_copy(self._renderer.generate_server_config(_SHARED_ERROR_DIR), catchall_conf)
 
         # The distro's stock default site also claims default_server on :80;
         # nginx rejects a duplicate, so drop it and let ours win.
-        for default_site in _stock_default_sites():
-            if default_site.exists() or default_site.is_symlink():
-                run_command(_privileged(["rm", "-f", str(default_site)]))
+        default_site = Path("/etc/nginx/sites-enabled/default")
+        if default_site.exists() or default_site.is_symlink():
+            run_command(_privileged(["rm", "-f", str(default_site)]))
 
     def _write_waf_files(self) -> None:
         """Write this bench's ModSecurity rule files. No-op when the WAF is off;
@@ -155,6 +289,13 @@ class NginxManager:
         self.install_default_server()
         self._reload_or_rollback(symlink_path)
 
+    def _stage_and_copy(self, content: str, target: Path) -> None:
+        """Sudo-copy content into a root-owned target via a bench-owned staging file."""
+        staged = self.bench.config_path / "nginx" / target.name
+        staged.write_text(content)
+        run_command(_privileged(["cp", str(staged), str(target)]))
+        staged.unlink()
+
     def _ensure_modsecurity_module(self) -> None:
         """Debian auto-enables the module; elsewhere inject a load_module line.
         No-op when not installed - the reload's nginx -t catches that."""
@@ -164,15 +305,10 @@ class NginxManager:
         if module_path is None:
             return
         original = _NGINX_CONF.read_text()
-        updated = f"load_module {module_path};\n" + original
-        staged = self.bench.config_path / "nginx" / "nginx.conf"
-        staged.write_text(updated)
-        run_command(_privileged(["cp", str(staged), str(_NGINX_CONF)]))
-        staged.unlink()
+        self._stage_and_copy(f"load_module {module_path};\n" + original, _NGINX_CONF)
 
     @staticmethod
     def _module_already_loaded() -> bool:
-        """Return whether nginx config already loads ModSecurity."""
         try:
             if "ngx_http_modsecurity_module" in _NGINX_CONF.read_text():
                 return True
@@ -211,10 +347,7 @@ class NginxManager:
             updated = directive + "\n" + original
         if updated == original:
             return
-        staged = self.bench.config_path / "nginx" / "nginx.conf"
-        staged.write_text(updated)
-        run_command(_privileged(["cp", str(staged), str(_NGINX_CONF)]))
-        staged.unlink()
+        self._stage_and_copy(updated, _NGINX_CONF)
 
     def uninstall_config(self) -> None:
         """Remove this bench's vhost symlink and reload. Certs are kept."""
