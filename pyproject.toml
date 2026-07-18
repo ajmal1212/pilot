@@ -39,6 +39,9 @@ markers = [
 "pilot.managers.nginx" = [
   "templates/*.template",
 ]
+"pilot.managers.gunicorn" = [
+  "templates/*.template",
+]
 
 [tool.mypy]
 python_version = "3.11"
