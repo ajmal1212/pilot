@@ -35,6 +35,7 @@ declare module 'vue' {
     LogView: typeof import('./src/components/logs/LogView.vue')['default']
     MarketplaceAppCard: typeof import('./src/components/marketplace/MarketplaceAppCard.vue')['default']
     MarketplaceFilters: typeof import('./src/components/marketplace/MarketplaceFilters.vue')['default']
+    Monitoring: typeof import('./src/components/sites/Monitoring.vue')['default']
     NewBenchDialog: typeof import('./src/components/benches/NewBenchDialog.vue')['default']
     NewSiteDialog: typeof import('./src/components/sites/NewSiteDialog.vue')['default']
     PasswordStrengthMeter: typeof import('./src/components/common/PasswordStrengthMeter.vue')['default']
