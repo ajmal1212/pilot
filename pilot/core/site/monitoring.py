@@ -1,40 +1,19 @@
 from __future__ import annotations
 
 import json
-from collections import Counter
 from collections.abc import Callable
-from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from pilot.core.site.timeline import DEFAULT_BUCKET_SECONDS, DEFAULT_TOP, TimelinePoint, build_timeline
+
 if TYPE_CHECKING:
     from pilot.core.site import Site
 
-DEFAULT_LIMIT = 10
-
-
-@dataclass
-class PathCount:
-    path: str
-    count: int
-
-
-@dataclass
-class SlowTransaction:
-    label: str
-    duration: int
-    timestamp: str
-
-
-@dataclass
-class IpCount:
-    ip: str
-    count: int
-
 
 class SiteMonitoring:
-    """Reads this site's slice of the bench-wide monitor.json.log."""
+    """Reads this site's slice of Frappe's monitor.json.log."""
 
     def __init__(self, site: "Site") -> None:
         self.site = site
@@ -43,32 +22,39 @@ class SiteMonitoring:
     def log_file(self) -> Path:
         return self.site.bench.logs_path / "monitor.json.log"
 
-    def top_paths(self, limit: int = DEFAULT_LIMIT) -> list[PathCount]:
-        counts = Counter(entry["request"]["path"] for entry in self._entries("request"))
-        return [PathCount(path, count) for path, count in counts.most_common(limit)]
+    def top_paths(self, top: int = DEFAULT_TOP, bucket_seconds: int = DEFAULT_BUCKET_SECONDS) -> dict:
+        return build_timeline(
+            self._request_points(lambda e: e["request"]["path"]), top, bucket_seconds, "count"
+        )
 
-    def slowest_requests(self, limit: int = DEFAULT_LIMIT) -> list[SlowTransaction]:
-        return self._slowest(self._entries("request"), lambda entry: entry["request"]["path"], limit)
+    def slowest_requests(self, top: int = DEFAULT_TOP, bucket_seconds: int = DEFAULT_BUCKET_SECONDS) -> dict:
+        return build_timeline(
+            self._request_points(lambda e: e["request"]["path"]), top, bucket_seconds, "duration"
+        )
 
-    def top_jobs(self, limit: int = DEFAULT_LIMIT) -> list[PathCount]:
-        counts = Counter(entry["job"]["method"] for entry in self._entries("job"))
-        return [PathCount(method, count) for method, count in counts.most_common(limit)]
+    def top_jobs(self, top: int = DEFAULT_TOP, bucket_seconds: int = DEFAULT_BUCKET_SECONDS) -> dict:
+        return build_timeline(self._job_points(lambda e: e["job"]["method"]), top, bucket_seconds, "count")
 
-    def slowest_jobs(self, limit: int = DEFAULT_LIMIT) -> list[SlowTransaction]:
-        return self._slowest(self._entries("job"), lambda entry: entry["job"]["method"], limit)
+    def slowest_jobs(self, top: int = DEFAULT_TOP, bucket_seconds: int = DEFAULT_BUCKET_SECONDS) -> dict:
+        return build_timeline(self._job_points(lambda e: e["job"]["method"]), top, bucket_seconds, "duration")
 
-    def top_ips(self, limit: int = DEFAULT_LIMIT) -> list[IpCount]:
-        counts = Counter(entry["request"]["ip"] for entry in self._entries("request"))
-        return [IpCount(ip, count) for ip, count in counts.most_common(limit)]
+    def top_ips(self, top: int = DEFAULT_TOP, bucket_seconds: int = DEFAULT_BUCKET_SECONDS) -> dict:
+        return build_timeline(
+            self._request_points(lambda e: e["request"]["ip"]), top, bucket_seconds, "count"
+        )
 
-    def _slowest(self, entries: list[dict], label: Callable[[dict], str], limit: int) -> list[SlowTransaction]:
-        ranked = sorted(entries, key=lambda entry: entry["duration"], reverse=True)
+    def _request_points(self, category: Callable[[dict], str]) -> list[TimelinePoint]:
+        return self._points("request", category)
+
+    def _job_points(self, category: Callable[[dict], str]) -> list[TimelinePoint]:
+        return self._points("job", category)
+
+    def _points(self, transaction_type: str, category: Callable[[dict], str]) -> list[TimelinePoint]:
         return [
-            SlowTransaction(label(entry), entry["duration"], entry["timestamp"]) for entry in ranked[:limit]
+            TimelinePoint(entry["timestamp"], category(entry), entry["duration"])
+            for entry in self._records
+            if entry.get("transaction_type") == transaction_type
         ]
-
-    def _entries(self, transaction_type: str) -> list[dict]:
-        return [entry for entry in self._records if entry.get("transaction_type") == transaction_type]
 
     @cached_property
     def _records(self) -> list[dict]:
