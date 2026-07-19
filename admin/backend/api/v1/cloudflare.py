@@ -546,12 +546,15 @@ def toggle_site_expose(name: str):
             content = config_file.read_text(encoding="utf-8")
 
             if expose:
-                # Insert new ingress entry before the catch-all rule
+                # Insert new ingress entry before the catch-all rule (or append if sentinel missing)
                 new_entry = f"  - hostname: {hostname_to_use}\n    service: http://localhost:80\n    originRequest:\n      httpHostHeader: {name}\n"
-                content = content.replace(
-                    "  - service: http_status:404",
-                    new_entry + "  - service: http_status:404"
-                )
+                if "  - service: http_status:404" in content:
+                    content = content.replace(
+                        "  - service: http_status:404",
+                        new_entry + "  - service: http_status:404"
+                    )
+                else:
+                    content = content.rstrip() + "\n" + new_entry + "  - service: http_status:404\n"
                 config_file.write_text(content, encoding="utf-8")
 
                 # Route DNS via CLI (non-fatal if already exists)

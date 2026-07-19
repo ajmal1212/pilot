@@ -245,10 +245,13 @@ def _get_machine_id() -> bytes:
             return fallback_path.read_bytes()
         fallback_path.parent.mkdir(parents=True, exist_ok=True)
         key = os.urandom(32)
-        fd = os.open(str(fallback_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "wb") as f:
-            f.write(key)
-        return key
+        try:
+            fd = os.open(str(fallback_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "wb") as f:
+                f.write(key)
+            return key
+        except FileExistsError:
+            return fallback_path.read_bytes()
     except Exception as e:
         raise RuntimeError(f"Failed to read machine-id and unable to securely generate/persist a fallback secret key: {e}")
 
