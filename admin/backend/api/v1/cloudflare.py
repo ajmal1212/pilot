@@ -406,13 +406,16 @@ def get_site_expose_status(name: str):
             config_path = Path.home() / ".cloudflared" / f"{config.name}-config.yml"
             if config_path.exists():
                 content = config_path.read_text(encoding="utf-8")
-                # Simple parse: look for hostname lines
                 import re
-                for m in re.finditer(r'hostname:\s*(\S+)', content):
-                    h = m.group(1)
-                    if h == name:
-                        exposed_domain = h
-                        break
+                for block in content.split("  - hostname:")[1:]:
+                    hostname_match = re.search(r'^\s*(\S+)', block)
+                    header_match = re.search(r'httpHostHeader:\s*(\S+)', block)
+                    if hostname_match:
+                        h = hostname_match.group(1).strip()
+                        hdr = header_match.group(1).strip() if header_match else ""
+                        if hdr == name or h == name:
+                            exposed_domain = h
+                            break
         
         return jsonify({
             "exposed": exposed_domain is not None,
@@ -427,13 +430,20 @@ def get_site_expose_status(name: str):
 
 @cloudflare_bp.post("/sites/<name>/expose")
 def toggle_site_expose(name: str):
+    import re
+    if not re.fullmatch(r"^[a-zA-Z0-9._-]+$", name):
+        return error_response("invalid_site_name", "Invalid site name format.", 400)
+
     bench_root = Path(current_app.config["BENCH_ROOT"])
     data = request.get_json(silent=True) or {}
     expose = bool(data.get("expose", False))
     public_domain = (data.get("domain") or "").strip().lower()
     
-    if expose and not public_domain:
-        return error_response("missing_domain", "A public domain is required to expose a site via the tunnel.", 400)
+    if expose:
+        if not public_domain:
+            return error_response("missing_domain", "A public domain is required to expose a site via the tunnel.", 400)
+        if not re.fullmatch(r"^[a-zA-Z0-9.-]+$", public_domain):
+            return error_response("invalid_domain", "Invalid domain format.", 400)
     
     try:
         config = BenchTomlStore.for_bench(bench_root).read()

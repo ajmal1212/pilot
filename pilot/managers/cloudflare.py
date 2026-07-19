@@ -101,6 +101,12 @@ WantedBy=default.target
 
     def setup_service_with_config(self, tunnel_id: str, tunnel_name: str, hostname: str, local_port: int) -> None:
         """Set up tunnel service using a local config.yml (for cert/CLI-based tunnels)."""
+        import re
+        if not re.fullmatch(r"^[a-zA-Z0-9.-]+$", hostname):
+            raise BenchError(f"Invalid hostname '{hostname}' for Cloudflare tunnel configuration.")
+        if not re.fullmatch(r"^[a-zA-Z0-9._-]+$", tunnel_id):
+            raise BenchError(f"Invalid tunnel_id '{tunnel_id}'.")
+
         self.install()
 
         cloudflared_path = shutil.which("cloudflared")
