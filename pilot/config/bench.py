@@ -6,6 +6,7 @@ from pathlib import Path
 from pilot.config.admin import AdminConfig
 from pilot.config.app import AppConfig
 from pilot.config.central import CentralConfig
+from pilot.config.cloudflare import CloudflareConfig
 from pilot.config.config_schema import unknown_config_paths
 from pilot.config.firewall import FirewallConfig
 from pilot.config.gunicorn import GunicornConfig
@@ -54,6 +55,7 @@ class BenchConfig:
     firewall: FirewallConfig = field(default_factory=FirewallConfig)
     waf: WafConfig = field(default_factory=WafConfig)
     s3: S3Config = field(default_factory=S3Config)
+    cloudflare: CloudflareConfig = field(default_factory=CloudflareConfig)
 
     @classmethod
     def from_file(cls, path: Path) -> "BenchConfig":
@@ -89,6 +91,7 @@ class BenchConfig:
         firewall = FirewallConfig.from_dict(data.get("firewall"))
         waf = WafConfig.from_dict(data.get("waf"))
         s3 = S3Config(**cls._known_fields(S3Config, data.get("s3", {})))
+        cloudflare = CloudflareConfig(**cls._known_fields(CloudflareConfig, data.get("cloudflare", {})))
         return cls(
             name=bench_data.get("name", ""),
             python_version=bench_data.get("python", ""),
@@ -114,6 +117,7 @@ class BenchConfig:
             firewall=firewall,
             waf=waf,
             s3=s3,
+            cloudflare=cloudflare,
         )
 
     @staticmethod

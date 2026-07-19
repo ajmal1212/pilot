@@ -7,6 +7,7 @@ from dataclasses import dataclass, field, fields
 from pilot.config.admin import AdminConfig
 from pilot.config.app import AppConfig
 from pilot.config.central import CentralConfig
+from pilot.config.cloudflare import CloudflareConfig
 from pilot.config.firewall import FirewallConfig, FirewallRule
 from pilot.config.gunicorn import GunicornConfig
 from pilot.config.letsencrypt import LetsEncryptConfig
@@ -68,6 +69,7 @@ def _bench_schema() -> _Table:
             "letsencrypt": _Table(keys=_keys(LetsEncryptConfig)),
             "admin": _Table(keys=_keys(AdminConfig)),
             "central": _Table(keys=_keys(CentralConfig)),
+            "cloudflare": _Table(keys=_keys(CloudflareConfig)),
             "s3": _Table(keys=_keys(S3Config)),
             "firewall": _Table(
                 keys=_keys(FirewallConfig) - {"rules"},
