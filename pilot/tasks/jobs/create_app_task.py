@@ -148,17 +148,17 @@ _create_app_boilerplate('apps', hooks, no_git=False)
                     # Rename branch to main if needed
                     subprocess.run(["git", "branch", "-M", "main"], cwd=str(app_path))
                     
-                    # Push to origin securely without exposing token in git remote url or process list
+                    # Push to origin without exposing token in the process list
                     self._report(f"Pushing initial commit to GitHub...")
-                    extra_header = f"Authorization: token {token}"
+                    git_env = {
+                        **os.environ,
+                        "GIT_CONFIG_COUNT": "1",
+                        "GIT_CONFIG_KEY_0": "http.extraHeader",
+                        "GIT_CONFIG_VALUE_0": f"Authorization: token {token}",
+                    }
                     push_res = subprocess.run([
-                        "git",
-                        "-c", f"http.extraHeader={extra_header}",
-                        "push",
-                        "-u",
-                        "origin",
-                        "main"
-                    ], cwd=str(app_path), capture_output=True, text=True)
+                        "git", "push", "-u", "origin", "main"
+                    ], cwd=str(app_path), capture_output=True, text=True, env=git_env)
                     if push_res.returncode != 0:
                         raise RuntimeError(f"Failed to push to GitHub: {push_res.stderr}")
                     else:

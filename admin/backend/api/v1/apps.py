@@ -143,7 +143,7 @@ def create_app():
         "app_license": (data.get("app_license") or "mit").strip(),
         "create_github_repo": bool(data.get("create_github_repo", False)),
         "github_repo_private": bool(data.get("github_repo_private", False)),
-        "sites": data.get("sites") or []
+        "sites": sites if isinstance(sites := (data.get("sites") or []), list) else []
     }
     
     try:
