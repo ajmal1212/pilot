@@ -193,7 +193,24 @@ def setup_production_bench(name: str):
             "invalid_admin_domain", f"'{admin_domain}' is not a valid hostname.", 422
         )
 
-    from pilot.utils import host_owner
+    from pilot.core.domains import DomainRouteProvider
+    from pilot.utils import host_owner, matches_wildcard, normalize_host
+
+    if normalize_host(admin_domain) == normalize_host(name):
+        return error_response(
+            "invalid_admin_domain",
+            "Admin domain must differ from the bench/site name.",
+            422,
+        )
+
+    patterns = DomainRouteProvider.wildcard_domains()
+    if patterns and not matches_wildcard(admin_domain, patterns):
+        return error_response(
+            "invalid_admin_domain",
+            f"Admin domain must match one of: {', '.join(patterns)}.",
+            422,
+        )
+
     owner = host_owner(target_dir, admin_domain)
     if owner:
         return error_response(
