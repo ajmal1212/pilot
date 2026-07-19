@@ -313,21 +313,25 @@ def provision_cloudflare_tunnel():
                 tunnel_name=tunnel_name,
                 hostname=hostname
             )
-        
-            # Configure ingress routing via Cloudflare API BEFORE setting up service
-            manager.update_ingress_rule(
-                hostname=domain,
-                local_service=f"http://localhost:{config.admin.internal_port}"
-            )
 
-            # Save token & settings
+            # Save token & settings first so store and manager contain valid credentials
             with store.edit() as config:
                 config.cloudflare.enabled = True
                 config.cloudflare.tunnel_name = tunnel_name
                 config.cloudflare.domain = domain
                 config.cloudflare.tunnel_token = encrypt(tunnel_token)
                 config.cloudflare.api_token = encrypt(api_token)
-                
+
+            config = store.read()
+            bench = Bench(config, bench_root)
+            manager = CloudflareTunnelManager(bench)
+
+            # Configure ingress routing via Cloudflare API
+            manager.update_ingress_rule(
+                hostname=domain,
+                local_service=f"http://localhost:{config.admin.internal_port}"
+            )
+
             # Set up and start the background daemon service
             manager.setup_service(tunnel_token)
             manager.start()
