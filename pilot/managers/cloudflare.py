@@ -17,7 +17,8 @@ from pilot.exceptions import BenchError
 if TYPE_CHECKING:
     from pilot.core.bench import Bench
 
-_CLOUDFLARED_URL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
+_CLOUDFLARED_URL = "https://github.com/cloudflare/cloudflared/releases/download/2026.7.2/cloudflared-linux-amd64"
+_CLOUDFLARED_SHA256 = "ec905ea7b7e327ff8abdde8cb64697a2152de74dbcdbf6aec9db8364eb3886cd"
 
 class CloudflareTunnelManager:
     def __init__(self, bench: Bench) -> None:
@@ -47,10 +48,24 @@ class CloudflareTunnelManager:
         dest = bin_dir / "cloudflared"
 
         try:
+            import hashlib
             urllib.request.urlretrieve(_CLOUDFLARED_URL, dest)
+            
+            # Verify the downloaded binary hash
+            hasher = hashlib.sha256()
+            with open(dest, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hasher.update(chunk)
+            
+            if hasher.hexdigest() != _CLOUDFLARED_SHA256:
+                dest.unlink(missing_ok=True)
+                raise BenchError(f"Checksum mismatch for cloudflared binary. Expected {_CLOUDFLARED_SHA256}, got {hasher.hexdigest()}")
+                
             dest.chmod(0o755)
         except Exception as e:
-            raise BenchError(f"Failed to download cloudflared: {e}")
+            if dest.exists():
+                dest.unlink(missing_ok=True)
+            raise BenchError(f"Failed to download and verify cloudflared: {e}")
 
     def setup_service(self, token: str) -> None:
         self.install()

@@ -296,7 +296,7 @@ def decrypt(cipher_text: str) -> str:
     if not cipher_text:
         return ""
     if ":" not in cipher_text:
-        return cipher_text
+        raise ValueError("Invalid ciphertext format: missing delimiter")
         
     try:
         parts = cipher_text.split(":")
