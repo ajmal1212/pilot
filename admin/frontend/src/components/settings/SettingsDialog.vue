@@ -39,6 +39,7 @@
           <Git v-else-if="currentSection === 'github'" />
           <S3Bucket v-else-if="currentSection === 's3-bucket'" />
           <SshKeys v-else-if="currentSection === 'ssh-keys'" ref="sshKeysRef" />
+          <CloudflareSettings v-else-if="currentSection === 'cloudflare'" />
           <SystemInfo v-else-if="currentSection === 'system-info'" />
         </div>
       </div>
@@ -56,6 +57,7 @@ import S3Bucket from '@/components/settings/S3Bucket.vue'
 import SshKeys from '@/components/settings/SshKeys.vue'
 import SystemInfo from '@/components/settings/SystemInfo.vue'
 import Workers from '@/components/settings/Workers.vue'
+import CloudflareSettings from '@/components/settings/CloudflareSettings.vue'
 import { useIsMobile } from '@/composables/common/useIsMobile'
 
 const open = defineModel()
@@ -64,6 +66,7 @@ const isMobile = useIsMobile()
 
 const sections = computed(() => [
   { id: 'github', label: 'Git', icon: 'lucide-git-branch' },
+  { id: 'cloudflare', label: 'Cloudflare', icon: 'lucide-cloud' },
   { id: 'workers', label: 'Workers', icon: 'lucide-server-cog' },
   { id: 's3-bucket', label: 'S3 Bucket', icon: 'lucide-archive' },
   { id: 'firewall', label: 'Firewall', icon: 'lucide-shield' },

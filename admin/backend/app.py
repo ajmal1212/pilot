@@ -36,6 +36,7 @@ def create_app(bench_root: Path) -> Flask:
 def register_blueprints(app: Flask) -> None:
     from admin.backend.api.v1.apps import apps_bp, marketplace_bp
     from admin.backend.api.v1.benches import bench_readiness_bp, benches_bp
+    from admin.backend.api.v1.cloudflare import cloudflare_bp
     from admin.backend.api.v1.core import core_bp
     from admin.backend.api.v1.databases import database_bp
     from admin.backend.api.v1.git import git_bp
@@ -62,6 +63,7 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(tasks_bp, url_prefix=f"{API_V1_PREFIX}/tasks")
     app.register_blueprint(task_worker_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(settings_bp, url_prefix=f"{API_V1_PREFIX}/settings")
+    app.register_blueprint(cloudflare_bp, url_prefix=f"{API_V1_PREFIX}/cloudflare")
     app.register_blueprint(audit_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(network_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(updates_bp, url_prefix=API_V1_PREFIX)

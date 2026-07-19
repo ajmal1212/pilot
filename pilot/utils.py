@@ -415,3 +415,75 @@ def _raise_on_failure(argv, process, stderr, stream_output, redactions) -> None:
         f"Command {argv[0]!r} failed with exit code {process.returncode}.\n{stderr_text}".strip(),
         returncode=process.returncode,
     )
+
+
+def _get_machine_id() -> bytes:
+    for p in ("/etc/machine-id", "/var/lib/dbus/machine-id"):
+        try:
+            with open(p, "rb") as f:
+                content = f.read().strip()
+                if content:
+                    return content
+        except Exception:
+            continue
+
+    fallback_path = Path.home() / ".config" / "pilot" / ".secret_key"
+    try:
+        if fallback_path.exists():
+            return fallback_path.read_bytes()
+        fallback_path.parent.mkdir(parents=True, exist_ok=True)
+        key = os.urandom(32)
+        fallback_path.write_bytes(key)
+        fallback_path.chmod(0o600)
+        return key
+    except Exception as e:
+        raise RuntimeError(f"Failed to read machine-id and unable to securely generate/persist a fallback secret key: {e}")
+
+
+def encrypt(plain_text: str) -> str:
+    import base64
+    import hashlib
+
+    if not plain_text:
+        return ""
+
+    machine_id = _get_machine_id()
+    salt = os.urandom(16)
+    iterations = 600000
+    data_bytes = plain_text.encode("utf-8")
+    keystream = hashlib.pbkdf2_hmac("sha256", machine_id, salt, iterations, dklen=len(data_bytes))
+    cipher_bytes = bytes(a ^ b for a, b in zip(data_bytes, keystream))
+
+    return f"{salt.hex()}:{iterations}:{base64.b64encode(cipher_bytes).decode('utf-8')}"
+
+
+def decrypt(cipher_text: str) -> str:
+    import base64
+    import hashlib
+
+    if not cipher_text:
+        return ""
+    if ":" not in cipher_text:
+        raise ValueError("Invalid ciphertext format: missing delimiter")
+
+    try:
+        parts = cipher_text.split(":")
+        if len(parts) == 2:
+            salt_hex, b64_cipher = parts
+            iterations = 1000  # Legacy tokens
+        elif len(parts) == 3:
+            salt_hex, iter_str, b64_cipher = parts
+            iterations = int(iter_str)
+        else:
+            raise ValueError("Invalid ciphertext format")
+
+        salt = bytes.fromhex(salt_hex)
+        cipher_bytes = base64.b64decode(b64_cipher)
+        machine_id = _get_machine_id()
+
+        keystream = hashlib.pbkdf2_hmac("sha256", machine_id, salt, iterations, dklen=len(cipher_bytes))
+        plain_bytes = bytes(a ^ b for a, b in zip(cipher_bytes, keystream))
+        return plain_bytes.decode("utf-8")
+    except Exception as e:
+        raise ValueError(f"Decryption failed: {e}")
+

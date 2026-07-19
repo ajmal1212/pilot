@@ -77,6 +77,112 @@ def restart_bench(name: str):
     return _run_action(name, "restart")
 
 
+@benches_bp.post("/<name>/actions/setup-production")
+def setup_production_bench(name: str):
+    bench_root = Path(current_app.config["BENCH_ROOT"])
+    if not BENCH_NAME_RE.fullmatch(name):
+        return error_response("invalid_bench_name", "Invalid bench name.", 422)
+
+    try:
+        target_dir = target_bench_dir(bench_root, name)
+    except ValueError:
+        return error_response("bench_not_found", f"Bench '{name}' not found.", 404)
+    toml_path = target_dir / "bench.toml"
+    if not toml_path.exists():
+        return error_response("bench_not_found", f"Bench '{name}' not found.", 404)
+
+    data = request.get_json(silent=True) or {}
+    process_manager_raw = (data.get("process_manager") or "systemd").strip().lower()
+    if process_manager_raw == "supervisord":
+        process_manager_raw = "supervisor"
+
+    from pilot.config import VALID_PROCESS_MANAGERS
+    if process_manager_raw not in VALID_PROCESS_MANAGERS:
+        return error_response(
+            "invalid_process_manager",
+            f"Choose a process manager: {', '.join(VALID_PROCESS_MANAGERS)}.",
+            422,
+        )
+    process_manager = process_manager_raw
+
+    admin_domain = (data.get("admin_domain") or "").strip()
+    if not admin_domain:
+        return error_response("admin_domain_required", "Admin domain is required.", 422)
+    if not ADMIN_DOMAIN_RE.match(admin_domain):
+        return error_response(
+            "invalid_admin_domain", f"'{admin_domain}' is not a valid hostname.", 422
+        )
+
+    from pilot.core.adapters.domain_provider import DomainRouteProvider
+    from pilot.utils import host_owner, matches_wildcard, normalize_host
+
+    if normalize_host(admin_domain) == normalize_host(name):
+        return error_response(
+            "invalid_admin_domain",
+            "Admin domain must differ from the bench/site name.",
+            422,
+        )
+
+    patterns = DomainRouteProvider.wildcard_domains()
+    if patterns and not matches_wildcard(admin_domain, patterns):
+        return error_response(
+            "invalid_admin_domain",
+            f"Admin domain must match one of: {', '.join(patterns)}.",
+            422,
+        )
+
+    owner = host_owner(target_dir, admin_domain)
+    if owner:
+        return error_response(
+            "admin_domain_conflict",
+            f"Admin domain '{admin_domain}' is already used by bench '{owner}'.",
+            409,
+        )
+
+    tls = data.get("tls")
+    if tls is not None and not isinstance(tls, bool):
+        return error_response("invalid_tls", "tls must be a boolean.", 422)
+    letsencrypt_email = data.get("letsencrypt_email")
+    if tls is True:
+        email_str = (letsencrypt_email or "").strip()
+        if not email_str:
+            return error_response(
+                "letsencrypt_email_required",
+                "Let's Encrypt email is required when TLS is enabled.",
+                422,
+            )
+        letsencrypt_email = email_str
+
+    from pilot.managers.platform import has_passwordless_sudo
+    if not has_passwordless_sudo():
+        return error_response(
+            "privileged_operation_unavailable",
+            "Production setup requires non-interactive system privileges.",
+            409,
+        )
+
+    try:
+        with (
+            exclusive_file_lock(bench_management_lock_target(bench_root), blocking=False),
+            exclusive_file_lock(bench_lock_target(bench_root, name), blocking=False),
+        ):
+            bench = Bench(target_dir)
+            from pilot.tasks.jobs.setup_production_task import SetupProductionTask
+            task_id = SetupProductionTask.queue(
+                bench,
+                process_manager=process_manager,
+                admin_domain=admin_domain,
+                tls=tls,
+                letsencrypt_email=letsencrypt_email,
+            )
+            from admin.backend.api.responses import accepted_task_response
+            return accepted_task_response(target_dir, task_id)
+    except BlockingIOError:
+        return bench_busy_response(name)
+    except Exception:
+        return error_response("setup_production_failed", "Could not initiate production setup.", 500)
+
+
 def _run_action(name: str, action: str):
     bench_root = Path(current_app.config["BENCH_ROOT"])
     if not BENCH_NAME_RE.fullmatch(name):
