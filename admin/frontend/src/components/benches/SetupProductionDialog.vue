@@ -171,7 +171,7 @@ async function submit() {
     <template #actions>
       <div class="flex justify-end gap-2">
         <Button variant="ghost" @click="show = false">Cancel</Button>
-        <Button variant="solid" :loading="submitting" @click="submit" :disabled="!adminDomain || (wildcardDomains.length > 0 && !adminPrefix.trim())">Configure Production</Button>
+        <Button variant="solid" :loading="submitting" @click="submit" :disabled="submitting || (wildcardDomains.length > 0 ? !adminPrefix.trim() : !adminDomain.trim())">Configure Production</Button>
       </div>
     </template>
   </Dialog>
