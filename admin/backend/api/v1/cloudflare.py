@@ -9,7 +9,7 @@ from pathlib import Path
 from flask import Blueprint, current_app, jsonify, request
 
 from admin.backend.api.responses import error_response
-from pilot.config.toml_store import BenchTomlStore
+from pilot.config import BenchConfig
 from pilot.core.bench import Bench
 from pilot.managers.cloudflare import CloudflareTunnelManager
 from pilot.utils import encrypt, decrypt
@@ -21,7 +21,7 @@ cloudflare_bp = Blueprint("cloudflare", __name__)
 def get_cloudflare_status():
     bench_root = Path(current_app.config["BENCH_ROOT"])
     try:
-        config = BenchTomlStore.for_bench(bench_root).read()
+        config = BenchConfig.read(bench_root)
     except Exception:
         return error_response("config_unavailable", "Could not read bench config.", 500)
 
@@ -46,9 +46,8 @@ def update_cloudflare_settings():
     if not isinstance(data, dict):
         return error_response("malformed_request", "Expected a JSON object.", 400)
 
-    store = BenchTomlStore.for_bench(bench_root)
     try:
-        with store.edit() as config:
+        with BenchConfig.open(bench_root) as config:
             cf = config.cloudflare
             if "enabled" in data:
                 cf.enabled = bool(data["enabled"])
@@ -69,7 +68,7 @@ def update_cloudflare_settings():
 
     # Apply configuration (enable/disable systemd service)
     try:
-        config = store.read()
+        config = BenchConfig.read(bench_root)
         bench = Bench(config, bench_root)
         manager = CloudflareTunnelManager(bench)
         
@@ -119,9 +118,8 @@ def update_cloudflare_settings():
 @cloudflare_bp.delete("")
 def delete_cloudflare_tunnel():
     bench_root = Path(current_app.config["BENCH_ROOT"])
-    store = BenchTomlStore.for_bench(bench_root)
     try:
-        config = store.read()
+        config = BenchConfig.read(bench_root)
         bench = Bench(config, bench_root)
         manager = CloudflareTunnelManager(bench)
         
@@ -155,7 +153,7 @@ def delete_cloudflare_tunnel():
                 pass
         
         # 3. Clear configuration in bench.toml
-        with store.edit() as config:
+        with BenchConfig.open(bench_root) as config:
             config.cloudflare.enabled = False
             config.cloudflare.tunnel_name = ""
             config.cloudflare.domain = ""
@@ -238,9 +236,8 @@ def _cancel_login_process(bench_root: Path):
 @cloudflare_bp.post("/login/start")
 def start_cloudflare_login():
     bench_root = Path(current_app.config["BENCH_ROOT"])
-    store = BenchTomlStore.for_bench(bench_root)
     try:
-        config = store.read()
+        config = BenchConfig.read(bench_root)
         bench = Bench(config, bench_root)
         manager = CloudflareTunnelManager(bench)
         manager.install()
@@ -310,7 +307,7 @@ def perform_cloudflare_action():
         return error_response("invalid_action", "Action must be start, stop, or restart.", 400)
 
     try:
-        config = BenchTomlStore.for_bench(bench_root).read()
+        config = BenchConfig.read(bench_root)
         bench = Bench(config, bench_root)
         manager = CloudflareTunnelManager(bench)
         
@@ -333,7 +330,7 @@ def get_cloudflare_zones():
     if not api_token:
         bench_root = Path(current_app.config["BENCH_ROOT"])
         try:
-            config = BenchTomlStore.for_bench(bench_root).read()
+            config = BenchConfig.read(bench_root)
             if config.cloudflare.api_token:
                 api_token = decrypt(config.cloudflare.api_token)
         except Exception:
@@ -346,7 +343,7 @@ def get_cloudflare_zones():
 
     try:
         bench_root = Path(current_app.config["BENCH_ROOT"])
-        config = BenchTomlStore.for_bench(bench_root).read()
+        config = BenchConfig.read(bench_root)
         bench = Bench(config, bench_root)
         manager = CloudflareTunnelManager(bench)
         
@@ -380,8 +377,7 @@ def provision_cloudflare_tunnel():
 
     if api_token and (api_token.startswith("*****") or api_token.startswith("****")):
         try:
-            store = BenchTomlStore.for_bench(bench_root)
-            config = store.read()
+            config = BenchConfig.read(bench_root)
             if config.cloudflare.api_token:
                 api_token = decrypt(config.cloudflare.api_token)
         except Exception:
@@ -397,9 +393,8 @@ def provision_cloudflare_tunnel():
     vm_hostname = socket.gethostname()
     tunnel_name = re.sub(r'[^a-zA-Z0-9-]', '-', vm_hostname)
 
-    store = BenchTomlStore.for_bench(bench_root)
     try:
-        config = store.read()
+        config = BenchConfig.read(bench_root)
         bench = Bench(config, bench_root)
         manager = CloudflareTunnelManager(bench)
         
@@ -417,7 +412,7 @@ def provision_cloudflare_tunnel():
             tunnel_id = token_data["t"]
             
             # Save token & settings
-            with store.edit() as config:
+            with BenchConfig.open(bench_root) as config:
                 config.cloudflare.enabled = True
                 config.cloudflare.tunnel_name = tunnel_name
                 config.cloudflare.domain = domain
@@ -425,7 +420,7 @@ def provision_cloudflare_tunnel():
                 config.cloudflare.api_token = ""
 
             # Use local config file for ingress (no API needed)
-            config = store.read()
+            config = BenchConfig.read(bench_root)
             bench = Bench(config, bench_root)
             manager = CloudflareTunnelManager(bench)
             manager.setup_service_with_config(
@@ -444,7 +439,7 @@ def provision_cloudflare_tunnel():
             )
         
             # Save token & settings
-            with store.edit() as config:
+            with BenchConfig.open(bench_root) as config:
                 config.cloudflare.enabled = True
                 config.cloudflare.tunnel_name = tunnel_name
                 config.cloudflare.domain = domain
@@ -456,7 +451,7 @@ def provision_cloudflare_tunnel():
             manager.start()
             
             # Configure routing via Cloudflare API
-            config = store.read()
+            config = BenchConfig.read(bench_root)
             bench = Bench(config, bench_root)
             manager = CloudflareTunnelManager(bench)
             manager.update_ingress_rule(
@@ -474,7 +469,7 @@ def provision_cloudflare_tunnel():
 def get_site_expose_status(name: str):
     bench_root = Path(current_app.config["BENCH_ROOT"])
     try:
-        config = BenchTomlStore.for_bench(bench_root).read()
+        config = BenchConfig.read(bench_root)
     except Exception:
         return error_response("config_unavailable", "Could not read bench config.", 500)
 
@@ -565,7 +560,7 @@ def toggle_site_expose(name: str):
         return error_response("missing_domain", "A public domain is required to expose a site via the tunnel.", 400)
     
     try:
-        config = BenchTomlStore.for_bench(bench_root).read()
+        config = BenchConfig.read(bench_root)
     except Exception:
         return error_response("config_unavailable", "Could not read bench config.", 500)
 
