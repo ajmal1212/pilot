@@ -40,6 +40,16 @@ export const sitesApi = {
     wildcardList: () => request.get('sites/wildcard-domains').json(),
   },
 
+  monitoring: {
+    get: (name, window) =>
+      request.get(`sites/${encodeURIComponent(name)}/monitoring`, { searchParams: { window } }).json(),
+  },
+
+  uptime: {
+    get: (name, window) =>
+      request.get(`sites/${encodeURIComponent(name)}/uptime`, { searchParams: { window } }).json(),
+  },
+
   backups: {
     list: (name, limit) =>
       request.get(`sites/${encodeURIComponent(name)}/backups`, { searchParams: limit ? { limit } : {} }).json(),
