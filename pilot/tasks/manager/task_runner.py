@@ -35,6 +35,7 @@ _WHITELIST: dict[str, list[str]] = {
     "uninstall-app": ["site", "app"],
     "get-app": ["name"],
     "remove-app": ["name"],
+    "create-app": ["name"],
     "new-site": ["name", "admin_password"],
     "drop-site": ["site"],
     "backup-site": ["site"],
@@ -153,6 +154,16 @@ _ARGV_BUILDERS: dict[str, tuple[str, Callable[[dict], list[str]]]] = {
     "update": ("pilot.tasks.jobs.update_task", _update_argv),
     "get-app": ("pilot.tasks.jobs.get_app_task", _repo_or_marketplace_argv),
     "remove-app": ("pilot.tasks.jobs.remove_app_task", lambda args: [args["name"]]),
+    "create-app": ("pilot.tasks.jobs.create_app_task", lambda args: [
+        args["name"],
+        "--title", args.get("title", ""),
+        "--description", args.get("description", ""),
+        "--publisher", args.get("publisher", ""),
+        "--email", args.get("email", ""),
+        "--app-license", args.get("app_license", "mit"),
+    ] + (["--create-github-repo"] if args.get("create_github_repo") else [])
+      + (["--github-repo-private"] if args.get("github_repo_private") else [])
+      + (["--sites"] + args["sites"] if args.get("sites") else [])),
     "new-site": ("pilot.tasks.jobs.new_site_task", _new_site_argv),
     "drop-site": ("pilot.tasks.jobs.drop_site_task", lambda args: [args["site"]]),
     "reinstall-site": ("pilot.tasks.jobs.reinstall_site_task", lambda args: [args["site"]]),
