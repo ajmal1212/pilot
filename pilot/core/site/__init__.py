@@ -13,7 +13,6 @@ if TYPE_CHECKING:
     from pilot.core.bench import Bench
     from pilot.core.site.backups import SiteBackups
     from pilot.core.site.domains import SiteDomains
-    from pilot.core.site.monitoring import SiteMonitoring
 
 
 class Site:
@@ -40,12 +39,6 @@ class Site:
         from pilot.core.site.domains import SiteDomains
 
         return SiteDomains(self)
-
-    @cached_property
-    def monitoring(self) -> "SiteMonitoring":
-        from pilot.core.site.monitoring import SiteMonitoring
-
-        return SiteMonitoring(self)
 
     def _frappe_call(self, *args: str) -> list[str]:
         """Build a frappe bench_helper command."""

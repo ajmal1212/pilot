@@ -41,7 +41,8 @@ export const sitesApi = {
   },
 
   monitoring: {
-    get: (name) => request.get(`sites/${encodeURIComponent(name)}/monitoring`).json(),
+    get: (name, window) =>
+      request.get(`sites/${encodeURIComponent(name)}/monitoring`, { searchParams: { window } }).json(),
   },
 
   backups: {

@@ -1,5 +1,15 @@
 <template>
   <div class="space-y-4 mt-5">
+    <div class="flex justify-end">
+      <Dropdown :options="windowOptions" placement="bottom-end">
+        <template #default="{ open }">
+          <Button variant="outline" size="sm" :active="open">
+            <template #suffix><span class="size-4 lucide-chevron-down" /></template>
+            {{ windowLabel }}
+          </Button>
+        </template>
+      </Dropdown>
+    </div>
     <div v-if="loading" class="flex justify-center py-12">
       <LoadingText />
     </div>
@@ -32,13 +42,29 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { AxisChart, ErrorMessage, LoadingText } from 'frappe-ui'
+import { computed, onMounted, ref, watch } from 'vue'
+import { AxisChart, Button, Dropdown, ErrorMessage, LoadingText } from 'frappe-ui'
 import ChartCard from '@/components/common/ChartCard.vue'
 import { apiErrorMessage } from '@/api/client'
 import { sitesApi } from '@/api/sites'
 
 const props = defineProps({ siteName: { type: String, required: true } })
+
+const WINDOWS = [
+  { key: '30m', label: '30 minutes' },
+  { key: '1h', label: '1 hour' },
+  { key: '6h', label: '6 hours' },
+  { key: '12h', label: '12 hours' },
+  { key: '24h', label: '24 hours' },
+  { key: '1w', label: '1 week' },
+]
+const TIME_GRAIN = { '30m': 'minute', '1h': 'minute', '6h': 'hour', '12h': 'hour', '24h': 'hour', '1w': 'day' }
+
+const activeWindow = ref('24h')
+const windowLabel = computed(() => WINDOWS.find((w) => w.key === activeWindow.value)?.label ?? '')
+const windowOptions = computed(() =>
+  WINDOWS.map((w) => ({ label: w.label, onClick: () => { activeWindow.value = w.key } })),
+)
 
 const loading = ref(true)
 const error = ref('')
@@ -88,7 +114,7 @@ function timelineConfig(timeline, valueLabel) {
   return {
     data: timeline?.points ?? [],
     stacked: true,
-    xAxis: { key: 'time', type: 'time', timeGrain: 'minute', echartOptions: { splitLine: GRID } },
+    xAxis: { key: 'time', type: 'time', timeGrain: TIME_GRAIN[activeWindow.value], echartOptions: { splitLine: GRID } },
     yAxis: { yMin: 0, echartOptions: { name: valueLabel, splitLine: GRID } },
     series: categories.map((name, i) => ({ name, type: 'bar', color: PALETTE[i % PALETTE.length] })),
     echartOptions: { tooltip: { formatter: tooltipFormatter } },
@@ -105,7 +131,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const result = await sitesApi.monitoring.get(props.siteName)
+    const result = await sitesApi.monitoring.get(props.siteName, activeWindow.value)
     if (result.error) throw new Error(apiErrorMessage(result, 'Could not load monitoring data.'))
     data.value = result
   } catch (e) {
@@ -115,5 +141,6 @@ async function load() {
   }
 }
 
+watch(activeWindow, load)
 onMounted(load)
 </script>
