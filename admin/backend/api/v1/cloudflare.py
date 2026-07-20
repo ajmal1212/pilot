@@ -78,10 +78,31 @@ def update_cloudflare_settings():
                 return error_response("missing_token", "Cannot enable tunnel without a token.", 400)
             
             decrypted_token = decrypt(config.cloudflare.tunnel_token)
-            manager.setup_service(decrypted_token)
+            
+            cert_path = Path.home() / ".cloudflared" / "cert.pem"
+            if cert_path.exists() and not config.cloudflare.api_token:
+                try:
+                    padding = len(decrypted_token) % 4
+                    if padding:
+                        decrypted_token += "=" * (4 - padding)
+                    token_bytes = base64.b64decode(decrypted_token)
+                    token_data = json.loads(token_bytes.decode("utf-8"))
+                    tunnel_id = token_data["t"]
+                    
+                    manager.setup_service_with_config(
+                        tunnel_id=tunnel_id,
+                        tunnel_name=config.cloudflare.tunnel_name,
+                        hostname=config.cloudflare.domain,
+                        local_port=config.admin.internal_port
+                    )
+                except Exception:
+                    manager.setup_service(decrypted_token)
+            else:
+                manager.setup_service(decrypted_token)
+                
             manager.start()
             
-            if config.cloudflare.domain:
+            if config.cloudflare.domain and config.cloudflare.api_token:
                 manager.update_ingress_rule(
                     hostname=config.cloudflare.domain,
                     local_service=f"http://localhost:{config.admin.internal_port}"

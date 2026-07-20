@@ -211,6 +211,17 @@ def _add_optional_sections(data: ConfigDict, config: BenchConfig) -> None:
         if monitor.log_path:
             data["monitor"]["log_path"] = str(monitor.log_path)
 
+    cf = config.cloudflare
+    if cf.enabled or cf.tunnel_name or cf.tunnel_token or cf.domain or cf.api_token:
+        data["cloudflare"] = {
+            "enabled": cf.enabled,
+            "tunnel_name": cf.tunnel_name,
+            "tunnel_token": cf.tunnel_token,
+            "domain": cf.domain,
+            "api_token": cf.api_token,
+        }
+
+
 
 BENCH_TOML_CODEC = TomlDataclassCodec(
     from_config_dict=_bench_config_from_dict,
