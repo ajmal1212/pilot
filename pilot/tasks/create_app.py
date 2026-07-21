@@ -26,11 +26,31 @@ class CreateAppTask(Task):
     sites: list[str] = field(default_factory=list)
 
     def run(self) -> None:
-        self.scaffold()
-        self.install_env()
-
+        # Essential App Scaffolding & Virtualenv Installation
         try:
-            # Build assets using bench/frappe call
+            self.scaffold()
+            self.install_env()
+        except Exception as e:
+            self.report(f"App creation failed: {e}. Rolling back...")
+            try:
+                import shutil
+                app = App(AppConfig(name=self.name, repo="", branch="main"), self.bench)
+                try:
+                    app._deregister()
+                except Exception:
+                    pass
+                try:
+                    app._pip_uninstall()
+                except Exception:
+                    pass
+                if app.path.exists():
+                    shutil.rmtree(app.path)
+            except Exception as cleanup_err:
+                self.report(f"Failed to rollback app installation entirely: {cleanup_err}")
+            sys.exit(1)
+
+        # Asset Build (non-fatal for app directory)
+        try:
             from pilot.managers.environment import PythonEnvManager
             env = PythonEnvManager(self.bench)._build_env()
             build_res = subprocess.run(
@@ -41,24 +61,16 @@ class CreateAppTask(Task):
                 text=True,
             )
             if build_res.returncode != 0:
-                raise RuntimeError(f"Asset build failed: {build_res.stderr}")
+                self.report(f"Warning: Asset build failed: {build_res.stderr}")
+        except Exception as build_err:
+            self.report(f"Warning: Asset build failed: {build_err}")
 
-            # GitHub repo creation
-            if self.create_github_repo:
-                self.create_github()
-
-        except Exception as e:
-            self.report(f"App creation failed: {e}. Rolling back...")
+        # GitHub repo creation (non-fatal for app directory)
+        if self.create_github_repo:
             try:
-                import shutil
-                app = App(AppConfig(name=self.name, repo="", branch="main"), self.bench)
-                app._deregister()
-                app._pip_uninstall()
-                if app.path.exists():
-                    shutil.rmtree(app.path)
-            except Exception as cleanup_err:
-                self.report(f"Failed to rollback app installation entirely: {cleanup_err}")
-            sys.exit(1)
+                self.create_github()
+            except Exception as gh_err:
+                self.report(f"Warning: GitHub repository integration failed: {gh_err}")
 
         # Install on requested sites
         self.install_sites()
@@ -111,8 +123,7 @@ _create_app_boilerplate('apps', hooks, no_git=False)
             text=True,
         )
         if r.returncode != 0:
-            self.report(f"Boilerplate creation failed: {r.stderr}")
-            sys.exit(1)
+            raise RuntimeError(f"Boilerplate creation failed: {r.stderr}")
 
         self.report("App boilerplate created.")
 
@@ -168,27 +179,32 @@ _create_app_boilerplate('apps', hooks, no_git=False)
                 else:
                     raise repo_err
 
-            clone_url = repo_info["clone_url"]
-            authenticated_url = provider.authenticated_clone_url(clone_url)
+            clean_url = repo_info["clone_url"]
             self.report(f"GitHub repo: {repo_info['html_url']}")
 
             app_path = self.bench_root / "apps" / self.name
             subprocess.run(
-                ["git", "remote", "add", "origin", authenticated_url],
+                ["git", "remote", "add", "origin", clean_url],
                 cwd=str(app_path),
                 capture_output=True,
             )
             subprocess.run(
-                ["git", "remote", "set-url", "origin", authenticated_url],
+                ["git", "remote", "set-url", "origin", clean_url],
                 cwd=str(app_path),
                 capture_output=True,
             )
             subprocess.run(["git", "branch", "-M", "main"], cwd=str(app_path), capture_output=True)
 
             self.report("Pushing initial commit to GitHub...")
+            push_env = dict(os.environ)
+            push_env["GIT_CONFIG_COUNT"] = "1"
+            push_env["GIT_CONFIG_KEY_0"] = "http.extraheader"
+            push_env["GIT_CONFIG_VALUE_0"] = f"Authorization: Bearer {token}"
+
             push_res = subprocess.run(
                 ["git", "push", "-u", "origin", "main"],
                 cwd=str(app_path),
+                env=push_env,
                 capture_output=True,
                 text=True,
             )
