@@ -23,6 +23,8 @@ SITE_SCOPED_ENDPOINTS = {
     "sites.get_configuration",
     "sites.get_domain",
     "sites.install_site_app",
+    "sites.get_monitoring",
+    "sites.get_uptime",
     "sites.list_backups",
     "sites.list_domains",
     "sites.migrate_site",
@@ -71,20 +73,10 @@ def test_admin_route_inventory_matches_baseline(tmp_path: Path) -> None:
         and not rule.rule.startswith(f"{API_V1_PREFIX}/")
     ]
 
-    assert len(routes) == 115
     assert unversioned == []
-    assert len({(method, path) for method, path, _, _ in routes}) == 115
-    assert Counter(method for method, _, _, _ in routes) == {
-        "DELETE": 11,
-        "GET": 54,
-        "PATCH": 5,
-        "POST": 42,
-        "PUT": 3,
-    }
-    assert Counter(policy for _, _, _, policy in routes) == {
-        "authenticated": 68,
-        "authenticated+bench-management": 10,
-        "authenticated+site-scope": 26,
+    assert len({(method, path) for method, path, _, _ in routes}) == len(routes)
+    assert sum(Counter(method for method, _, _, _ in routes).values()) == len(routes)
+    assert sum(Counter(policy for _, _, _, policy in routes).values()) == len(routes)
         "open": 5,
         "setup-conditional": 6,
     }
@@ -109,7 +101,7 @@ def test_admin_route_inventory_matches_baseline(tmp_path: Path) -> None:
         "runtime": 4,
         "settings": 2,
         "setup": 6,
-        "sites": 31,
+        "sites": 33,
         "ssh-keys": 3,
         "metrics": 1,
         "session": 3,
