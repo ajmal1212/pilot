@@ -150,3 +150,13 @@ onBeforeUnmount(() => {
   }
 })
 </script>
+
+<style>
+.xterm, 
+.xterm .xterm-screen, 
+.xterm .xterm-viewport,
+.xterm-viewport,
+.xterm-screen {
+  background-color: transparent !important;
+}
+</style>
