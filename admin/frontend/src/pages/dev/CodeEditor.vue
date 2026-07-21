@@ -1,93 +1,78 @@
 <template>
-  <div class="flex flex-col h-[calc(100vh-120px)] border rounded-lg border-outline-gray-2 bg-surface-base overflow-hidden">
-    <!-- Top Bar -->
-    <div class="flex items-center justify-between px-4 py-3 border-b border-outline-gray-2 bg-surface-gray-1 shrink-0">
-      <div class="flex items-center gap-3">
-        <span class="size-5 text-ink-gray-6 lucide-code-2" />
-        <h1 class="font-semibold text-ink-gray-9 text-base">Pilot Code Editor</h1>
-        
-        <!-- App Selector -->
-        <div class="w-48 sm:w-64">
-          <select 
-            v-model="selectedApp" 
-            class="w-full px-3 py-1 bg-surface-elevation-1 border border-outline-gray-2 rounded-md text-ink-gray-8 text-sm focus:border-indigo-500 focus:ring-indigo-500"
-          >
-            <option value="">Select an App...</option>
-            <option v-for="app in apps" :key="app" :value="app">{{ app }}</option>
-          </select>
-        </div>
-      </div>
-
+  <!-- App selector on the right of the header -->
+  <Teleport defer to="#header-actions">
+    <div class="flex items-center gap-2">
       <!-- Action buttons -->
       <div class="flex items-center gap-2" v-if="selectedApp && activeFile">
-        <span class="text-xs text-ink-gray-4 font-mono truncate max-w-xs sm:max-w-md hidden sm:inline">
-          {{ activeFile.path }}
-        </span>
         <span v-if="isModified" class="size-2 rounded-full bg-amber-500 shrink-0" title="Modified" />
         <Button variant="solid" size="sm" :loading="saving" :disabled="!isModified" @click="saveCurrentFile">
           <template #prefix><span class="size-4 lucide-save" /></template>
           Save
         </Button>
       </div>
+
+      <FormControl type="select" v-model="selectedApp" :options="appOptions"
+        class="w-28 sm:w-44 max-w-[140px] sm:max-w-[180px]" />
     </div>
+  </Teleport>
 
-    <!-- Workspace Main Split View -->
-    <div class="flex flex-1 overflow-hidden">
-      <!-- Left Sidebar: File Tree Explorer -->
-      <div class="w-64 border-r border-outline-gray-2 bg-surface-gray-1 flex flex-col shrink-0 overflow-y-auto hover-scrollbar">
-        <div class="p-3 border-b border-outline-gray-2 bg-surface-base">
-          <p class="text-xs font-semibold text-ink-gray-5 uppercase tracking-wider">Explorer</p>
-        </div>
-
-        <div v-if="!selectedApp" class="p-4 text-center text-xs text-ink-gray-4">
-          Choose an app to browse files.
-        </div>
-        <div v-else-if="loadingTree" class="p-4 text-center text-xs text-ink-gray-4">
-          Loading file tree...
-        </div>
-        <div v-else-if="!fileTree.length" class="p-4 text-center text-xs text-ink-gray-4">
-          No files found in app.
-        </div>
-        <div v-else class="p-2 space-y-0.5">
-          <!-- Recursive File Tree Node component -->
-          <FileTreeNode 
-            v-for="node in fileTree" 
-            :key="node.path" 
-            :node="node" 
-            :active-path="activeFile?.path"
-            @select-file="selectFile" 
-          />
-        </div>
+  <!-- Workspace Main Split View -->
+  <div class="flex border rounded-lg border-outline-gray-2 bg-surface-base overflow-hidden h-[calc(100vh-100px)]">
+    <!-- Left Sidebar: File Tree Explorer -->
+    <div class="w-64 border-r border-outline-gray-2 bg-surface-gray-1 flex flex-col shrink-0 overflow-y-auto hover-scrollbar">
+      <div class="p-3 border-b border-outline-gray-2 bg-surface-base flex items-center justify-between">
+        <p class="text-xs font-semibold text-ink-gray-5 uppercase tracking-wider">Explorer</p>
+        <span v-if="activeFile" class="text-[10px] font-mono text-ink-gray-4 truncate max-w-[120px]">{{ activeFile.name }}</span>
       </div>
 
-      <!-- Right Panel: Editor Workspace -->
-      <div class="flex-1 flex flex-col overflow-hidden bg-surface-base relative">
-        <div v-if="!selectedApp" class="flex flex-col items-center justify-center h-full gap-2 text-ink-gray-4">
-          <span class="size-8 lucide-folder-open text-ink-gray-3" />
-          <p class="text-sm">Select an app to start exploring the workspace.</p>
+      <div v-if="!selectedApp" class="p-4 text-center text-xs text-ink-gray-4">
+        Choose an app to browse files.
+      </div>
+      <div v-else-if="loadingTree" class="p-4 text-center text-xs text-ink-gray-4">
+        Loading file tree...
+      </div>
+      <div v-else-if="!fileTree.length" class="p-4 text-center text-xs text-ink-gray-4">
+        No files found in app.
+      </div>
+      <div v-else class="p-2 space-y-0.5">
+        <!-- Recursive File Tree Node component -->
+        <FileTreeNode 
+          v-for="node in fileTree" 
+          :key="node.path" 
+          :node="node" 
+          :active-path="activeFile?.path"
+          @select-file="selectFile" 
+        />
+      </div>
+    </div>
+
+    <!-- Right Panel: Editor Workspace -->
+    <div class="flex-1 flex flex-col overflow-hidden bg-surface-base relative">
+      <div v-if="!selectedApp" class="flex flex-col items-center justify-center h-full gap-2 text-ink-gray-4">
+        <span class="size-8 lucide-folder-open text-ink-gray-3" />
+        <p class="text-sm">Select an app to start exploring the workspace.</p>
+      </div>
+      <div v-else-if="!activeFile" class="flex flex-col items-center justify-center h-full gap-2 text-ink-gray-4">
+        <span class="size-8 lucide-code-2 text-ink-gray-3" />
+        <p class="text-sm">Select a file from the explorer to open it.</p>
+      </div>
+      <div v-else-if="loadingFile" class="flex items-center justify-center h-full text-ink-gray-4">
+        Loading file content...
+      </div>
+      <div v-else class="flex-1 flex flex-col overflow-hidden">
+        <!-- Editor Component -->
+        <div class="flex-1 overflow-hidden relative">
+          <Codemirror
+            v-model="editorContent"
+            :extensions="extensions"
+            :style="{ height: '100%' }"
+            @ready="onEditorReady"
+          />
         </div>
-        <div v-else-if="!activeFile" class="flex flex-col items-center justify-center h-full gap-2 text-ink-gray-4">
-          <span class="size-8 lucide-code-2 text-ink-gray-3" />
-          <p class="text-sm">Select a file from the explorer to open it.</p>
-        </div>
-        <div v-else-if="loadingFile" class="flex items-center justify-center h-full text-ink-gray-4">
-          Loading file content...
-        </div>
-        <div v-else class="flex-1 flex flex-col overflow-hidden">
-          <!-- Editor Component -->
-          <div class="flex-1 overflow-hidden relative">
-            <Codemirror
-              v-model="editorContent"
-              :extensions="extensions"
-              :style="{ height: '100%' }"
-              @ready="onEditorReady"
-            />
-          </div>
-          <!-- Status Bar -->
-          <div class="h-6 px-4 bg-surface-gray-1 border-t border-outline-gray-2 flex items-center justify-between text-xs text-ink-gray-5 shrink-0">
-            <div>{{ fileType }}</div>
-            <div class="tabular-nums">Lines: {{ lineCount }}</div>
-          </div>
+        <!-- Status Bar -->
+        <div class="h-6 px-4 bg-surface-gray-1 border-t border-outline-gray-2 flex items-center justify-between text-xs text-ink-gray-5 shrink-0">
+          <div class="truncate max-w-[200px] sm:max-w-md font-mono text-[11px]">{{ activeFile.path }} ({{ fileType }})</div>
+          <div class="tabular-nums">Lines: {{ lineCount }}</div>
         </div>
       </div>
     </div>
@@ -96,7 +81,7 @@
 
 <script setup>
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
-import { Button, toast } from 'frappe-ui'
+import { Button, FormControl, toast } from 'frappe-ui'
 import { workspaceApi } from '@/api/workspace'
 import FileTreeNode from './FileTreeNode.vue'
 
@@ -119,6 +104,10 @@ import { css } from '@codemirror/lang-css'
 
 const apps = ref([])
 const selectedApp = ref('')
+const appOptions = computed(() => [
+  { label: 'Select App', value: '' },
+  ...apps.value.map((a) => ({ label: a, value: a })),
+])
 const fileTree = ref([])
 const loadingTree = ref(false)
 const activeFile = ref(null)
