@@ -102,3 +102,32 @@ def test_run_triggers_rollback_on_scaffold_failure(tmp_path: Path) -> None:
     assert not app_dir.exists()
 
 
+def test_run_preserves_app_dir_on_asset_build_or_github_failure(tmp_path: Path) -> None:
+    bench = make_bench(tmp_path)
+    task = CreateAppTask(
+        bench=bench,
+        bench_root=tmp_path,
+        name="my_custom_app",
+        create_github_repo=True,
+        sites=[],
+    )
+
+    app_dir = tmp_path / "apps" / "my_custom_app"
+    app_dir.mkdir(parents=True)
+
+    with (
+        patch.object(task, "scaffold"),
+        patch.object(task, "install_env"),
+        patch("subprocess.run", return_value=MagicMock(returncode=1, stderr="node missing")),
+        patch.object(task, "create_github", side_effect=RuntimeError("github token error")),
+        patch("sys.exit") as mock_exit,
+    ):
+        task.run()
+
+    # sys.exit should NOT be called because asset build & github failures are non-fatal
+    mock_exit.assert_not_called()
+    # The scaffolded app directory MUST still exist
+    assert app_dir.exists()
+
+
+

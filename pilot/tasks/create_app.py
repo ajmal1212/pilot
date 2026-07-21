@@ -26,27 +26,10 @@ class CreateAppTask(Task):
     sites: list[str] = field(default_factory=list)
 
     def run(self) -> None:
+        # Essential App Scaffolding & Virtualenv Installation
         try:
             self.scaffold()
             self.install_env()
-
-            # Build assets using bench/frappe call
-            from pilot.managers.environment import PythonEnvManager
-            env = PythonEnvManager(self.bench)._build_env()
-            build_res = subprocess.run(
-                [*self.bench.frappe_call, "frappe", "build", "--force", "--app", self.name],
-                cwd=str(self.bench.sites_path),
-                env=env,
-                capture_output=True,
-                text=True,
-            )
-            if build_res.returncode != 0:
-                raise RuntimeError(f"Asset build failed: {build_res.stderr}")
-
-            # GitHub repo creation
-            if self.create_github_repo:
-                self.create_github()
-
         except Exception as e:
             self.report(f"App creation failed: {e}. Rolling back...")
             try:
@@ -65,6 +48,29 @@ class CreateAppTask(Task):
             except Exception as cleanup_err:
                 self.report(f"Failed to rollback app installation entirely: {cleanup_err}")
             sys.exit(1)
+
+        # Asset Build (non-fatal for app directory)
+        try:
+            from pilot.managers.environment import PythonEnvManager
+            env = PythonEnvManager(self.bench)._build_env()
+            build_res = subprocess.run(
+                [*self.bench.frappe_call, "frappe", "build", "--force", "--app", self.name],
+                cwd=str(self.bench.sites_path),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            if build_res.returncode != 0:
+                self.report(f"Warning: Asset build failed: {build_res.stderr}")
+        except Exception as build_err:
+            self.report(f"Warning: Asset build failed: {build_err}")
+
+        # GitHub repo creation (non-fatal for app directory)
+        if self.create_github_repo:
+            try:
+                self.create_github()
+            except Exception as gh_err:
+                self.report(f"Warning: GitHub repository integration failed: {gh_err}")
 
         # Install on requested sites
         self.install_sites()
