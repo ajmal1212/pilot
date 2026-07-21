@@ -26,10 +26,10 @@ class CreateAppTask(Task):
     sites: list[str] = field(default_factory=list)
 
     def run(self) -> None:
-        self.scaffold()
-        self.install_env()
-
         try:
+            self.scaffold()
+            self.install_env()
+
             # Build assets using bench/frappe call
             from pilot.managers.environment import PythonEnvManager
             env = PythonEnvManager(self.bench)._build_env()
@@ -52,8 +52,14 @@ class CreateAppTask(Task):
             try:
                 import shutil
                 app = App(AppConfig(name=self.name, repo="", branch="main"), self.bench)
-                app._deregister()
-                app._pip_uninstall()
+                try:
+                    app._deregister()
+                except Exception:
+                    pass
+                try:
+                    app._pip_uninstall()
+                except Exception:
+                    pass
                 if app.path.exists():
                     shutil.rmtree(app.path)
             except Exception as cleanup_err:
