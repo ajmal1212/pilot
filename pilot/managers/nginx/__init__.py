@@ -203,12 +203,15 @@ class NginxManager:
         bench_user = pwd.getpwuid(self.bench.path.stat().st_uid).pw_name
         sudoers_file = Path(f"/etc/sudoers.d/{bench_user}-pilot-nginx")
         systemctl = which("systemctl") or "/bin/systemctl"
+        nginx = which("nginx") or "/usr/sbin/nginx"
         sudoers_content = (
-            f"{bench_user} ALL=(ALL) NOPASSWD: /usr/sbin/nginx,"
-            f"{systemctl} reload nginx,"
-            f"{systemctl} start nginx\n"
+            f"{bench_user} ALL=(ALL) NOPASSWD: {nginx} -t,"
+            f"{nginx} -T,"
+            f"{systemctl} start nginx,"
+            f"{systemctl} stop nginx,"
+            f"{systemctl} reload nginx\n"
         )
-        self._stage_and_copy(sudoers_content, sudoers_file)
+        self._stage_and_copy(sudoers_content, sudoers_file, validate=["visudo", "-cf"])
         run_command(_privileged(["chmod", "440", str(sudoers_file)]))
 
     @property
@@ -219,7 +222,8 @@ class NginxManager:
             return True
         if which("sudo") is None:
             return False
-        result = subprocess.run(["sudo", "-n", "-l", "/usr/sbin/nginx"], capture_output=True, timeout=5)
+        nginx = which("nginx") or "/usr/sbin/nginx"
+        result = subprocess.run(["sudo", "-n", "-l", nginx, "-t"], capture_output=True, timeout=5)
         return result.returncode == 0
 
     def generate_config(self, ssl_ready: bool = False) -> None:
@@ -337,10 +341,15 @@ class NginxManager:
 """
         self._stage_and_copy(config, target)
 
-    def _stage_and_copy(self, content: str, target: Path) -> None:
-        """Sudo-copy content into a root-owned target via a bench-owned staging file."""
+    def _stage_and_copy(self, content: str, target: Path, validate: list[str] | None = None) -> None:
+        """Sudo-copy content into a root-owned target via a bench-owned staging file.
+        `validate`, if given, is a command run against the staged file before it's
+        copied into place - e.g. ["visudo", "-cf"] to catch bad sudoers syntax."""
         staged = self.bench.config_path / "nginx" / target.name
+        staged.parent.mkdir(parents=True, exist_ok=True)
         staged.write_text(content)
+        if validate:
+            run_command(_privileged([*validate, str(staged)]))
         run_command(_privileged(["cp", str(staged), str(target)]))
         staged.unlink()
 
