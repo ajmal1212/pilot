@@ -1,20 +1,29 @@
 <template>
-  <div class="relative w-full h-full bg-[#0f172a] overflow-hidden flex flex-col">
+  <div class="relative w-full h-full overflow-hidden flex flex-col transition-colors duration-150" :class="isDark ? 'bg-[#0f172a]' : 'bg-white'" @click="term && term.focus()">
     <!-- Terminal View Container -->
     <div ref="terminalRef" class="flex-1 min-h-0 w-full" />
   </div>
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch, computed } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
+import { useTheme } from 'frappe-ui'
 import { terminalApi } from '@/api/terminal'
 
 const terminalRef = ref(null)
 const sessionId = ref('')
 const eventSource = ref(null)
+
+const { theme } = useTheme()
+const isDark = computed(() => {
+  if (theme.value === 'system') {
+    return document.documentElement.classList.contains('dark')
+  }
+  return theme.value === 'dark'
+})
 
 let term = null
 let fitAddon = null
@@ -37,24 +46,32 @@ function bytesToHex(bytes) {
     .join('')
 }
 
+const getThemeOptions = (dark) => ({
+  background: dark ? '#0f172a' : '#ffffff',
+  foreground: dark ? '#e2e8f0' : '#1e293b',
+  cursor: dark ? '#94a3b8' : '#1e293b',
+  black: dark ? '#020617' : '#ffffff',
+  red: '#ef4444',
+  green: '#22c55e',
+  yellow: '#eab308',
+  blue: '#3b82f6',
+  magenta: '#a855f7',
+  cyan: '#06b6d4',
+  white: dark ? '#cbd5e1' : '#0f172a',
+})
+
+watch(isDark, (val) => {
+  if (term) {
+    term.options.theme = getThemeOptions(val)
+  }
+})
+
 async function initTerminal() {
   if (!terminalRef.value) return
 
   // 1. Initialize Terminal instance
   term = new Terminal({
-    theme: {
-      background: '#0f172a',
-      foreground: '#e2e8f0',
-      cursor: '#94a3b8',
-      black: '#020617',
-      red: '#ef4444',
-      green: '#22c55e',
-      yellow: '#eab308',
-      blue: '#3b82f6',
-      magenta: '#a855f7',
-      cyan: '#06b6d4',
-      white: '#cbd5e1',
-    },
+    theme: getThemeOptions(isDark.value),
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
     fontSize: 13,
     lineHeight: 1.3,
@@ -68,6 +85,7 @@ async function initTerminal() {
   // Open xterm on mount
   term.open(terminalRef.value)
   fitAddon.fit()
+  term.focus()
 
   try {
     // 2. Create Backend PTY Session

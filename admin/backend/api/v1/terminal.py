@@ -27,10 +27,10 @@ def create_session():
         flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
         fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
-        # Spawn shell process tied to the PTY
+        # Spawn shell process tied to the PTY in interactive mode
         bench_root = current_app.config["BENCH_ROOT"]
         proc = subprocess.Popen(
-            ["/bin/bash"],
+            ["/bin/bash", "-i"],
             preexec_fn=os.setsid,
             stdin=slave_fd,
             stdout=slave_fd,
