@@ -79,3 +79,26 @@ def test_run_triggers_rollback_on_install_env_failure(tmp_path: Path) -> None:
     mock_exit.assert_called_once_with(1)
     assert not app_dir.exists()
 
+
+def test_run_triggers_rollback_on_scaffold_failure(tmp_path: Path) -> None:
+    bench = make_bench(tmp_path)
+    task = CreateAppTask(
+        bench=bench,
+        bench_root=tmp_path,
+        name="my_custom_app",
+        sites=[],
+    )
+
+    app_dir = tmp_path / "apps" / "my_custom_app"
+    app_dir.mkdir(parents=True)
+
+    with (
+        patch.object(task, "scaffold", side_effect=RuntimeError("boilerplate creation failed")),
+        patch("sys.exit") as mock_exit,
+    ):
+        task.run()
+
+    mock_exit.assert_called_once_with(1)
+    assert not app_dir.exists()
+
+

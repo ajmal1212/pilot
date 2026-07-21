@@ -117,8 +117,7 @@ _create_app_boilerplate('apps', hooks, no_git=False)
             text=True,
         )
         if r.returncode != 0:
-            self.report(f"Boilerplate creation failed: {r.stderr}")
-            sys.exit(1)
+            raise RuntimeError(f"Boilerplate creation failed: {r.stderr}")
 
         self.report("App boilerplate created.")
 
