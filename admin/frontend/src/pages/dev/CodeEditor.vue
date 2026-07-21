@@ -17,7 +17,7 @@
   </Teleport>
 
   <!-- Workspace Main Split View -->
-  <div class="flex border rounded-lg border-outline-gray-2 bg-surface-base overflow-hidden h-[calc(100vh-100px)]">
+  <div class="flex bg-surface-base overflow-hidden h-[calc(100vh-53px)] -m-4 sm:-m-6">
     <!-- Left Sidebar: File Tree Explorer -->
     <div class="w-64 border-r border-outline-gray-2 bg-surface-gray-1 flex flex-col shrink-0 overflow-y-auto hover-scrollbar">
       <div class="p-3 border-b border-outline-gray-2 bg-surface-base flex items-center justify-between">
@@ -227,7 +227,8 @@ const extensions = computed(() => [
 
 async function loadApps() {
   try {
-    apps.value = await workspaceApi.apps()
+    const res = await workspaceApi.apps()
+    apps.value = res.apps || []
   } catch (e) {
     toast.error('Could not load apps list.')
   }
