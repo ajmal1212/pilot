@@ -48,6 +48,7 @@ def register_blueprints(app: Flask) -> None:
     from admin.backend.api.v1.tasks import task_worker_bp, tasks_bp
     from admin.backend.api.v1.updates import updates_bp
     from admin.backend.api.v1.workspace import workspace_bp
+    from admin.backend.api.v1.terminal import terminal_bp
 
     app.register_blueprint(core_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(setup_bp, url_prefix=f"{API_V1_PREFIX}/setup")
@@ -70,6 +71,7 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(ssh_keys_bp, url_prefix=f"{API_V1_PREFIX}/ssh-keys")
     app.register_blueprint(stats_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(workspace_bp, url_prefix=f"{API_V1_PREFIX}/workspace")
+    app.register_blueprint(terminal_bp, url_prefix=f"{API_V1_PREFIX}/terminal")
 
 
 def register_frontend(app: Flask) -> None:
