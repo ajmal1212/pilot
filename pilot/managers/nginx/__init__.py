@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
-from pilot.exceptions import CommandError, ConfigError
+from pilot.exceptions import CommandError
 from pilot.internal.template import Template
 from pilot.managers.gunicorn import GunicornManager
 from pilot.managers.nginx.waf_render import ModSecurityRenderer
@@ -75,11 +75,6 @@ def cert_files_exist(domain: str) -> bool:
     """Ensure a missing sudo grant does not take the whole bench to http."""
     # /etc/letsencrypt/live is root-only (0700), so stat with privilege..
     command = ["test", "-f", str(live_cert_path(domain)), "-a", "-f", str(live_key_path(domain))]
-    if not has_passwordless_sudo_for(command):
-        raise ConfigError(
-            f"Cannot check certificates for {domain}: the certbot sudoers grant is missing or "
-            "stale. Run bench setup letsencrypt as root to reinstall it."
-        )
     try:
         run_command(_privileged(command))
     except CommandError:
