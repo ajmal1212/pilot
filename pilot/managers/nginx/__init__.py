@@ -195,6 +195,21 @@ class NginxManager:
         if not self.is_installed():
             get_package_manager().install("nginx")
 
+        self.setup_sudoers()
+
+    def setup_sudoers(self):
+        """Give nginx password less sudo access to allow reloads and other actions.
+        Idempotent: same deterministic content every call."""
+        bench_user = pwd.getpwuid(self.bench.path.stat().st_uid).pw_name
+        sudoers_file = Path(f"/etc/sudoers.d/{bench_user}-pilot-nginx")
+        sudoers_content = (
+            f"{bench_user} ALL=(ALL) NOPASSWD: /usr/sbin/nginx,"
+            "/bin/systemctl reload nginx,"
+            "/bin/systemctl start nginx\n"
+        )
+        self._stage_and_copy(sudoers_content, sudoers_file)
+        run_command(_privileged(["chmod", "440", str(sudoers_file)]))
+
     def generate_config(self, ssl_ready: bool = False) -> None:
         nginx_dir = self.bench.config_path / "nginx"
         nginx_dir.mkdir(parents=True, exist_ok=True)
