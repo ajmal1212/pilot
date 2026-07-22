@@ -368,8 +368,7 @@ import {
   LoadingText,
   toast,
 } from 'frappe-ui'
-import { cloudflareApi } from '@/api/cloudflare'
-import { apiErrorMessage } from '@/api/client'
+import { cloudflareApi, apiErrorMessage } from './api'
 
 const loading = ref(true)
 const saving = ref(false)

@@ -55,6 +55,10 @@ htmlcov/
 admin/frontend/node_modules/
 admin/frontend2/node_modules/
 admin/backend/static/dist/
+
+# Bundled plugin frontends (built like admin/frontend, kept out of git)
+pilot/plugins/*/frontend/node_modules/
+pilot/plugins/*/frontend/dist/
 *.timestamp-*
 .env
 .env.local

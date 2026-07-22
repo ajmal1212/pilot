@@ -90,8 +90,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { Badge, Button, Dialog, FormControl, LoadingText, toast } from 'frappe-ui'
-import { cloudflareApi } from '@/api/cloudflare'
-import { apiErrorMessage } from '@/api/client'
+import { cloudflareApi, apiErrorMessage } from './api'
 
 const props = defineProps({ siteName: { type: String, required: true } })
 
