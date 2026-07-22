@@ -6,6 +6,9 @@ import App from './App.vue'
 import { router } from './router.js'
 import { initializePlugins } from './plugins'
 
+// Loads plugin frontends asynchronously; they register into the reactive
+// pluginRegistry, so UI that depends on it (e.g. SettingsDialog) updates on
+// its own once a plugin finishes loading - nothing here needs to await it.
 initializePlugins()
 
 const app = createApp(App)

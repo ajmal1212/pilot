@@ -22,6 +22,15 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       sourcemap: mode === 'development',
       minify: mode !== 'development',
+      rollupOptions: {
+        // Real vue/frappe-ui code lives in exactly one place: the
+        // separately-built plugin-runtime/vendor.js (see
+        // vite.vendor.config.js and package.json's build script). Core's
+        // own app code resolves them at runtime through the import map in
+        // index.html instead of bundling its own copy, so core and every
+        // plugin share one literal Vue instance.
+        external: ['vue', 'vue-router', 'frappe-ui'],
+      },
     },
     resolve: {
       alias: {

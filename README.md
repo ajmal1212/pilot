@@ -147,6 +147,7 @@ See [Admin UI](docs/admin-ui.md) and [Admin API](docs/admin-api.md).
 - [Admin UI](docs/admin-ui.md)
 - [Production](docs/production.md)
 - [Domain Provider](docs/domain-provider.md)
+- [Plugin Frontend](docs/plugin-frontend.md)
 
 ## Development
 

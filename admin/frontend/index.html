@@ -7,8 +7,25 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no"
     />
     <title>Pilot</title>
-  </head>
-  <body class="h-full">
+    <!--
+      Lets a plugin's independently-built frontend bundle `import "vue"` /
+      `import "frappe-ui"` and resolve to the exact module instances core
+      uses, so plugin UI shares state/reactivity with the host app instead
+      of shipping (and paying for) its own copy. Only resolved when a
+      plugin's bundle is actually loaded - see src/plugins/index.js.
+      Only present in the production build; the Vite dev server resolves
+      these bare imports itself, so plugin frontends load against a real
+      built Admin UI, not `vite dev`.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "vue": "/plugin-runtime/vendor.js",
+          "vue-router": "/plugin-runtime/vendor.js",
+          "frappe-ui": "/plugin-runtime/vendor.js"
+        }
+      }
+    </script>
     <div id="app" class="h-full bg-surface-elevation-1"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

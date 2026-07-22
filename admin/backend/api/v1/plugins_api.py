@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_from_directory
 
 from admin.backend.api.responses import error_response
 from admin.backend.middleware import rate_limit
@@ -21,6 +21,29 @@ plugins_api_bp = Blueprint("plugins_api", __name__)
 def list_plugins():
     plugins = PluginManager.list_plugin_info()
     return jsonify({"plugins": plugins})
+
+
+@plugins_api_bp.get("/<name>/assets/<path:filename>")
+def get_plugin_asset(name: str, filename: str):
+    """Serve a plugin's built frontend bundle (see docs/plugin-frontend.md).
+
+    Backs the dynamic import() the Admin UI uses to load a plugin's
+    Settings UI at runtime, for both bundled and installed plugins.
+    """
+    try:
+        validate_plugin_name(name)
+    except PluginValidationError as e:
+        return error_response("invalid_plugin", str(e), 400)
+
+    plugin_dir = PluginManager.plugin_dir(name)
+    if plugin_dir is None:
+        return error_response("not_found", f"Plugin '{name}' was not found.", 404)
+
+    dist_dir = plugin_dir / "frontend" / "dist"
+    if not dist_dir.is_dir():
+        return error_response("not_found", f"Plugin '{name}' has no frontend assets.", 404)
+
+    return send_from_directory(dist_dir, filename)
 
 
 @plugins_api_bp.post("/install")

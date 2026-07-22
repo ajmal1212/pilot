@@ -144,6 +144,70 @@ def test_uninstall_unknown_installed_plugin_is_not_found(tmp_path: Path) -> None
     assert response.get_json()["error"]["code"] == "not_found"
 
 
+def test_get_plugin_asset_serves_a_bundled_plugin_bundle(tmp_path: Path) -> None:
+    bench_root = tmp_path / "benches" / "current"
+    bench_root.mkdir(parents=True)
+    client = _client(bench_root)
+
+    with _bundled_plugin(tmp_path) as slug:
+        dist_dir = tmp_path / "bundled" / slug / "frontend" / "dist"
+        dist_dir.mkdir(parents=True)
+        (dist_dir / "index.js").write_text("export function init() {}")
+
+        response = client.get(f"/api/v1/plugins/{slug}/assets/index.js")
+
+    assert response.status_code == 200
+    assert b"export function init" in response.data
+
+
+def test_get_plugin_asset_rejects_invalid_name(tmp_path: Path) -> None:
+    bench_root = tmp_path / "benches" / "current"
+    bench_root.mkdir(parents=True)
+    client = _client(bench_root)
+
+    response = client.get("/api/v1/plugins/../assets/index.js")
+
+    assert response.status_code in (400, 404)
+
+
+def test_get_plugin_asset_404_when_plugin_unknown(tmp_path: Path) -> None:
+    bench_root = tmp_path / "benches" / "current"
+    bench_root.mkdir(parents=True)
+    client = _client(bench_root)
+
+    response = client.get("/api/v1/plugins/does-not-exist/assets/index.js")
+
+    assert response.status_code == 404
+
+
+def test_get_plugin_asset_404_when_no_frontend_built(tmp_path: Path) -> None:
+    bench_root = tmp_path / "benches" / "current"
+    bench_root.mkdir(parents=True)
+    client = _client(bench_root)
+
+    with _bundled_plugin(tmp_path) as slug:
+        response = client.get(f"/api/v1/plugins/{slug}/assets/index.js")
+
+    assert response.status_code == 404
+
+
+def test_get_plugin_asset_rejects_filename_traversal(tmp_path: Path) -> None:
+    bench_root = tmp_path / "benches" / "current"
+    bench_root.mkdir(parents=True)
+    client = _client(bench_root)
+    secret = tmp_path / "secret.txt"
+    secret.write_text("do-not-serve-me")
+
+    with _bundled_plugin(tmp_path) as slug:
+        dist_dir = tmp_path / "bundled" / slug / "frontend" / "dist"
+        dist_dir.mkdir(parents=True)
+        (dist_dir / "index.js").write_text("export function init() {}")
+
+        response = client.get(f"/api/v1/plugins/{slug}/assets/../../../../secret.txt")
+
+    assert response.status_code == 404
+
+
 def test_uninstall_removes_an_installed_plugin(tmp_path: Path) -> None:
     bench_root = tmp_path / "benches" / "current"
     bench_root.mkdir(parents=True)

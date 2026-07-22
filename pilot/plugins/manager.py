@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Type
 
 from pilot.plugins.base import BasePilotPlugin
+from pilot.plugins.security import confine_to_root
 from pilot.utils import installed_plugins_dir
 
 if TYPE_CHECKING:
@@ -128,6 +129,21 @@ class PluginManager:
         return (_BUNDLED_ROOT / slug / "plugin.py").is_file()
 
     @classmethod
+    def plugin_dir(cls, slug: str) -> Path | None:
+        """Resolve `slug` to its directory, bundled or installed, or None.
+
+        Raises `PluginValidationError` (via `confine_to_root`) if `slug`
+        would escape either root, so callers don't need to validate first.
+        """
+        bundled = confine_to_root(_BUNDLED_ROOT, slug)
+        if (bundled / "plugin.py").is_file():
+            return bundled
+        installed = confine_to_root(installed_plugins_dir(), slug)
+        if (installed / "plugin.py").is_file():
+            return installed
+        return None
+
+    @classmethod
     def list_plugin_info(cls) -> List[Dict[str, Any]]:
         """Returns metadata for all discovered plugin directories."""
         cls.load_plugins()
@@ -152,6 +168,7 @@ class PluginManager:
             "repo": repo_url,
             "branch": branch,
             "path": str(item),
+            "has_frontend": (item / "frontend" / "dist" / "index.js").is_file(),
         }
 
 
