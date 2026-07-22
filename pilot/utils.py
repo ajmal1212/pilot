@@ -70,6 +70,16 @@ def benches_dir() -> Path:
     return cli_root() / "benches"
 
 
+def installed_plugins_dir() -> Path:
+    """Where user-installed plugins are cloned.
+
+    Kept as a sibling of `pilot/` rather than inside it, so installing or
+    removing a plugin never touches the maintainers' source tree and a
+    `pilot` upgrade never touches installed plugins.
+    """
+    return cli_root() / "plugins-data"
+
+
 @dataclass(frozen=True)
 class ArchiveLimits:
     max_members: int = 100_000

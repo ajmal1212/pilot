@@ -1,6 +1,9 @@
 # Benches (created by `bench new`)
 /benches/
 
+# Installed plugins (cloned by `bench plugins install`, kept out of core)
+/plugins-data/
+
 # Local agent scratch files
 /plan_refactor.md
 
