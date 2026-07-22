@@ -11,6 +11,11 @@ export const navigation = {
     icon: 'lucide-store',
     component: () => import('./pages/marketplace/Marketplace.vue'),
   },
+  Plugins: {
+    path: '/plugins',
+    icon: 'lucide-plug',
+    component: () => import('./pages/plugins/Plugins.vue'),
+  },
   Insights: {
     children: {
       Analytics: {
@@ -41,11 +46,6 @@ export const navigation = {
         path: '/database/sql-playground',
         icon: 'lucide-terminal',
         component: () => import('./pages/database/SQLPlayground.vue'),
-      },
-      'Code editor': {
-        path: '/dev/code-editor',
-        icon: 'lucide-code-2',
-        component: () => import('./pages/dev/CodeEditor.vue'),
       },
     },
   },

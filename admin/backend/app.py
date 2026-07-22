@@ -34,7 +34,6 @@ def create_app(bench_root: Path) -> Flask:
 def register_blueprints(app: Flask) -> None:
     from admin.backend.api.v1.apps import apps_bp, marketplace_bp
     from admin.backend.api.v1.benches import bench_readiness_bp, benches_bp
-    from admin.backend.api.v1.cloudflare import cloudflare_bp
     from admin.backend.api.v1.core import core_bp
     from admin.backend.api.v1.databases import database_bp
     from admin.backend.api.v1.git import git_bp
@@ -47,8 +46,8 @@ def register_blueprints(app: Flask) -> None:
     from admin.backend.api.v1.stats import stats_bp
     from admin.backend.api.v1.tasks import task_worker_bp, tasks_bp
     from admin.backend.api.v1.updates import updates_bp
-    from admin.backend.api.v1.workspace import workspace_bp
     from admin.backend.api.v1.terminal import terminal_bp
+    from pilot.plugins.manager import PluginManager
 
     app.register_blueprint(core_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(setup_bp, url_prefix=f"{API_V1_PREFIX}/setup")
@@ -63,15 +62,17 @@ def register_blueprints(app: Flask) -> None:
     app.register_blueprint(tasks_bp, url_prefix=f"{API_V1_PREFIX}/tasks")
     app.register_blueprint(task_worker_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(settings_bp, url_prefix=f"{API_V1_PREFIX}/settings")
-    app.register_blueprint(cloudflare_bp, url_prefix=f"{API_V1_PREFIX}/cloudflare")
     app.register_blueprint(audit_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(network_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(updates_bp, url_prefix=API_V1_PREFIX)
     app.register_blueprint(git_bp, url_prefix=f"{API_V1_PREFIX}/git")
     app.register_blueprint(ssh_keys_bp, url_prefix=f"{API_V1_PREFIX}/ssh-keys")
-    app.register_blueprint(stats_bp, url_prefix=API_V1_PREFIX)
-    app.register_blueprint(workspace_bp, url_prefix=f"{API_V1_PREFIX}/workspace")
-    app.register_blueprint(terminal_bp, url_prefix=f"{API_V1_PREFIX}/terminal")
+    from admin.backend.api.v1.plugins_api import plugins_api_bp
+
+    app.register_blueprint(plugins_api_bp, url_prefix=f"{API_V1_PREFIX}/plugins")
+
+    # Register dynamic plugin routes
+    PluginManager.register_routes(app)
 
 
 def register_frontend(app: Flask) -> None:

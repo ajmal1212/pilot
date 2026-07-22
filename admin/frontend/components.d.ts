@@ -66,6 +66,7 @@ declare module 'vue' {
     Waf: typeof import('./src/components/settings/Waf.vue')['default']
     WafAnalytics: typeof import('./src/components/common/WafAnalytics.vue')['default']
     WafCustomRules: typeof import('./src/components/settings/WafCustomRules.vue')['default']
+    WebTerminal: typeof import('./src/components/dev/WebTerminal.vue')['default']
     Workers: typeof import('./src/components/settings/Workers.vue')['default']
   }
 }

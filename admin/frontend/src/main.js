@@ -4,6 +4,9 @@ import 'frappe-ui/style.css'
 import './index.css'
 import App from './App.vue'
 import { router } from './router.js'
+import { initializePlugins } from './plugins'
+
+initializePlugins()
 
 const app = createApp(App)
 app.use(router)

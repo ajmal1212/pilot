@@ -72,7 +72,7 @@ class MariaDBManager(UserOwnedDBManager):
 
     def _initialize_data_dir(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
-        run_command(["mariadb-install-db", f"--datadir={self.data_dir}", "--skip-test-db"])
+        run_command(["mariadb-install-db", f"--datadir={self.data_dir}", "--skip-test-db"], cwd=self.data_dir)
 
     def _install_unit(self) -> None:
         mariadbd = which("mariadbd") or which("mysqld") or "/usr/sbin/mariadbd"

@@ -33,13 +33,13 @@
             <Button v-else-if="currentSection === 'ssh-keys'" variant="subtle" icon-left="lucide-plus"
               @click="sshKeysRef?.openAdd()">Add</Button>
           </div>
-          <Workers v-if="currentSection === 'workers'" ref="workersRef" />
+          <component v-if="activePluginComponent" :is="activePluginComponent" />
+          <Workers v-else-if="currentSection === 'workers'" ref="workersRef" />
           <Firewall v-else-if="currentSection === 'firewall'" />
           <Waf v-else-if="currentSection === 'waf'" />
           <Git v-else-if="currentSection === 'github'" />
           <S3Bucket v-else-if="currentSection === 's3-bucket'" />
           <SshKeys v-else-if="currentSection === 'ssh-keys'" ref="sshKeysRef" />
-          <CloudflareSettings v-else-if="currentSection === 'cloudflare'" />
           <SystemInfo v-else-if="currentSection === 'system-info'" />
         </div>
       </div>
@@ -57,26 +57,36 @@ import S3Bucket from '@/components/settings/S3Bucket.vue'
 import SshKeys from '@/components/settings/SshKeys.vue'
 import SystemInfo from '@/components/settings/SystemInfo.vue'
 import Workers from '@/components/settings/Workers.vue'
-import CloudflareSettings from '@/components/settings/CloudflareSettings.vue'
 import { useIsMobile } from '@/composables/common/useIsMobile'
+import { pluginRegistry } from '@/plugins/registry'
 
 const open = defineModel()
 
 const isMobile = useIsMobile()
 
-const sections = computed(() => [
+const baseSections = [
   { id: 'github', label: 'Git', icon: 'lucide-git-branch' },
-  { id: 'cloudflare', label: 'Cloudflare', icon: 'lucide-cloud' },
   { id: 'workers', label: 'Workers', icon: 'lucide-server-cog' },
   { id: 's3-bucket', label: 'Object Storage', icon: 'lucide-archive' },
   { id: 'firewall', label: 'Firewall', icon: 'lucide-shield' },
   { id: 'waf', label: 'WAF', icon: 'lucide-shield-alert' },
   { id: 'ssh-keys', label: 'SSH Keys', icon: 'lucide-key-round' },
   { id: 'system-info', label: 'System Info', icon: 'lucide-info' },
-])
+]
+
+const sections = computed(() => {
+  const pluginSections = pluginRegistry.getSettingsSections()
+  return [...baseSections.slice(0, 1), ...pluginSections, ...baseSections.slice(1)]
+})
+
 const activeSection = ref(null)
 const workersRef = ref(null)
 const sshKeysRef = ref(null)
 const currentSection = computed(() => activeSection.value ?? sections.value[0].id)
 const activeSectionLabel = computed(() => sections.value.find((s) => s.id === currentSection.value)?.label)
+
+const activePluginComponent = computed(() => {
+  const plugin = pluginRegistry.getSettingsSections().find((s) => s.id === currentSection.value)
+  return plugin?.component || null
+})
 </script>
