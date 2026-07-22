@@ -10,14 +10,12 @@ A plugin with a frontend adds this layout under its own directory:
 frontend/
   dist/
     index.js    required - an ES module exporting init(registry)
-    index.css   optional
 ```
 
 `PluginManager.list_plugin_info()` reports `has_frontend: true` when `frontend/dist/index.js` exists. The Admin UI's `initializePlugins()` (`admin/frontend/src/plugins/index.js`) then, once the admin session is authenticated:
 
-1. Links `index.css` if present.
-2. Dynamically imports `index.js` from `/api/v1/plugins/<slug>/assets/index.js` (served by `admin/backend/api/v1/plugins_api.py`, for both bundled and installed plugins).
-3. Calls the module's exported `init(registry)`.
+1. Dynamically imports `index.js` from `/api/v1/plugins/<slug>/assets/index.js` (served by `admin/backend/api/v1/plugins_api.py`, for both bundled and installed plugins).
+2. Calls the module's exported `init(registry)`.
 
 `init` registers UI into the same registry core sections use:
 
@@ -40,7 +38,14 @@ See `admin/frontend/src/plugins/registry.js` for the full registry API.
 
 A plugin author builds `frontend/dist/` with their own small Vite project, marking `vue`, `vue-router`, and `frappe-ui` as external so the build doesn't inline them - only resolve them as bare imports.
 
+## Don't ship your own Tailwind CSS build
+
+There is deliberately no `index.css` in the loaded contract. Style with frappe-ui components and Tailwind utility classes exactly as core does - since your component mounts into the same page, whatever core's own build already generates (which is most of the common utility vocabulary, since both use the same `frappe-ui/tailwind` preset) is already available for free, no import needed.
+
+Do **not** run your own `@tailwind utilities`/`base`/`components` build and load it as a second stylesheet. Tailwind's utility classes are global and unscoped (`.hidden`, `.sm\:flex`, etc.), and Tailwind relies on *source order within one stylesheet* to make responsive variants win over their base counterparts. A second, independently-built stylesheet loaded after core's breaks that guarantee for the *whole page*: whichever stylesheet happens to define a given class last wins the cascade, not whichever one is "correct" for the current viewport. This was tried and measured directly - a plugin's own Tailwind build made every `sm:`/`md:`/`lg:` responsive class across all of core's UI (not just the plugin's own markup) stop responding to viewport width, because the plugin's unconditional `.hidden` rule loaded after core's viewport-gated `.sm\:flex` rule.
+
+If a plugin genuinely needs bespoke visual styling frappe-ui components and Pilot's existing utility classes can't express, that needs a deliberately scoped approach (e.g. hand-written CSS under a single wrapper class unique to the plugin, never a generated utility build) - treat it as an exception to design carefully, not the default.
+
 ## Limits
 
 - This only works against a built Admin UI (`npm run build`), not `vite dev` - the dev server resolves those specifiers itself, so a plugin bundle has nothing valid to import against.
-- `index.css` should be compiled with the same `frappe-ui/tailwind` preset core uses (`admin/frontend/tailwind.config.js`) so colors and spacing match.

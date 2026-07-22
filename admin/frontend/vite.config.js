@@ -22,6 +22,13 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       sourcemap: mode === 'development',
       minify: mode !== 'development',
+      // Rolldown's CSS minifier strips @media wrappers entirely (verified
+      // pre-existing on unmodified main, unrelated to plugins) - every
+      // sm:/md:/lg: responsive utility ends up applying unconditionally,
+      // with plain cascade order deciding the outcome instead of viewport
+      // width. Keep CSS unminified until that's fixed upstream or Pilot
+      // pins a different minifier.
+      cssMinify: false,
       rollupOptions: {
         // Real vue/frappe-ui code lives in exactly one place: the
         // separately-built plugin-runtime/vendor.js (see

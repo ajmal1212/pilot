@@ -6,11 +6,19 @@ import { useSession } from '@/composables/auth/useSession'
 /**
  * Loads every installed plugin's frontend bundle at runtime and lets it
  * register into `pluginRegistry`. A plugin ships `frontend/dist/index.js`
- * (an ES module exporting `init(registry)`) and an optional
- * `frontend/dist/index.css`; both are served by the backend at
- * `/api/v1/plugins/<name>/assets/...`. `index.js` resolves `vue`/`frappe-ui`
- * through the import map in index.html, so it shares this app's exact Vue
- * instance instead of shipping its own.
+ * (an ES module exporting `init(registry)`), served by the backend at
+ * `/api/v1/plugins/<name>/assets/index.js`. It resolves `vue`/`vue-router`/
+ * `frappe-ui` through the import map in index.html, so it shares this app's
+ * exact instances instead of shipping its own.
+ *
+ * Deliberately does NOT auto-load a plugin CSS file - see
+ * docs/plugin-frontend.md. A plugin's own Tailwind build re-declares
+ * globally-scoped utility classes (e.g. `.hidden`) that core also defines;
+ * loading it after core's stylesheet flips which one wins the cascade for
+ * the *entire page*, not just the plugin's own markup. A plugin should
+ * render with frappe-ui components and Tailwind classes core's build
+ * already includes - both share the same frappe-ui/tailwind preset, so
+ * that's rarely a real limitation in practice.
  *
  * `/api/v1/plugins` requires an authenticated session, which doesn't exist
  * yet when this is called at app boot, so it waits for `session.authenticated`
@@ -49,20 +57,9 @@ async function loadAllPlugins() {
 
 async function loadPluginFrontend(name) {
   try {
-    loadPluginStylesheet(name)
     const mod = await import(/* @vite-ignore */ `/api/v1/plugins/${name}/assets/index.js`)
     await mod.init?.(pluginRegistry)
   } catch (e) {
     console.error(`Failed to load frontend for plugin "${name}"`, e)
   }
-}
-
-function loadPluginStylesheet(name) {
-  const id = `plugin-style-${name}`
-  if (document.getElementById(id)) return
-  const link = document.createElement('link')
-  link.id = id
-  link.rel = 'stylesheet'
-  link.href = `/api/v1/plugins/${name}/assets/index.css`
-  document.head.appendChild(link)
 }
