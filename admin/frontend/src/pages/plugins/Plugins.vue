@@ -14,10 +14,16 @@
         </p>
       </div>
 
-      <Button variant="solid" @click="showInstallDialog = true">
-        <template #prefix><GithubMark class="size-4" /></template>
-        Import plugin
-      </Button>
+      <div class="flex items-center gap-2 shrink-0">
+        <Button variant="subtle" @click="openScaffoldDialog">
+          <template #prefix><span class="size-4 lucide-plus" /></template>
+          New plugin
+        </Button>
+        <Button variant="solid" @click="showInstallDialog = true">
+          <template #prefix><GithubMark class="size-4" /></template>
+          Import plugin
+        </Button>
+      </div>
     </div>
 
     <!-- Filters & Search Bar -->
@@ -111,11 +117,17 @@
       <div v-else class="mt-12 text-center py-12 border border-dashed border-outline-gray-2 rounded-xl bg-surface-elevation-1">
         <span class="size-8 text-ink-gray-4 lucide-plug mx-auto mb-2" />
         <p class="text-ink-gray-7 text-sm font-medium">No plugins found</p>
-        <p class="text-ink-gray-5 text-xs mt-1">Import a plugin repository from GitHub to get started.</p>
-        <Button variant="subtle" size="sm" class="mt-4" @click="showInstallDialog = true">
-          <template #prefix><GithubMark class="size-3.5" /></template>
-          Import plugin from GitHub
-        </Button>
+        <p class="text-ink-gray-5 text-xs mt-1">Import a plugin repository from GitHub, or scaffold a new one to start developing.</p>
+        <div class="flex justify-center gap-2 mt-4">
+          <Button variant="subtle" size="sm" @click="openScaffoldDialog">
+            <template #prefix><span class="size-3.5 lucide-plus" /></template>
+            New plugin
+          </Button>
+          <Button variant="subtle" size="sm" @click="showInstallDialog = true">
+            <template #prefix><GithubMark class="size-3.5" /></template>
+            Import plugin from GitHub
+          </Button>
+        </div>
       </div>
     </template>
   </div>
@@ -161,6 +173,72 @@
       </div>
     </template>
   </Dialog>
+
+  <!-- New Plugin (scaffold) Dialog -->
+  <Dialog v-model="showScaffoldDialog" :options="{ title: 'New Plugin', size: 'md' }">
+    <template #body-content>
+      <div class="flex flex-col gap-4">
+        <p class="text-xs text-ink-gray-6">
+          Generates a working backend + frontend skeleton on disk, ready to build on. You'll edit the files
+          with your own editor - Pilot doesn't edit them for you.
+        </p>
+
+        <FormControl
+          v-model="scaffoldForm.name"
+          label="Plugin Name"
+          type="text"
+          placeholder="e.g. my-plugin"
+          description="Letters, digits, '-' or '_' only. This becomes the directory name, the API route prefix, and the plugin's identity."
+          :autofocus="true"
+        />
+        <FormControl
+          v-model="scaffoldForm.label"
+          label="Display Label (optional)"
+          type="text"
+          placeholder="e.g. My Plugin"
+        />
+
+        <p v-if="scaffoldError" class="text-xs text-red-600">{{ scaffoldError }}</p>
+      </div>
+    </template>
+    <template #actions>
+      <div class="flex justify-end gap-2 w-full">
+        <Button variant="subtle" @click="showScaffoldDialog = false">Cancel</Button>
+        <Button variant="solid" :loading="scaffolding" @click="doScaffold">Create Plugin</Button>
+      </div>
+    </template>
+  </Dialog>
+
+  <!-- Next Steps Dialog, shown once a scaffold succeeds -->
+  <Dialog v-model="showScaffoldSuccessDialog" :options="{ title: 'Plugin Created', size: 'lg' }">
+    <template #body-content>
+      <div class="flex flex-col gap-4">
+        <p class="text-ink-gray-7 text-p-base">
+          <span class="font-medium text-ink-gray-9">{{ scaffoldResult?.name }}</span> was created at:
+        </p>
+        <pre class="bg-surface-gray-2 p-3 rounded text-ink-gray-8 text-p-sm overflow-x-auto">{{ scaffoldResult?.path }}</pre>
+        <p class="text-ink-gray-7 text-p-base">Next steps, on the server Pilot is running on:</p>
+        <pre class="bg-surface-gray-2 p-3 rounded text-ink-gray-8 text-p-sm overflow-x-auto">cd {{ scaffoldResult?.path }}/frontend
+npm install
+npm run build</pre>
+        <p class="text-ink-gray-7 text-p-base">
+          Then restart Pilot (<code>bench -b &lt;name&gt; stop</code> then <code>start</code>, or
+          <code>bench -b &lt;name&gt; restart --admin</code> in production mode) - plugin backend routes
+          (like <code>GET /api/v1/{{ scaffoldResult?.name }}</code>) are registered once at startup, so a
+          freshly created plugin needs a restart before its routes exist, same as the frontend needs the
+          build above before its Settings tab exists.
+        </p>
+        <p class="text-ink-gray-5 text-p-sm">
+          See <code>docs/plugin-frontend.md</code> and the generated <code>README.md</code> for the full contract.
+        </p>
+      </div>
+    </template>
+    <template #actions>
+      <div class="flex justify-end w-full">
+        <Button variant="solid" @click="showScaffoldSuccessDialog = false">Done</Button>
+      </div>
+    </template>
+  </Dialog>
 </template>
 
 <script setup>
@@ -190,6 +268,13 @@ const installForm = ref({
   branch: 'main',
   name: '',
 })
+
+const showScaffoldDialog = ref(false)
+const showScaffoldSuccessDialog = ref(false)
+const scaffolding = ref(false)
+const scaffoldError = ref('')
+const scaffoldForm = ref({ name: '', label: '' })
+const scaffoldResult = ref(null)
 
 const updatingPlugin = ref(null)
 const uninstallingPlugin = ref(null)
@@ -247,6 +332,37 @@ async function doInstall() {
     installError.value = err.message
   } finally {
     installing.value = false
+  }
+}
+
+function openScaffoldDialog() {
+  scaffoldError.value = ''
+  scaffoldForm.value = { name: '', label: '' }
+  showScaffoldDialog.value = true
+}
+
+async function doScaffold() {
+  scaffoldError.value = ''
+  if (!scaffoldForm.value.name || !scaffoldForm.value.name.trim()) {
+    scaffoldError.value = 'Please enter a plugin name.'
+    return
+  }
+
+  scaffolding.value = true
+  try {
+    const res = await pluginsApi.scaffold(scaffoldForm.value)
+    if (res.error) {
+      scaffoldError.value = apiErrorMessage(res, 'Failed to create plugin.')
+    } else {
+      showScaffoldDialog.value = false
+      scaffoldResult.value = { name: res.name, path: res.path }
+      showScaffoldSuccessDialog.value = true
+      await loadPlugins()
+    }
+  } catch (err) {
+    scaffoldError.value = err.message
+  } finally {
+    scaffolding.value = false
   }
 }
 

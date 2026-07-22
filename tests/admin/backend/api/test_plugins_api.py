@@ -35,6 +35,80 @@ def test_list_plugins(tmp_path: Path) -> None:
     assert bundled["bundled"] is True
 
 
+def _patched_plugins_dir(plugins_root: Path):
+    return (
+        patch("admin.backend.api.v1.plugins_api.installed_plugins_dir", return_value=plugins_root),
+        patch("pilot.plugins.scaffold.installed_plugins_dir", return_value=plugins_root),
+    )
+
+
+def test_scaffold_creates_a_new_plugin(tmp_path: Path) -> None:
+    bench_root = tmp_path / "benches" / "current"
+    bench_root.mkdir(parents=True)
+    plugins_root = tmp_path / "plugins-data"
+    client = _client(bench_root)
+
+    p1, p2 = _patched_plugins_dir(plugins_root)
+    with p1, p2:
+        response = client.post("/api/v1/plugins/scaffold", json={"name": "my-plugin"})
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["success"] is True
+    assert body["name"] == "my-plugin"
+    assert (plugins_root / "my-plugin" / "plugin.py").is_file()
+    assert (plugins_root / "my-plugin" / "frontend" / "src" / "index.js").is_file()
+
+
+def test_scaffold_rejects_invalid_name(tmp_path: Path) -> None:
+    bench_root = tmp_path / "benches" / "current"
+    bench_root.mkdir(parents=True)
+    client = _client(bench_root)
+
+    response = client.post("/api/v1/plugins/scaffold", json={"name": "../../etc"})
+
+    assert response.status_code == 400
+    assert response.get_json()["error"]["code"] == "invalid_plugin"
+
+
+def test_scaffold_rejects_bundled_plugin_name(tmp_path: Path) -> None:
+    bench_root = tmp_path / "benches" / "current"
+    bench_root.mkdir(parents=True)
+    client = _client(bench_root)
+
+    with _bundled_plugin(tmp_path) as slug:
+        response = client.post("/api/v1/plugins/scaffold", json={"name": slug})
+
+    assert response.status_code == 409
+    assert response.get_json()["error"]["code"] == "reserved_name"
+
+
+def test_scaffold_rejects_an_existing_plugin_dir(tmp_path: Path) -> None:
+    bench_root = tmp_path / "benches" / "current"
+    bench_root.mkdir(parents=True)
+    plugins_root = tmp_path / "plugins-data"
+    (plugins_root / "my-plugin").mkdir(parents=True)
+    client = _client(bench_root)
+
+    p1, p2 = _patched_plugins_dir(plugins_root)
+    with p1, p2:
+        response = client.post("/api/v1/plugins/scaffold", json={"name": "my-plugin"})
+
+    assert response.status_code == 409
+    assert response.get_json()["error"]["code"] == "already_exists"
+
+
+def test_scaffold_missing_name_is_rejected(tmp_path: Path) -> None:
+    bench_root = tmp_path / "benches" / "current"
+    bench_root.mkdir(parents=True)
+    client = _client(bench_root)
+
+    response = client.post("/api/v1/plugins/scaffold", json={})
+
+    assert response.status_code == 400
+    assert response.get_json()["error"]["code"] == "missing_name"
+
+
 def test_install_rejects_invalid_plugin_name(tmp_path: Path) -> None:
     bench_root = tmp_path / "benches" / "current"
     bench_root.mkdir(parents=True)

@@ -11,6 +11,7 @@ from pilot.core.bench import Bench
 from pilot.core.bench.audit_log import AuditLog
 from pilot.plugins import git_ops
 from pilot.plugins.manager import PluginManager
+from pilot.plugins.scaffold import scaffold_plugin
 from pilot.plugins.security import PluginValidationError, confine_to_root, validate_plugin_name, validate_repo_url
 from pilot.utils import installed_plugins_dir
 
@@ -44,6 +45,36 @@ def get_plugin_asset(name: str, filename: str):
         return error_response("not_found", f"Plugin '{name}' has no frontend assets.", 404)
 
     return send_from_directory(dist_dir, filename)
+
+
+@plugins_api_bp.post("/scaffold")
+@rate_limit(5, 60)
+def scaffold_new_plugin():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    label = (data.get("label") or "").strip()
+
+    if not name:
+        return error_response("missing_name", "Plugin name is required.", 400)
+
+    try:
+        validate_plugin_name(name)
+    except PluginValidationError as e:
+        return error_response("invalid_plugin", str(e), 400)
+
+    if PluginManager.is_bundled(name):
+        return error_response("reserved_name", f"'{name}' is a bundled plugin name and cannot be reused.", 409)
+
+    if confine_to_root(installed_plugins_dir(), name).exists():
+        return error_response("already_exists", f"A plugin directory already exists for '{name}'.", 409)
+
+    try:
+        plugin_dir = scaffold_plugin(name, label=label or None)
+    except PluginValidationError as e:
+        return error_response("invalid_plugin", str(e), 400)
+
+    _audit("scaffold", name)
+    return jsonify({"success": True, "name": name, "path": str(plugin_dir)})
 
 
 @plugins_api_bp.post("/install")
