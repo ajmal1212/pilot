@@ -30,9 +30,12 @@
           <span><strong>Tunnel Connected!</strong> Your site is being exposed at <strong>https://{{ statusData.domain }}</strong></span>
         </div>
 
-        <div class="flex items-center gap-2 mt-2">
+        <div v-if="!statusData.token_configured" class="text-xs text-ink-gray-5 bg-surface-elevation-2 p-3 rounded-lg border border-outline-gray-2">
+          No tunnel token configured for this bench yet. Please complete the <strong>Tunnel Setup</strong> section below to provision or save your tunnel details.
+        </div>
+
+        <div v-else class="flex items-center gap-2 mt-2">
           <Button
-            v-if="statusData.token_configured"
             variant="solid"
             :loading="actionLoading"
             @click="toggleTunnel"
@@ -50,6 +53,72 @@
           </Button>
         </div>
       </div>
+
+      <!-- SSH Access Card -->
+      <div v-if="statusData.enabled" class="bg-surface-elevation-1 p-5 border rounded-xl border-outline-gray-2 flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-0.5">
+            <h2 class="font-semibold text-ink-gray-9 text-base">SSH Access</h2>
+            <p class="text-ink-gray-5 text-xs">Expose host SSH service securely via Cloudflare Tunnel.</p>
+          </div>
+          <Badge
+            :label="sshData.enabled ? 'Enabled' : 'Disabled'"
+            :theme="sshData.enabled ? 'green' : 'gray'"
+            variant="subtle"
+            size="md"
+          />
+        </div>
+
+        <div v-if="sshData.enabled && !isEditingSsh" class="text-sm border-t border-b border-outline-gray-2 py-3 flex flex-col gap-2">
+          <div class="flex justify-between">
+            <span class="text-ink-gray-5">SSH Hostname</span>
+            <span class="font-medium text-ink-gray-9">{{ sshData.hostname }}</span>
+          </div>
+        </div>
+
+        <div class="flex items-end gap-3" v-if="isEditingSsh || !sshData.enabled">
+          <TextInput
+            label="SSH Hostname"
+            placeholder="ssh.example.com"
+            v-model="sshForm.hostname"
+            class="flex-1"
+            @keyup.enter="saveSshSettings"
+          />
+          <Button
+            variant="solid"
+            :loading="sshSaving"
+            :disabled="!sshForm.hostname"
+            @click="saveSshSettings"
+          >
+            Save & Enable SSH
+          </Button>
+          <Button
+            v-if="sshData.enabled"
+            variant="subtle"
+            @click="isEditingSsh = false"
+          >
+            Cancel
+          </Button>
+        </div>
+
+        <div class="flex items-center gap-2" v-else>
+          <Button
+            variant="subtle"
+            @click="isEditingSsh = true"
+          >
+            Change Hostname
+          </Button>
+          <Button
+            variant="subtle"
+            theme="red"
+            :loading="sshSaving"
+            @click="disableSshSettings"
+          >
+            Disable SSH
+          </Button>
+        </div>
+      </div>
+
 
       <!-- Configurations Section -->
       <div class="bg-surface-elevation-1 p-5 border rounded-xl border-outline-gray-2 flex flex-col gap-6">
@@ -343,6 +412,16 @@ const createForm = ref({
   subdomain: '',
 })
 
+const sshData = ref({
+  enabled: false,
+  hostname: '',
+})
+const sshForm = ref({
+  hostname: '',
+})
+const sshSaving = ref(false)
+const isEditingSsh = ref(false)
+
 const isEditingExisting = ref(false)
 
 function cancelEditingExisting() {
@@ -439,6 +518,9 @@ async function fetchStatus() {
       if (res.cert_configured && !res.token_configured) {
         setupType.value = 'sso'
         createForm.value.domain = (res.domain && !res.domain.includes('dpdns.org')) ? res.domain : ''
+      }
+      if (res.enabled) {
+        await fetchSshStatus()
       }
     }
   } catch (err) {
@@ -621,6 +703,57 @@ async function triggerAction(actionName) {
     toast.error(err.message)
   } finally {
     actionLoading.value = false
+  }
+}
+
+async function fetchSshStatus() {
+  try {
+    const res = await cloudflareApi.getSsh()
+    if (!res.error) {
+      sshData.value = res
+      sshForm.value.hostname = res.hostname
+    }
+  } catch (err) {
+    console.error('Failed to fetch SSH status:', err)
+  }
+}
+
+async function saveSshSettings() {
+  sshSaving.value = true
+  try {
+    const res = await cloudflareApi.configureSsh(true, sshForm.value.hostname)
+    if (res.error) {
+      toast.error(apiErrorMessage(res, 'Failed to enable SSH.'))
+    } else {
+      toast.success('SSH access configured and service restarted!')
+      isEditingSsh.value = false
+      await fetchSshStatus()
+    }
+  } catch (err) {
+    toast.error(err.message)
+  } finally {
+    sshSaving.value = false
+  }
+}
+
+async function disableSshSettings() {
+  if (!confirm('Are you sure you want to disable SSH access? This will remove the routing from configuration and restart the tunnel.')) {
+    return
+  }
+  sshSaving.value = true
+  try {
+    const res = await cloudflareApi.configureSsh(false, '')
+    if (res.error) {
+      toast.error(apiErrorMessage(res, 'Failed to disable SSH.'))
+    } else {
+      toast.success('SSH access disabled and service restarted!')
+      isEditingSsh.value = false
+      await fetchSshStatus()
+    }
+  } catch (err) {
+    toast.error(err.message)
+  } finally {
+    sshSaving.value = false
   }
 }
 

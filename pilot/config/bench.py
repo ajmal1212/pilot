@@ -12,8 +12,8 @@ from typing import Any, ClassVar
 from pilot.config.admin import AdminConfig
 from pilot.config.app import AppConfig
 from pilot.config.central import CentralConfig
-from pilot.config.cloudflare import CloudflareConfig
 from pilot.config.firewall import FirewallConfig, FirewallRule
+from pilot.plugins.cloudflare.config import CloudflareConfig
 from pilot.config.gunicorn import GunicornConfig
 from pilot.config.letsencrypt import LetsEncryptConfig
 from pilot.config.mariadb import MariaDBConfig

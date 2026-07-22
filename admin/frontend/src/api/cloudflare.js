@@ -13,4 +13,6 @@ export const cloudflareApi = {
   getLoginStatus: () => request.get('cloudflare/login/status').json(),
   cancelLogin: () => request.post('cloudflare/login/cancel').json(),
   disconnectLogin: () => request.post('cloudflare/login/disconnect').json(),
+  getSsh: () => request.get('cloudflare/ssh').json(),
+  configureSsh: (enable, hostname) => request.post('cloudflare/ssh', { json: { enable, hostname } }).json(),
 }
