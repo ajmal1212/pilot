@@ -32,7 +32,6 @@ export default defineConfig({
       external: ['vue', 'vue-router', 'frappe-ui'],
       output: {
         inlineDynamicImports: true,
-        assetFileNames: 'index.[ext]',
       },
     },
   },

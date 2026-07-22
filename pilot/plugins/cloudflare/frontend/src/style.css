@@ -1,4 +1,0 @@
-/* Only utilities - core already loads Tailwind's base reset and frappe-ui's
-   own component styles once; a plugin only needs the utility classes its
-   own templates reference. */
-@tailwind utilities;

@@ -1,4 +1,3 @@
-import './style.css'
 import CloudflareSettings from './CloudflareSettings.vue'
 import Tunnel from './Tunnel.vue'
 
